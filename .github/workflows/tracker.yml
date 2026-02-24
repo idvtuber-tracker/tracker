@@ -15,8 +15,8 @@ jobs:
       CHANNEL_IDS:        ${{ secrets.CHANNEL_IDS }}
       AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
       CSV_OUTPUT_PATH:    analytics.csv
-      POLL_INTERVAL_SEC:  "60"
-      STREAM_POLL_SEC:    "30"
+      POLL_INTERVAL_SEC:  "900"
+      STREAM_POLL_SEC:    "60"
       MAX_HISTORY_POINTS: "60"
       PYTHONUTF8:         "1"
       PYTHONIOENCODING:   "utf-8"
