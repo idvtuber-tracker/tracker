@@ -71,25 +71,35 @@ def init_db(conn) -> None:
     with conn.cursor() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS livestream_analytics (
-                id              SERIAL PRIMARY KEY,
-                collected_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                channel_id      TEXT NOT NULL,
-                channel_name    TEXT,
-                video_id        TEXT NOT NULL,
-                video_title     TEXT,
+                id                 SERIAL PRIMARY KEY,
+                collected_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                channel_id         TEXT NOT NULL,
+                channel_name       TEXT,
+                video_id           TEXT NOT NULL,
+                video_title        TEXT,
                 concurrent_viewers BIGINT,
-                like_count      BIGINT,
-                comment_count   BIGINT,
-                stream_status   TEXT,
-                scheduled_start TIMESTAMPTZ,
-                actual_start    TIMESTAMPTZ
+                like_count         BIGINT,
+                comment_count      BIGINT,
+                stream_status      TEXT,
+                scheduled_start    TIMESTAMPTZ,
+                actual_start       TIMESTAMPTZ
             );
-            CREATE INDEX IF NOT EXISTS idx_la_video_id      ON livestream_analytics(video_id);
-            CREATE INDEX IF NOT EXISTS idx_la_collected_at  ON livestream_analytics(collected_at);
         """)
         conn.commit()
-    log.info("Database initialised.")
 
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_la_video_id
+                ON livestream_analytics(video_id);
+        """)
+        conn.commit()
+
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_la_collected_at
+                ON livestream_analytics(collected_at);
+        """)
+        conn.commit()
+
+    log.info("Database initialised.")
 
 def save_to_db(conn, row: dict) -> None:
     sql = """
