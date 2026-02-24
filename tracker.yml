@@ -1,0 +1,49 @@
+name: YouTube Livestream Tracker
+
+on:
+  # Run on a schedule – every 5 minutes (GitHub Actions minimum).
+  # The tracker itself polls more frequently via its internal loop.
+  schedule:
+    - cron: "*/5 * * * *"
+
+  # Allow manual runs from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4          # stay safely under the 5-min cron window
+
+    env:
+      YOUTUBE_API_KEY:    ${{ secrets.YOUTUBE_API_KEY }}
+      CHANNEL_IDS:        ${{ secrets.CHANNEL_IDS }}         # comma-separated
+      AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}  # postgres DSN
+      CSV_OUTPUT_PATH:    analytics.csv
+      POLL_INTERVAL_SEC:  "240"   # scan for new streams every 4 min
+      STREAM_POLL_SEC:    "60"    # collect analytics every 60 s
+      MAX_HISTORY_POINTS: "60"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tracker
+        run: python tracker.py
+
+      # Persist the CSV across workflow runs as an artifact (7-day retention)
+      - name: Upload CSV artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analytics-${{ github.run_id }}
+          path: analytics.csv
+          retention-days: 7

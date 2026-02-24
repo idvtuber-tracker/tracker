@@ -1,0 +1,5 @@
+google-api-python-client==2.131.0
+psycopg2-binary==2.9.9
+rich==13.7.1
+plotext==5.2.8
+requests==2.32.3
