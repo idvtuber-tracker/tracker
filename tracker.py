@@ -2,6 +2,12 @@
 YouTube Livestream Analytics Tracker
 Monitors specified channels for live streams and collects real-time analytics.
 """
+import sys
+import io
+
+# Force UTF-8 output on Windows to support emoji and special characters
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 import os
 import time
