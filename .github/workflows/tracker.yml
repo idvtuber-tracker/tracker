@@ -11,7 +11,8 @@ on:
 
 jobs:
   track:
-    runs-on: ubuntu-latest
+#    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 4          # stay safely under the 5-min cron window
 
     env:
