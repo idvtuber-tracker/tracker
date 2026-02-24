@@ -23,6 +23,8 @@ jobs:
       POLL_INTERVAL_SEC:  "240"   # scan for new streams every 4 min
       STREAM_POLL_SEC:    "60"    # collect analytics every 60 s
       MAX_HISTORY_POINTS: "60"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
 
     steps:
       - name: Checkout repository
