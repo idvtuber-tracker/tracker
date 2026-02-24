@@ -68,6 +68,7 @@ def get_db_connection() -> Optional[psycopg2.extensions.connection]:
 
 
 def init_db(conn) -> None:
+    conn.autocommit = True          # each statement commits immediately
     with conn.cursor() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS livestream_analytics (
@@ -83,24 +84,19 @@ def init_db(conn) -> None:
                 stream_status      TEXT,
                 scheduled_start    TIMESTAMPTZ,
                 actual_start       TIMESTAMPTZ
-            );
+            )
         """)
-        conn.commit()
-
         cur.execute("""
             CREATE INDEX IF NOT EXISTS idx_la_video_id
-                ON livestream_analytics(video_id);
+                ON livestream_analytics(video_id)
         """)
-        conn.commit()
-
         cur.execute("""
             CREATE INDEX IF NOT EXISTS idx_la_collected_at
-                ON livestream_analytics(collected_at);
+                ON livestream_analytics(collected_at)
         """)
-        conn.commit()
-
+    conn.autocommit = False         # restore default for the rest of the app
     log.info("Database initialised.")
-
+    
 def save_to_db(conn, row: dict) -> None:
     sql = """
         INSERT INTO livestream_analytics
