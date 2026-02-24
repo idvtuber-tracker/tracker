@@ -144,27 +144,54 @@ def save_to_csv(row: dict) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def find_live_videos(channel_id: str) -> list[dict]:
-    """Return list of live/upcoming video stubs for a channel."""
+    """
+    Use activities.list (1 unit) instead of search.list (100 units)
+    to detect live streams on a channel.
+    """
     results = []
-    for event_type in ("live", "upcoming"):
-        try:
-            resp = youtube.search().list(
-                part="id,snippet",
-                channelId=channel_id,
-                eventType=event_type,
-                type="video",
-                maxResults=5,
+    try:
+        resp = youtube.activities().list(
+            part="snippet,contentDetails",
+            channelId=channel_id,
+            maxResults=10,
+        ).execute()
+
+        for item in resp.get("items", []):
+            details = item.get("contentDetails", {})
+
+            # activities feed includes uploads; we then check if it's live
+            upload = details.get("upload", {})
+            video_id = upload.get("videoId")
+            if not video_id:
+                continue
+
+            # cheap videos.list call (1 unit) to confirm it's live
+            video_resp = youtube.videos().list(
+                part="snippet,liveStreamingDetails",
+                id=video_id,
             ).execute()
-            for item in resp.get("items", []):
-                results.append({
-                    "video_id":     item["id"]["videoId"],
-                    "channel_id":   channel_id,
-                    "channel_name": item["snippet"]["channelTitle"],
-                    "video_title":  item["snippet"]["title"],
-                    "stream_status": event_type,
-                })
-        except HttpError as e:
-            log.error("search API error for %s: %s", channel_id, e)
+            video_items = video_resp.get("items", [])
+            if not video_items:
+                continue
+
+            snippet     = video_items[0].get("snippet", {})
+            live_detail = video_items[0].get("liveStreamingDetails", {})
+
+            broadcast_status = snippet.get("liveBroadcastContent")  # "live" | "upcoming" | "none"
+            if broadcast_status not in ("live", "upcoming"):
+                continue
+
+            results.append({
+                "video_id":      video_id,
+                "channel_id":    channel_id,
+                "channel_name":  snippet.get("channelTitle", ""),
+                "video_title":   snippet.get("title", ""),
+                "stream_status": broadcast_status,
+            })
+
+    except HttpError as e:
+        log.error("activities API error for %s: %s", channel_id, e)
+
     return results
 
 
@@ -350,8 +377,9 @@ def run() -> None:
         # ── analytics collection ───────────────────────────────────────────────
         active_streams: list[dict] = list(known_streams.values())
         for stream in active_streams:
-            collect_and_store(stream, conn)
-
+            if stream["stream_status"] == "live":      # skip "upcoming" streams
+                collect_and_store(stream, conn)
+        
         # ── console dashboard ──────────────────────────────────────────────────
         console.print(build_summary_table(active_streams))
 
