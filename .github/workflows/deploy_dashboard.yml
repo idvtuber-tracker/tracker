@@ -30,9 +30,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          repository: idvtuber-tracker/tracker
-          token: ${{ secrets.GH_PAT }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -54,6 +51,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          repository: idvtuber-tracker/tracker
-          token: ${{ secrets.GH_PAT }}
