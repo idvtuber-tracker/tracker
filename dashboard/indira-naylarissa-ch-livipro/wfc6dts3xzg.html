@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puasa Day 7 w/ Indira — Stream Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #13131a;
+    --border:  #1e1e2e;
+    --accent:  #e8ff47;
+    --muted:   #5a5a7a;
+    --text:    #e2e2f0;
+    --red:     #ff4f6d;
+    --blue:    #4fc3f7;
+    --green:   #47ffb2;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh; padding: 3rem 2rem;
+  }
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+  .back {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--muted); text-decoration: none; margin-bottom: 2.5rem;
+    transition: color 0.2s;
+  }
+  .back:hover { color: var(--accent); }
+  .eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; }
+  h1 { font-family: 'Fraunces', serif; font-size: clamp(1.8rem, 4vw, 3.5rem); font-weight: 700; line-height: 1.1; color: #fff; margin-bottom: 0.5rem; }
+  .channel-tag { font-size: 0.75rem; color: var(--muted); margin-bottom: 2.5rem; }
+  .channel-tag span { color: var(--text); }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.25rem; position: relative; overflow: hidden;
+  }
+  .kpi::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent);
+  }
+  .kpi-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.5rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .kpi-sub { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
+
+  .chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
+  }
+  .chart-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 1.25rem; }
+  .chart-wrap { position: relative; height: 280px; }
+
+  .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-bottom: 3rem; }
+  .data-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted); font-weight: 500; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(30,30,46,0.5); color: var(--text); }
+  .data-table tr:hover td { background: var(--surface); }
+  .data-table .num { text-align: right; color: var(--accent); font-weight: 500; }
+  .data-table .ts { color: var(--muted); }
+  .pill {
+    display: inline-block; font-size: 0.6rem; padding: 0.15rem 0.4rem;
+    border-radius: 2px; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .pill-live { background: rgba(255,79,109,0.15); color: var(--red); border: 1px solid var(--red); }
+  .pill-upcoming { background: rgba(79,195,247,0.1); color: var(--blue); border: 1px solid var(--blue); }
+  .generated { text-align: center; color: var(--muted); font-size: 0.7rem; margin-top: 3rem; }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="wrap">
+  <a class="back" href="../index.html">&#8592; All streams</a>
+
+  <p class="eyebrow">Indira Naylarissa Ch.〔LiviPro〕</p>
+  <h1>Puasa Day 7 w/ Indira</h1>
+  <p class="channel-tag">Video ID: <span>wFc6dts3XZg</span> &nbsp;·&nbsp; 1 data points</p>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Peak Viewers</div>
+      <div class="kpi-value">195</div>
+      <div class="kpi-sub">concurrent</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Peak Likes</div>
+      <div class="kpi-value">165</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Peak Comments</div>
+      <div class="kpi-value">0</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">First Seen</div>
+      <div class="kpi-value" style="font-size:1.1rem;">2026-02-25 08:01 UTC</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Last Seen</div>
+      <div class="kpi-value" style="font-size:1.1rem;">2026-02-25 08:01 UTC</div>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Concurrent Viewers over Time</div>
+    <div class="chart-wrap">
+      <canvas id="viewerChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Likes &amp; Comments over Time</div>
+    <div class="chart-wrap">
+      <canvas id="engagementChart"></canvas>
+    </div>
+  </div>
+
+  <p class="section-title">All collected data points</p>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Collected At</th>
+        <th>Status</th>
+        <th style="text-align:right">Viewers</th>
+        <th style="text-align:right">Likes</th>
+        <th style="text-align:right">Comments</th>
+        <th>Stream Start</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        <tr>
+          <td class="ts">2026-02-25 08:01 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">195</td>
+          <td class="num">165</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 06:19 UTC</td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p class="generated">Generated 2026-02-25 10:11 UTC &nbsp;·&nbsp; yt-livestream-tracker</p>
+</div>
+
+<script>
+const ts     = ["2026-02-25 08:01 UTC"];
+const views  = [195];
+const likes  = [165];
+const comms  = [0];
+
+const gridColor  = 'rgba(30,30,46,0.8)';
+const tickColor  = '#5a5a7a';
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  interaction: { mode: 'index', intersect: false },
+  plugins: { legend: { labels: { color: tickColor, font: { family: 'DM Mono', size: 11 }, boxWidth: 12 } } },
+  scales: {
+    x: { ticks: { color: tickColor, font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 10, maxRotation: 0 }, grid: { color: gridColor } },
+    y: { ticks: { color: tickColor, font: { family: 'DM Mono', size: 10 } }, grid: { color: gridColor } }
+  }
+};
+
+new Chart(document.getElementById('viewerChart'), {
+  type: 'line',
+  data: {
+    labels: ts,
+    datasets: [{
+      label: 'Concurrent Viewers',
+      data: views,
+      borderColor: '#e8ff47',
+      backgroundColor: 'rgba(232,255,71,0.07)',
+      borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3
+    }]
+  },
+  options: { ...baseOpts }
+});
+
+new Chart(document.getElementById('engagementChart'), {
+  type: 'line',
+  data: {
+    labels: ts,
+    datasets: [
+      {
+        label: 'Likes',
+        data: likes,
+        borderColor: '#ff4f6d',
+        backgroundColor: 'rgba(255,79,109,0.05)',
+        borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3
+      },
+      {
+        label: 'Comments',
+        data: comms,
+        borderColor: '#4fc3f7',
+        backgroundColor: 'rgba(79,195,247,0.05)',
+        borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3
+      }
+    ]
+  },
+  options: { ...baseOpts }
+});
+</script>
+</body>
+</html>

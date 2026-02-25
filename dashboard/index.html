@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream Analytics — Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #13131a;
+    --border:  #1e1e2e;
+    --accent:  #e8ff47;
+    --muted:   #5a5a7a;
+    --text:    #e2e2f0;
+    --red:     #ff4f6d;
+    --blue:    #4fc3f7;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding: 3rem 2rem;
+  }
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+  header { margin-bottom: 4rem; }
+  .eyebrow {
+    font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 0.75rem;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 700; line-height: 1;
+    color: #fff;
+  }
+  h1 span { color: var(--accent); font-style: italic; }
+  .meta { color: var(--muted); font-size: 0.75rem; margin-top: 1rem; }
+
+  .channel-block { margin-bottom: 4rem; }
+  .channel-header {
+    display: flex; align-items: baseline; gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem; margin-bottom: 1.5rem;
+  }
+  .channel-name {
+    font-family: 'Fraunces', serif; font-size: 1.5rem; color: #fff;
+  }
+  .channel-id { font-size: 0.7rem; color: var(--muted); }
+
+  .streams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+  .stream-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.25rem;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .stream-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent); transform: scaleX(0); transform-origin: left;
+    transition: transform 0.3s;
+  }
+  .stream-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .stream-card:hover::before { transform: scaleX(1); }
+  .card-status {
+    display: inline-block;
+    font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 0.2rem 0.5rem; border-radius: 2px;
+    margin-bottom: 0.75rem;
+  }
+  .status-live { background: rgba(255,79,109,0.15); color: var(--red); border: 1px solid var(--red); }
+  .status-upcoming { background: rgba(79,195,247,0.1); color: var(--blue); border: 1px solid var(--blue); }
+  .status-vod { background: rgba(90,90,122,0.2); color: var(--muted); border: 1px solid var(--muted); }
+  .card-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1rem; font-weight: 700;
+    color: #fff; margin-bottom: 1rem;
+    line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+  .stat-item { }
+  .stat-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-value { font-size: 0.95rem; color: var(--accent); font-weight: 500; }
+  .card-date { font-size: 0.65rem; color: var(--muted); margin-top: 1rem; }
+  .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
+  .generated { text-align: center; color: var(--muted); font-size: 0.7rem; margin-top: 5rem; }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">YouTube Analytics Dashboard</p>
+    <h1>Stream <span>Overview</span></h1>
+    <p class="meta">Generated: 2026-02-25 10:11 UTC &nbsp;·&nbsp; 2 streams across 3 channels</p>
+  </header>
+  <div class="channel-block">
+  <div class="channel-header">
+    <span class="channel-name">Indira Naylarissa Ch.〔LiviPro〕</span>
+    <span class="channel-id">UCEHyd8YswGDJUCuoviDCBdg</span>
+  </div>
+  <div class="streams-grid">
+    <a class="stream-card" href="indira-naylarissa-ch-livipro/wfc6dts3xzg.html">
+  <span class="card-status status-live">Live</span>
+  <p class="card-title">Puasa Day 7 w/ Indira</p>
+  <div class="card-stats">
+    <div class="stat-item">
+      <div class="stat-label">Peak Viewers</div>
+      <div class="stat-value">195</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Peak Likes</div>
+      <div class="stat-value">165</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Comments</div>
+      <div class="stat-value">0</div>
+    </div>
+  </div>
+  <p class="card-date">2026-02-25 08:01 UTC</p>
+</a>
+
+  </div>
+</div>
+<div class="channel-block">
+  <div class="channel-header">
+    <span class="channel-name">Lillis Infernallies Ch.〔LiviPro〕</span>
+    <span class="channel-id">UCiK5wbKGPm2pOShI2gQ7ttQ</span>
+  </div>
+  <div class="streams-grid">
+    <p class="empty">No streams recorded yet.</p>
+  </div>
+</div>
+<div class="channel-block">
+  <div class="channel-header">
+    <span class="channel-name">Yuura Yozakura Ch.〔LiviPro〕</span>
+    <span class="channel-id">UCrmtSeYObZJNG6OIC7Pw-_A</span>
+  </div>
+  <div class="streams-grid">
+    <a class="stream-card" href="yuura-yozakura-ch-livipro/yojuf8lyesa.html">
+  <span class="card-status status-live">Live</span>
+  <p class="card-title">〔Talkjil S4 EP6〕with ‪‪@Arjuna.Arkana @sayaayaaulya</p>
+  <div class="card-stats">
+    <div class="stat-item">
+      <div class="stat-label">Peak Viewers</div>
+      <div class="stat-value">276</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Peak Likes</div>
+      <div class="stat-value">299</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Comments</div>
+      <div class="stat-value">0</div>
+    </div>
+  </div>
+  <p class="card-date">2026-02-25 09:25 UTC</p>
+</a>
+
+  </div>
+</div>
+
+  <p class="generated">Auto-generated by yt-livestream-tracker</p>
+</div>
+</body>
+</html>
