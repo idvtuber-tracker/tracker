@@ -1,7 +1,7 @@
 name: Build & Deploy Dashboard
 
 on:
-  workflow_dispatch:    # manual trigger only, as a fallback
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build-deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest        # ← must be ubuntu, not self-hosted
     environment:
       name: github-pages
       url:  ${{ steps.deployment.outputs.page_url }}
