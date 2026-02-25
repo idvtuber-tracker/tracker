@@ -26,6 +26,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          repository: idvtuber-tracker/tracker
+          token: ${{ secrets.GH_PAT }}
 
       - name: Force git remote URL with PAT
         shell: powershell
