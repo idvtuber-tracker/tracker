@@ -443,44 +443,37 @@ def run() -> None:
         time.sleep(1)
 
     while _running:
-		try:
-			if channel_poll_counter == 0:
-				discovered: dict[str, dict] = {}
-				for ch in CHANNEL_IDS:
-					for s in find_live_videos(ch):
-						vid = s["video_id"]
-						discovered[vid] = s
+        if channel_poll_counter == 0:
+            discovered: dict[str, dict] = {}
+            for ch in CHANNEL_IDS:
+                for s in find_live_videos(ch):
+                    vid = s["video_id"]
+                    discovered[vid] = s
 
-						# initialise the channel's table on first encounter
-						if conn and ch not in channel_tables:
-							channel_tables[ch] = init_channel_table(
-								conn, ch, s["channel_name"]
-							)
+                    # initialise the channel's table on first encounter
+                    if conn and ch not in channel_tables:
+                        channel_tables[ch] = init_channel_table(
+                            conn, ch, s["channel_name"]
+                        )
 
-						if vid not in known_streams:
-							console.print(
-								Panel(
-									f"[bold yellow]NEW STREAM DETECTED!\n[/]"
-									f"Channel : {s['channel_name']}\n"
-									f"Title   : {s['video_title']}\n"
-									f"Status  : {s['stream_status']}",
-									title="Event Trigger",
-									border_style="yellow",
-								)
-							)
-							log.info("New stream: %s – %s", s["channel_name"], vid)
-				for vid in list(known_streams):
-					if vid not in discovered:
-						log.info("Stream ended: %s", vid)
-				known_streams = discovered
+                    if vid not in known_streams:
+                        console.print(
+                            Panel(
+                                f"[bold yellow]NEW STREAM DETECTED!\n[/]"
+                                f"Channel : {s['channel_name']}\n"
+                                f"Title   : {s['video_title']}\n"
+                                f"Status  : {s['stream_status']}",
+                                title="Event Trigger",
+                                border_style="yellow",
+                            )
+                        )
+                        log.info("New stream: %s – %s", s["channel_name"], vid)
+            for vid in list(known_streams):
+                if vid not in discovered:
+                    log.info("Stream ended: %s", vid)
+            known_streams = discovered
 
-			channel_poll_counter = (channel_poll_counter + 1) % max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC)
-
-		except Exception as e:
-			log.error("Unexpected error in main loop: %s — continuing in %ds",
-                  e, STREAM_POLL_SEC)
-			time.sleep(STREAM_POLL_SEC)
-        continue
+        channel_poll_counter = (channel_poll_counter + 1) % max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC)
 
         active_streams: list[dict] = list(known_streams.values())
         for stream in active_streams:
