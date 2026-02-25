@@ -444,9 +444,7 @@ def collect_and_store(stream: dict, conn, table: str) -> None:
         except Exception as e:
             log.error("DB save failed: %s", e)
 
-    # Regenerate dashboard after every successful data collection
     regenerate_dashboard()
-    # deploy_dashboard()
 
 def run() -> None:
     log.info("Tracker starting. Monitoring channels: %s", CHANNEL_IDS)
@@ -508,6 +506,10 @@ def run() -> None:
             if stream["stream_status"] == "live":
                 table = channel_tables.get(stream["channel_id"])
                 collect_and_store(stream, conn, table)
+                now = datetime.now(timezone.utc)
+                if (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC:
+                    deploy_dashboard()
+                    last_deploy_time = now
             else:
                 # Ensure upcoming streams always have safe default keys
                 stream.setdefault("concurrent_viewers", 0)
@@ -531,4 +533,6 @@ def run() -> None:
     log.info("Tracker stopped.")
 
 if __name__ == "__main__":
+    last_deploy_time = datetime.now(timezone.utc)
+    DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))  # 15 min default
     run()
