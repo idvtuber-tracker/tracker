@@ -181,33 +181,18 @@ def regenerate_dashboard() -> None:
         log.error("Dashboard generation error: %s", e)
         
 def deploy_dashboard() -> None:
-    """
-    Commit and push the regenerated dashboard folder.
-    Uses GH_PAT environment variable for authentication.
-    """
     try:
-        pat          = os.environ.get("GH_PAT")
-        repo_slug    = os.environ.get("GITHUB_REPOSITORY")   # e.g. idvtuber-tracker/tracker
         dashboard_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
-
-        if not pat or not repo_slug:
-            log.error("Deploy skipped: GH_PAT or GITHUB_REPOSITORY not set.")
-            return
-
-        # Always set the authenticated remote URL before every push
-        remote_url = f"https://x-access-token:{pat}@github.com/{repo_slug}.git"
-        subprocess.run(["git", "remote", "set-url", "origin", remote_url],
-                       check=True, capture_output=True)
+        pat           = os.environ.get("GH_PAT", "")
+        repo_slug     = os.environ.get("GITHUB_REPOSITORY", "")
 
         subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"],
                        check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.name",  "Stream Tracker Bot"],
+        subprocess.run(["git", "config", "user.name", "Stream Tracker Bot"],
                        check=True, capture_output=True)
-
         subprocess.run(["git", "add", dashboard_dir],
                        check=True, capture_output=True)
 
-        # Only commit if there are actual changes
         result = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
             capture_output=True
@@ -223,12 +208,34 @@ def deploy_dashboard() -> None:
         )
         subprocess.run(["git", "push", "origin", "HEAD"],
                        check=True, capture_output=True)
-        log.info("Dashboard deployed to GitHub Pages.")
+        log.info("Dashboard pushed to repository.")
+
+        # Fire a dedicated deploy trigger — no commit message parsing needed
+        if pat and repo_slug:
+            headers = {
+                "Authorization":        f"Bearer {pat}",
+                "Accept":               "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type":         "application/json",
+            }
+            payload = json.dumps({
+                "event_type": "deploy-dashboard",
+                "client_payload": {"triggered_by": "tracker"}
+            })
+            resp = requests.post(
+                f"https://api.github.com/repos/{repo_slug}/dispatches",
+                headers=headers,
+                data=payload,
+                timeout=10,
+            )
+            if resp.status_code == 204:
+                log.info("Deploy event fired successfully.")
+            else:
+                log.error("Deploy event failed: %s %s", resp.status_code, resp.text)
 
     except subprocess.CalledProcessError as e:
-        log.error("Deploy failed: %s\nstdout: %s\nstderr: %s",
-                  e, e.stdout.decode() if e.stdout else '', 
-                  e.stderr.decode() if e.stderr else '')
+        log.error("Deploy failed: %s\nstderr: %s",
+                  e, e.stderr.decode() if e.stderr else '')
 # ══════════════════════════════════════════════════════════════════════════════
 # CSV
 # ══════════════════════════════════════════════════════════════════════════════
