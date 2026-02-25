@@ -456,6 +456,8 @@ def run() -> None:
 
     known_streams: dict[str, dict] = {}
     channel_tables: dict[str, str] = {}   # channel_id -> table name
+    last_deploy_time = datetime.now(timezone.utc)
+    DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))  # 15 min default
     channel_poll_counter = 0
 
     with console.status("[bold green]Scanning for streams…", spinner="dots"):
@@ -533,6 +535,4 @@ def run() -> None:
     log.info("Tracker stopped.")
 
 if __name__ == "__main__":
-    last_deploy_time = datetime.now(timezone.utc)
-    DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))  # 15 min default
     run()
