@@ -73,11 +73,51 @@ def get_db_connection() -> Optional[psycopg2.extensions.connection]:
         return None
 
 
+def get_table_name(channel_name: str) -> str:
+    """Convert a channel name to a safe PostgreSQL table name."""
+    import re
+    # lowercase, replace spaces and special chars with underscores
+    safe = re.sub(r"[^a-z0-9]", "_", channel_name.lower())
+    # collapse multiple underscores, strip leading/trailing
+    safe = re.sub(r"_+", "_", safe).strip("_")
+    return f"stream_{safe}"
+
+
 def init_db(conn) -> None:
-    conn.autocommit = True          # each statement commits immediately
+    conn.autocommit = True
     with conn.cursor() as cur:
+        # Master channel registry table
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS livestream_analytics (
+            CREATE TABLE IF NOT EXISTS channels (
+                channel_id      TEXT PRIMARY KEY,
+                channel_name    TEXT NOT NULL,
+                table_name      TEXT NOT NULL,
+                added_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+    conn.autocommit = False
+    log.info("Database initialised.")
+
+
+def init_channel_table(conn, channel_id: str, channel_name: str) -> str:
+    """
+    Create a dedicated analytics table for a channel if it doesn't exist.
+    Returns the table name used.
+    """
+    table = get_table_name(channel_name)
+    conn.autocommit = True
+    with conn.cursor() as cur:
+        # Register channel in master table
+        cur.execute("""
+            INSERT INTO channels (channel_id, channel_name, table_name)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (channel_id) DO UPDATE
+                SET channel_name = EXCLUDED.channel_name
+        """, (channel_id, channel_name, table))
+
+        # Create the channel's own analytics table
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS {table} (
                 id                 SERIAL PRIMARY KEY,
                 collected_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 channel_id         TEXT NOT NULL,
@@ -92,20 +132,21 @@ def init_db(conn) -> None:
                 actual_start       TIMESTAMPTZ
             )
         """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_la_video_id
-                ON livestream_analytics(video_id)
+        cur.execute(f"""
+            CREATE INDEX IF NOT EXISTS idx_{table}_video_id
+                ON {table}(video_id)
         """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_la_collected_at
-                ON livestream_analytics(collected_at)
+        cur.execute(f"""
+            CREATE INDEX IF NOT EXISTS idx_{table}_collected_at
+                ON {table}(collected_at)
         """)
-    conn.autocommit = False         # restore default for the rest of the app
-    log.info("Database initialised.")
+    conn.autocommit = False
+    log.info("Table '%s' ready for channel '%s'.", table, channel_name)
+    return table
     
-def save_to_db(conn, row: dict) -> None:
-    sql = """
-        INSERT INTO livestream_analytics
+def save_to_db(conn, row: dict, table: str) -> None:
+    sql = f"""
+        INSERT INTO {table}
             (collected_at, channel_id, channel_name, video_id, video_title,
              concurrent_viewers, like_count, comment_count, stream_status,
              scheduled_start, actual_start)
@@ -302,8 +343,7 @@ signal.signal(signal.SIGINT,  _handle_signal)
 signal.signal(signal.SIGTERM, _handle_signal)
 
 
-def collect_and_store(stream: dict, conn) -> None:
-    """Fetch analytics for one stream, persist, update history."""
+def collect_and_store(stream: dict, conn, table: str) -> None:
     video_id  = stream["video_id"]
     analytics = get_video_analytics(video_id)
     if analytics is None:
@@ -311,6 +351,22 @@ def collect_and_store(stream: dict, conn) -> None:
 
     stream.update(analytics)
     stream["collected_at"] = datetime.now(timezone.utc).isoformat()
+
+    history.setdefault(video_id, []).append((
+        stream["collected_at"],
+        analytics["concurrent_viewers"],
+        analytics["like_count"],
+        analytics["comment_count"],
+    ))
+    if len(history[video_id]) > MAX_HISTORY_POINTS:
+        history[video_id].pop(0)
+
+    save_to_csv(stream)
+    if conn:
+        try:
+            save_to_db(conn, stream, table)
+        except Exception as e:
+            log.error("DB save failed: %s", e)
 
     # history
     history.setdefault(video_id, []).append((
@@ -339,25 +395,31 @@ def run() -> None:
     else:
         log.warning("No DB connection – CSV-only mode.")
 
-    # track which streams we already know about so we can fire "new stream" events
-    known_streams: dict[str, dict] = {}   # video_id -> stream info
+    known_streams: dict[str, dict] = {}
+    channel_tables: dict[str, str] = {}   # channel_id -> table name
     channel_poll_counter = 0
 
     with console.status("[bold green]Scanning for streams…", spinner="dots"):
         time.sleep(1)
 
     while _running:
-        # ── channel scan (every POLL_INTERVAL_SEC) ────────────────────────────
         if channel_poll_counter == 0:
             discovered: dict[str, dict] = {}
             for ch in CHANNEL_IDS:
                 for s in find_live_videos(ch):
                     vid = s["video_id"]
                     discovered[vid] = s
+
+                    # initialise the channel's table on first encounter
+                    if conn and ch not in channel_tables:
+                        channel_tables[ch] = init_channel_table(
+                            conn, ch, s["channel_name"]
+                        )
+
                     if vid not in known_streams:
                         console.print(
                             Panel(
-                                f"[bold yellow]🔔 NEW STREAM DETECTED![/]\n"
+                                f"[bold yellow]NEW STREAM DETECTED!\n[/]"
                                 f"Channel : {s['channel_name']}\n"
                                 f"Title   : {s['video_title']}\n"
                                 f"Status  : {s['stream_status']}",
@@ -366,24 +428,20 @@ def run() -> None:
                             )
                         )
                         log.info("New stream: %s – %s", s["channel_name"], vid)
-            # remove ended streams
             for vid in list(known_streams):
                 if vid not in discovered:
-                    log.info("Stream ended / no longer live: %s", vid)
+                    log.info("Stream ended: %s", vid)
             known_streams = discovered
 
         channel_poll_counter = (channel_poll_counter + 1) % max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC)
 
-        # ── analytics collection ───────────────────────────────────────────────
         active_streams: list[dict] = list(known_streams.values())
         for stream in active_streams:
-            if stream["stream_status"] == "live":      # skip "upcoming" streams
-                collect_and_store(stream, conn)
-        
-        # ── console dashboard ──────────────────────────────────────────────────
-        console.print(build_summary_table(active_streams))
+            if stream["stream_status"] == "live":
+                table = channel_tables.get(stream["channel_id"])
+                collect_and_store(stream, conn, table)
 
-        # draw viewer chart for each live stream
+        console.print(build_summary_table(active_streams))
         for s in active_streams:
             if s["stream_status"] == "live":
                 draw_viewer_chart(s["video_id"], s["channel_name"])
@@ -393,13 +451,11 @@ def run() -> None:
             f"Next channel scan in "
             f"{(max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC) - channel_poll_counter) * STREAM_POLL_SEC}s[/]"
         )
-
         time.sleep(STREAM_POLL_SEC)
 
     if conn:
         conn.close()
     log.info("Tracker stopped.")
-
 
 if __name__ == "__main__":
     run()
