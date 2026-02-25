@@ -158,7 +158,62 @@ def save_to_db(conn, row: dict, table: str) -> None:
     with conn.cursor() as cur:
         cur.execute(sql, row)
     conn.commit()
+# ══════════════════════════════════════════════════════════════════════════════
+# DASHBOARD REGENERATION
+# ══════════════════════════════════════════════════════════════════════════════
 
+import subprocess
+
+def regenerate_dashboard() -> None:
+    """Trigger dashboard regeneration as a subprocess."""
+    try:
+        result = subprocess.run(
+            ["python", "generate_dashboard.py"],
+            capture_output=True, text=True, timeout=120
+        )
+        if result.returncode == 0:
+            log.info("Dashboard regenerated successfully.")
+        else:
+            log.error("Dashboard generation failed:\n%s", result.stderr)
+    except subprocess.TimeoutExpired:
+        log.error("Dashboard generation timed out.")
+    except Exception as e:
+        log.error("Dashboard generation error: %s", e)
+        
+def deploy_dashboard() -> None:
+    """
+    Commit and push the regenerated dashboard folder to the gh-pages branch.
+    Requires the runner to have git configured and push access to the repo.
+    """
+    try:
+        # Configure git identity (needed for commits in CI/runner environments)
+        subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"], check=True)
+        subprocess.run(["git", "config", "user.name",  "Stream Tracker Bot"],   check=True)
+
+        dashboard_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
+
+        # Stage only the dashboard output folder
+        subprocess.run(["git", "add", dashboard_dir], check=True)
+
+        # Only commit if there are actual changes
+        result = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
+            capture_output=True
+        )
+        if result.returncode == 0:
+            log.info("Dashboard unchanged — skipping deploy commit.")
+            return
+
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        subprocess.run(
+            ["git", "commit", "-m", f"chore: dashboard update {ts}"],
+            check=True
+        )
+        subprocess.run(["git", "push"], check=True)
+        log.info("Dashboard deployed to GitHub Pages.")
+
+    except subprocess.CalledProcessError as e:
+        log.error("Deploy failed: %s", e)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CSV
@@ -368,24 +423,9 @@ def collect_and_store(stream: dict, conn, table: str) -> None:
         except Exception as e:
             log.error("DB save failed: %s", e)
 
-    # history
-    history.setdefault(video_id, []).append((
-        stream["collected_at"],
-        analytics["concurrent_viewers"],
-        analytics["like_count"],
-        analytics["comment_count"],
-    ))
-    if len(history[video_id]) > MAX_HISTORY_POINTS:
-        history[video_id].pop(0)
-
-    # persist
-    save_to_csv(stream)
-    if conn:
-        try:
-            save_to_db(conn, stream)
-        except Exception as e:
-            log.error("DB save failed: %s", e)
-
+    # Regenerate dashboard after every successful data collection
+    regenerate_dashboard()
+    deploy_dashboard()
 
 def run() -> None:
     log.info("Tracker starting. Monitoring channels: %s", CHANNEL_IDS)
