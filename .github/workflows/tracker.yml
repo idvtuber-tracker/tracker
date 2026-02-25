@@ -25,6 +25,7 @@ jobs:
       CSV_OUTPUT_PATH:      analytics.csv
       DASHBOARD_OUTPUT_DIR: dashboard
       POLL_INTERVAL_SEC:    "900"
+      DEPLOY_INTERVAL_SEC:  "900"   # deploy to Pages every 15 minutes
       STREAM_POLL_SEC:      "60"
       MAX_HISTORY_POINTS:   "60"
       PYTHONUTF8:           "1"
