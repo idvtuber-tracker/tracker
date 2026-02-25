@@ -1,17 +1,7 @@
 name: Build & Deploy Dashboard
 
 on:
-  # Re-generate after every tracker run commits new data
-  workflow_run:
-    workflows: ["YouTube Livestream Tracker"]
-    types: [completed]
-
-  # Also allow manual trigger from the Actions tab
-  workflow_dispatch:
-
-  # Or on a schedule — rebuild every hour
-  schedule:
-    - cron: "0 * * * *"
+  workflow_dispatch:    # manual trigger only, as a fallback
 
 permissions:
   contents: read
@@ -30,10 +20,10 @@ jobs:
       url:  ${{ steps.deployment.outputs.page_url }}
 
     env:
-      AIVEN_DATABASE_URL:    ${{ secrets.AIVEN_DATABASE_URL }}
-      DASHBOARD_OUTPUT_DIR:  dashboard
-      PYTHONUTF8:            "1"
-      PYTHONIOENCODING:      "utf-8"
+      AIVEN_DATABASE_URL:   ${{ secrets.AIVEN_DATABASE_URL }}
+      DASHBOARD_OUTPUT_DIR: dashboard
+      PYTHONUTF8:           "1"
+      PYTHONIOENCODING:     "utf-8"
 
     steps:
       - name: Checkout
@@ -59,3 +49,19 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+```
+
+---
+
+## How it all flows now
+```
+tracker.py running continuously on your PC
+    └── Every STREAM_POLL_SEC (60s):
+            └── Fetch analytics from YouTube API
+            └── Write to Aiven DB + CSV
+            └── generate_dashboard.py runs as subprocess
+                    └── Pulls latest data from Aiven
+                    └── Rewrites dashboard/ HTML files
+            └── git add dashboard/ → git commit → git push
+                    └── GitHub Pages detects push and republishes
+                            └── Live site updated within ~30s
