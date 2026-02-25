@@ -337,11 +337,11 @@ def build_summary_table(active_streams: list[dict]) -> Table:
         status_icon = "🔴 LIVE" if s["stream_status"] == "live" else "⏳ Soon"
         table.add_row(
             s.get("channel_name", "")[:25],
-            s.get("video_title", "")[:40],
+            s.get("video_title", "")[:40],   
             status_icon,
-            f"{s['concurrent_viewers']:,}",
-            f"{s['like_count']:,}",
-            f"{s['comment_count']:,}",
+            f"{s.get('concurrent_viewers', 0):,}",
+            f"{s.get('like_count', 0):,}",
+            f"{s.get('comment_count', 0):,}",
             (s.get("actual_start") or s.get("scheduled_start") or "—")[:16],
         )
     return table
@@ -480,7 +480,12 @@ def run() -> None:
             if stream["stream_status"] == "live":
                 table = channel_tables.get(stream["channel_id"])
                 collect_and_store(stream, conn, table)
-
+            else:
+                # Ensure upcoming streams always have safe default keys
+                stream.setdefault("concurrent_viewers", 0)
+                stream.setdefault("like_count", 0)
+                stream.setdefault("comment_count", 0)
+        
         console.print(build_summary_table(active_streams))
         for s in active_streams:
             if s["stream_status"] == "live":
