@@ -475,12 +475,12 @@ def run() -> None:
                 known_streams = discovered
     
             channel_poll_counter = (channel_poll_counter + 1) % max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC)
-
-    except Exception as e:
-        log.error("Unexpected error in main loop: %s — continuing in %ds",
-                  e, STREAM_POLL_SEC)
-        time.sleep(STREAM_POLL_SEC)
-        continue
+    
+        except Exception as e:
+            log.error("Unexpected error in main loop: %s — continuing in %ds",
+                      e, STREAM_POLL_SEC)
+            time.sleep(STREAM_POLL_SEC)
+            continue
         
         active_streams: list[dict] = list(known_streams.values())
         for stream in active_streams:
