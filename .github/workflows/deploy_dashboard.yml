@@ -28,6 +28,34 @@ jobs:
       PYTHONIOENCODING:     "utf-8"
 
     steps:
+      - name: Clean up old deploy runs
+        run: |
+          HEADERS=(-H "Authorization: Bearer ${{ secrets.GH_PAT }}"
+                   -H "Accept: application/vnd.github+json"
+                   -H "X-GitHub-Api-Version: 2022-11-28")
+          REPO="${{ github.repository }}"
+          CURRENT="${{ github.run_id }}"
+
+          # Fetch completed runs of this workflow only
+          RUNS=$(curl -s "${HEADERS[@]}" \
+            "https://api.github.com/repos/$REPO/actions/workflows/deploy_dashboard.yml/runs?status=completed&per_page=100" \
+            | python3 -c "
+          import sys, json
+          runs = json.load(sys.stdin).get('workflow_runs', [])
+          for r in runs:
+              print(r['id'])
+          ")
+
+          for RUN_ID in $RUNS; do
+            if [ "$RUN_ID" != "$CURRENT" ]; then
+              curl -s -X DELETE "${HEADERS[@]}" \
+                "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID"
+              echo "Deleted run $RUN_ID"
+            fi
+          done
+          echo "Cleanup complete."
+
+    
       - name: Checkout repository
         uses: actions/checkout@v4
 
