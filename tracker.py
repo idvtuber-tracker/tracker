@@ -446,7 +446,7 @@ def collect_and_store(stream: dict, conn, table: str) -> None:
 
     # Regenerate dashboard after every successful data collection
     regenerate_dashboard()
-    deploy_dashboard()
+    # deploy_dashboard()
 
 def run() -> None:
     log.info("Tracker starting. Monitoring channels: %s", CHANNEL_IDS)
