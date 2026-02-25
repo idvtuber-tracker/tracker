@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - 'dashboard/**'
+      - 'db_backup/**'
+      - 'analytics.csv'
 
 jobs:
   track:
@@ -24,6 +28,28 @@ jobs:
       PYTHONIOENCODING:     "utf-8"
 
     steps:
+      - name: Cancel queued duplicate runs
+        shell: powershell
+        run: |
+          $pat     = "${{ secrets.GH_PAT }}"
+          $repo    = "${{ github.repository }}"
+          $current = "${{ github.run_id }}"
+          $headers = @{
+            "Authorization"        = "Bearer $pat"
+            "Accept"               = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $url  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/runs?status=queued&per_page=100"
+          $runs = (Invoke-RestMethod -Uri $url -Headers $headers).workflow_runs
+          foreach ($run in $runs) {
+            if ($run.id -ne [int64]$current) {
+              $cancelUrl = "https://api.github.com/repos/$repo/actions/runs/$($run.id)/cancel"
+              Invoke-RestMethod -Uri $cancelUrl -Method POST -Headers $headers
+              Write-Host "Cancelled queued run $($run.id)"
+            }
+          }
+          Write-Host "Done cancelling duplicates."
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -54,3 +80,42 @@ jobs:
       - name: Run tracker
         shell: powershell
         run: python tracker.py
+
+      - name: Clean up old workflow runs
+        if: always()
+        shell: powershell
+        run: |
+          $pat     = "${{ secrets.GH_PAT }}"
+          $repo    = "${{ github.repository }}"
+          $headers = @{
+            "Authorization"        = "Bearer $pat"
+            "Accept"               = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $runsUrl  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/runs?per_page=100"
+          $runs     = (Invoke-RestMethod -Uri $runsUrl -Headers $headers).workflow_runs
+          $toDelete = $runs | Where-Object { $_.status -eq "completed" } | Select-Object -Skip 5
+          foreach ($run in $toDelete) {
+            $deleteUrl = "https://api.github.com/repos/$repo/actions/runs/$($run.id)"
+            Invoke-RestMethod -Uri $deleteUrl -Method DELETE -Headers $headers
+            Write-Host "Deleted run $($run.id)"
+          }
+          Write-Host "Cleanup complete."
+
+      - name: Restart workflow
+        if: always()
+        shell: powershell
+        run: |
+          $pat     = "${{ secrets.GH_PAT }}"
+          $repo    = "${{ github.repository }}"
+          $headers = @{
+            "Authorization"        = "Bearer $pat"
+            "Accept"               = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $body = @{ ref = "main" } | ConvertTo-Json
+          $url  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/dispatches"
+          Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body -ContentType "application/json"
+          Write-Host "New workflow run triggered."
+
+
