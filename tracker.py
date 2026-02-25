@@ -182,18 +182,30 @@ def regenerate_dashboard() -> None:
         
 def deploy_dashboard() -> None:
     """
-    Commit and push the regenerated dashboard folder to the gh-pages branch.
-    Requires the runner to have git configured and push access to the repo.
+    Commit and push the regenerated dashboard folder.
+    Uses GH_PAT environment variable for authentication.
     """
     try:
-        # Configure git identity (needed for commits in CI/runner environments)
-        subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"], check=True)
-        subprocess.run(["git", "config", "user.name",  "Stream Tracker Bot"],   check=True)
-
+        pat          = os.environ.get("GH_PAT")
+        repo_slug    = os.environ.get("GITHUB_REPOSITORY")   # e.g. idvtuber-tracker/tracker
         dashboard_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
 
-        # Stage only the dashboard output folder
-        subprocess.run(["git", "add", dashboard_dir], check=True)
+        if not pat or not repo_slug:
+            log.error("Deploy skipped: GH_PAT or GITHUB_REPOSITORY not set.")
+            return
+
+        # Always set the authenticated remote URL before every push
+        remote_url = f"https://x-access-token:{pat}@github.com/{repo_slug}.git"
+        subprocess.run(["git", "remote", "set-url", "origin", remote_url],
+                       check=True, capture_output=True)
+
+        subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"],
+                       check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name",  "Stream Tracker Bot"],
+                       check=True, capture_output=True)
+
+        subprocess.run(["git", "add", dashboard_dir],
+                       check=True, capture_output=True)
 
         # Only commit if there are actual changes
         result = subprocess.run(
@@ -207,14 +219,16 @@ def deploy_dashboard() -> None:
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         subprocess.run(
             ["git", "commit", "-m", f"chore: dashboard update {ts}"],
-            check=True
+            check=True, capture_output=True
         )
-        subprocess.run(["git", "push"], check=True)
+        subprocess.run(["git", "push", "origin", "HEAD"],
+                       check=True, capture_output=True)
         log.info("Dashboard deployed to GitHub Pages.")
 
     except subprocess.CalledProcessError as e:
-        log.error("Deploy failed: %s", e)
-
+        log.error("Deploy failed: %s\nstdout: %s\nstderr: %s",
+                  e, e.stdout.decode() if e.stdout else '', 
+                  e.stderr.decode() if e.stderr else '')
 # ══════════════════════════════════════════════════════════════════════════════
 # CSV
 # ══════════════════════════════════════════════════════════════════════════════
