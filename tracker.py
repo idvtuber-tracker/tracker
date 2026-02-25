@@ -5,6 +5,30 @@ Monitors specified channels for live streams and collects real-time analytics.
 import sys
 import io
 
+import time
+from ssl import SSLEOFError
+from httplib2 import ServerNotFoundError
+
+def api_call_with_retry(fn, retries=5, backoff=10):
+    """
+    Execute a callable that makes a YouTube API request.
+    Retries on transient network errors with exponential backoff.
+    """
+    for attempt in range(1, retries + 1):
+        try:
+            return fn()
+        except (SSLEOFError, ServerNotFoundError, TimeoutError, OSError) as e:
+            if attempt == retries:
+                log.error("API call failed after %d attempts: %s", retries, e)
+                return None
+            wait = backoff * attempt
+            log.warning("Network error (attempt %d/%d): %s — retrying in %ds",
+                        attempt, retries, e, wait)
+            time.sleep(wait)
+        except Exception as e:
+            log.error("Unexpected API error: %s", e)
+            return None
+
 # Force UTF-8 output on Windows to support emoji and special characters
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
@@ -240,40 +264,40 @@ def save_to_csv(row: dict) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def find_live_videos(channel_id: str) -> list[dict]:
-    """
-    Use activities.list (1 unit) instead of search.list (100 units)
-    to detect live streams on a channel.
-    """
     results = []
     try:
-        resp = youtube.activities().list(
+        resp = api_call_with_retry(lambda: youtube.activities().list(
             part="snippet,contentDetails",
             channelId=channel_id,
             maxResults=10,
-        ).execute()
+        ).execute())
+
+        if resp is None:
+            return []
 
         for item in resp.get("items", []):
             details = item.get("contentDetails", {})
-
-            # activities feed includes uploads; we then check if it's live
-            upload = details.get("upload", {})
+            upload  = details.get("upload", {})
             video_id = upload.get("videoId")
             if not video_id:
                 continue
 
-            # cheap videos.list call (1 unit) to confirm it's live
-            video_resp = youtube.videos().list(
+            video_resp = api_call_with_retry(lambda vid=video_id: youtube.videos().list(
                 part="snippet,liveStreamingDetails",
-                id=video_id,
-            ).execute()
+                id=vid,
+            ).execute())
+
+            if video_resp is None:
+                continue
+
             video_items = video_resp.get("items", [])
             if not video_items:
                 continue
 
-            snippet     = video_items[0].get("snippet", {})
-            live_detail = video_items[0].get("liveStreamingDetails", {})
+            snippet      = video_items[0].get("snippet", {})
+            live_detail  = video_items[0].get("liveStreamingDetails", {})
+            broadcast_status = snippet.get("liveBroadcastContent")
 
-            broadcast_status = snippet.get("liveBroadcastContent")  # "live" | "upcoming" | "none"
             if broadcast_status not in ("live", "upcoming"):
                 continue
 
@@ -290,17 +314,20 @@ def find_live_videos(channel_id: str) -> list[dict]:
 
     return results
 
-
 def get_video_analytics(video_id: str) -> Optional[dict]:
-    """Fetch liveStreamingDetails + statistics for a single video."""
     try:
-        resp = youtube.videos().list(
+        resp = api_call_with_retry(lambda: youtube.videos().list(
             part="liveStreamingDetails,statistics,snippet",
             id=video_id,
-        ).execute()
+        ).execute())
+
+        if resp is None:
+            return None
+
         items = resp.get("items", [])
         if not items:
             return None
+
         item  = items[0]
         stats = item.get("statistics", {})
         live  = item.get("liveStreamingDetails", {})
@@ -314,7 +341,6 @@ def get_video_analytics(video_id: str) -> Optional[dict]:
     except HttpError as e:
         log.error("videos API error for %s: %s", video_id, e)
         return None
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # VISUALIZATION
@@ -443,12 +469,11 @@ def run() -> None:
         time.sleep(1)
 
     while _running:
-        if channel_poll_counter == 0:
-            discovered: dict[str, dict] = {}
-            for ch in CHANNEL_IDS:
-                for s in find_live_videos(ch):
-                    vid = s["video_id"]
-                    discovered[vid] = s
+        try:
+            if channel_poll_counter == 0:
+                discovered: dict[str, dict] = {}
+                for ch in CHANNEL_IDS:
+                    for s in find_live_videos(ch):
 
                     # initialise the channel's table on first encounter
                     if conn and ch not in channel_tables:
@@ -498,6 +523,12 @@ def run() -> None:
         )
         time.sleep(STREAM_POLL_SEC)
 
+        except Exception as e:
+            log.error("Unexpected error in main loop: %s — continuing in %ds",
+                      e, STREAM_POLL_SEC)
+            time.sleep(STREAM_POLL_SEC)
+            continue
+    
     if conn:
         conn.close()
     log.info("Tracker stopped.")
