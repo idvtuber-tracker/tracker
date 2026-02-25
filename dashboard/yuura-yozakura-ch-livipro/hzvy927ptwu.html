@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>〔POPPY PLAYTIME〕Chapter 3 "Deep Sleep" (telat bet sih aku baru main haha) — Stream Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #13131a;
+    --border:  #1e1e2e;
+    --accent:  #e8ff47;
+    --muted:   #5a5a7a;
+    --text:    #e2e2f0;
+    --red:     #ff4f6d;
+    --blue:    #4fc3f7;
+    --green:   #47ffb2;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh; padding: 3rem 2rem;
+  }
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+  .back {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--muted); text-decoration: none; margin-bottom: 2.5rem;
+    transition: color 0.2s;
+  }
+  .back:hover { color: var(--accent); }
+  .eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; }
+  h1 { font-family: 'Fraunces', serif; font-size: clamp(1.8rem, 4vw, 3.5rem); font-weight: 700; line-height: 1.1; color: #fff; margin-bottom: 0.5rem; }
+  .channel-tag { font-size: 0.75rem; color: var(--muted); margin-bottom: 2.5rem; }
+  .channel-tag span { color: var(--text); }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.25rem; position: relative; overflow: hidden;
+  }
+  .kpi::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent);
+  }
+  .kpi-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.5rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .kpi-sub { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
+
+  .chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
+  }
+  .chart-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 1.25rem; }
+  .chart-wrap { position: relative; height: 280px; }
+
+  .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-bottom: 3rem; }
+  .data-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted); font-weight: 500; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(30,30,46,0.5); color: var(--text); }
+  .data-table tr:hover td { background: var(--surface); }
+  .data-table .num { text-align: right; color: var(--accent); font-weight: 500; }
+  .data-table .ts { color: var(--muted); }
+  .pill {
+    display: inline-block; font-size: 0.6rem; padding: 0.15rem 0.4rem;
+    border-radius: 2px; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .pill-live { background: rgba(255,79,109,0.15); color: var(--red); border: 1px solid var(--red); }
+  .pill-upcoming { background: rgba(79,195,247,0.1); color: var(--blue); border: 1px solid var(--blue); }
+  .generated { text-align: center; color: var(--muted); font-size: 0.7rem; margin-top: 3rem; }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="wrap">
+  <a class="back" href="../index.html">&#8592; All streams</a>
+
+  <p class="eyebrow">Yuura Yozakura Ch.〔LiviPro〕</p>
+  <h1>〔POPPY PLAYTIME〕Chapter 3 "Deep Sleep" (telat bet sih aku baru main haha)</h1>
+  <p class="channel-tag">Video ID: <span>hZVy927pTWU</span> &nbsp;·&nbsp; 127 data points</p>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Peak Viewers</div>
+      <div class="kpi-value">55</div>
+      <div class="kpi-sub">concurrent</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Peak Likes</div>
+      <div class="kpi-value">111</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Peak Comments</div>
+      <div class="kpi-value">0</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">First Seen</div>
+      <div class="kpi-value" style="font-size:1.1rem;">2026-02-25 14:20 UTC</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Last Seen</div>
+      <div class="kpi-value" style="font-size:1.1rem;">2026-02-25 16:39 UTC</div>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Concurrent Viewers over Time</div>
+    <div class="chart-wrap">
+      <canvas id="viewerChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Likes &amp; Comments over Time</div>
+    <div class="chart-wrap">
+      <canvas id="engagementChart"></canvas>
+    </div>
+  </div>
+
+  <p class="section-title">All collected data points</p>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Collected At</th>
+        <th>Status</th>
+        <th style="text-align:right">Viewers</th>
+        <th style="text-align:right">Likes</th>
+        <th style="text-align:right">Comments</th>
+        <th>Stream Start</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        <tr>
+          <td class="ts">2026-02-25 16:39 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">45</td>
+          <td class="num">111</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:33 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">50</td>
+          <td class="num">111</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:32 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">48</td>
+          <td class="num">111</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:31 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">47</td>
+          <td class="num">111</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:30 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">50</td>
+          <td class="num">111</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:29 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">50</td>
+          <td class="num">111</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:28 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">55</td>
+          <td class="num">111</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:27 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">47</td>
+          <td class="num">110</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:26 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">45</td>
+          <td class="num">110</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:25 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">44</td>
+          <td class="num">110</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:24 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">43</td>
+          <td class="num">110</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:23 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">49</td>
+          <td class="num">110</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:21 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">49</td>
+          <td class="num">109</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:20 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">44</td>
+          <td class="num">109</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:19 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">51</td>
+          <td class="num">109</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:18 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">50</td>
+          <td class="num">108</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:17 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">44</td>
+          <td class="num">108</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:16 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">108</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:15 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">42</td>
+          <td class="num">108</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:14 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">42</td>
+          <td class="num">107</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:13 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">43</td>
+          <td class="num">106</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:12 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">42</td>
+          <td class="num">105</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:11 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">45</td>
+          <td class="num">104</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:10 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">48</td>
+          <td class="num">104</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:08 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">47</td>
+          <td class="num">104</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:07 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">51</td>
+          <td class="num">104</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:06 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">51</td>
+          <td class="num">104</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:05 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">49</td>
+          <td class="num">103</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:04 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">49</td>
+          <td class="num">101</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:03 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">51</td>
+          <td class="num">100</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:02 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">48</td>
+          <td class="num">98</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:01 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">47</td>
+          <td class="num">98</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 16:00 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">45</td>
+          <td class="num">98</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:59 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">50</td>
+          <td class="num">98</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:58 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">47</td>
+          <td class="num">98</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:57 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">45</td>
+          <td class="num">97</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:56 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">43</td>
+          <td class="num">96</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:54 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">94</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:53 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">43</td>
+          <td class="num">93</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:52 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">92</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:51 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">92</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:50 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">41</td>
+          <td class="num">92</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:49 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">40</td>
+          <td class="num">92</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:48 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">45</td>
+          <td class="num">91</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:47 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">46</td>
+          <td class="num">91</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:46 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">43</td>
+          <td class="num">91</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:45 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">41</td>
+          <td class="num">90</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:44 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">42</td>
+          <td class="num">89</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:43 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">43</td>
+          <td class="num">89</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:42 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">44</td>
+          <td class="num">89</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:40 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">47</td>
+          <td class="num">89</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:39 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">42</td>
+          <td class="num">88</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:38 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">40</td>
+          <td class="num">87</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:37 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">87</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:36 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">87</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:35 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">42</td>
+          <td class="num">87</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:34 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">40</td>
+          <td class="num">86</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:33 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">85</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:32 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">84</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:31 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">40</td>
+          <td class="num">83</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:30 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">36</td>
+          <td class="num">83</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:28 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">36</td>
+          <td class="num">83</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:27 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">38</td>
+          <td class="num">82</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:26 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">36</td>
+          <td class="num">82</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:25 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">36</td>
+          <td class="num">82</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:24 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">82</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:23 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">35</td>
+          <td class="num">81</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:22 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">40</td>
+          <td class="num">81</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:21 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">38</td>
+          <td class="num">80</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:20 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">32</td>
+          <td class="num">80</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:19 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">35</td>
+          <td class="num">79</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:18 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">34</td>
+          <td class="num">79</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:17 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">79</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:15 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">77</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:14 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">77</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:13 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">33</td>
+          <td class="num">75</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:12 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">35</td>
+          <td class="num">75</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:11 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">74</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:10 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">34</td>
+          <td class="num">74</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:09 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">33</td>
+          <td class="num">72</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:08 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">30</td>
+          <td class="num">71</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:07 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">32</td>
+          <td class="num">71</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:06 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">31</td>
+          <td class="num">69</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:05 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">35</td>
+          <td class="num">68</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:04 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">33</td>
+          <td class="num">68</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:03 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">32</td>
+          <td class="num">67</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:02 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">34</td>
+          <td class="num">66</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:01 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">35</td>
+          <td class="num">66</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 15:00 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">33</td>
+          <td class="num">65</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:58 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">34</td>
+          <td class="num">65</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:57 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">34</td>
+          <td class="num">65</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:56 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">65</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:55 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">38</td>
+          <td class="num">64</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:54 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">41</td>
+          <td class="num">63</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:53 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">36</td>
+          <td class="num">62</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:52 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">61</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:51 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">36</td>
+          <td class="num">60</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:50 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">36</td>
+          <td class="num">60</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:49 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">26</td>
+          <td class="num">57</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:48 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">20</td>
+          <td class="num">56</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:47 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">20</td>
+          <td class="num">53</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:46 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">29</td>
+          <td class="num">53</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:45 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">33</td>
+          <td class="num">53</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:44 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">33</td>
+          <td class="num">51</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:43 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">39</td>
+          <td class="num">51</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:42 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">43</td>
+          <td class="num">49</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:41 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">47</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:40 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">47</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:39 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">29</td>
+          <td class="num">43</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:38 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">25</td>
+          <td class="num">42</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:37 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">31</td>
+          <td class="num">42</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:36 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">32</td>
+          <td class="num">40</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:34 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">34</td>
+          <td class="num">38</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:33 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">37</td>
+          <td class="num">37</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:32 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">30</td>
+          <td class="num">36</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:31 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">30</td>
+          <td class="num">35</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:30 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">30</td>
+          <td class="num">35</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:29 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">31</td>
+          <td class="num">32</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:28 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">27</td>
+          <td class="num">29</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:27 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">24</td>
+          <td class="num">28</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:26 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">24</td>
+          <td class="num">28</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:25 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">17</td>
+          <td class="num">26</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:24 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">22</td>
+          <td class="num">25</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:23 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">20</td>
+          <td class="num">23</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:22 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">20</td>
+          <td class="num">23</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:21 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">23</td>
+          <td class="num">23</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+        <tr>
+          <td class="ts">2026-02-25 14:20 UTC</td>
+          <td><span class="pill pill-live">live</span></td>
+          <td class="num">18</td>
+          <td class="num">20</td>
+          <td class="num">0</td>
+          <td class="ts">2026-02-25 14:15 UTC</td>
+        </tr>
+    </tbody>
+  </table>
+
+  <p class="generated">Generated 2026-02-25 16:39 UTC &nbsp;·&nbsp; yt-livestream-tracker</p>
+</div>
+
+<script>
+const ts     = ["2026-02-25 14:20 UTC", "2026-02-25 14:21 UTC", "2026-02-25 14:22 UTC", "2026-02-25 14:23 UTC", "2026-02-25 14:24 UTC", "2026-02-25 14:25 UTC", "2026-02-25 14:26 UTC", "2026-02-25 14:27 UTC", "2026-02-25 14:28 UTC", "2026-02-25 14:29 UTC", "2026-02-25 14:30 UTC", "2026-02-25 14:31 UTC", "2026-02-25 14:32 UTC", "2026-02-25 14:33 UTC", "2026-02-25 14:34 UTC", "2026-02-25 14:36 UTC", "2026-02-25 14:37 UTC", "2026-02-25 14:38 UTC", "2026-02-25 14:39 UTC", "2026-02-25 14:40 UTC", "2026-02-25 14:41 UTC", "2026-02-25 14:42 UTC", "2026-02-25 14:43 UTC", "2026-02-25 14:44 UTC", "2026-02-25 14:45 UTC", "2026-02-25 14:46 UTC", "2026-02-25 14:47 UTC", "2026-02-25 14:48 UTC", "2026-02-25 14:49 UTC", "2026-02-25 14:50 UTC", "2026-02-25 14:51 UTC", "2026-02-25 14:52 UTC", "2026-02-25 14:53 UTC", "2026-02-25 14:54 UTC", "2026-02-25 14:55 UTC", "2026-02-25 14:56 UTC", "2026-02-25 14:57 UTC", "2026-02-25 14:58 UTC", "2026-02-25 15:00 UTC", "2026-02-25 15:01 UTC", "2026-02-25 15:02 UTC", "2026-02-25 15:03 UTC", "2026-02-25 15:04 UTC", "2026-02-25 15:05 UTC", "2026-02-25 15:06 UTC", "2026-02-25 15:07 UTC", "2026-02-25 15:08 UTC", "2026-02-25 15:09 UTC", "2026-02-25 15:10 UTC", "2026-02-25 15:11 UTC", "2026-02-25 15:12 UTC", "2026-02-25 15:13 UTC", "2026-02-25 15:14 UTC", "2026-02-25 15:15 UTC", "2026-02-25 15:17 UTC", "2026-02-25 15:18 UTC", "2026-02-25 15:19 UTC", "2026-02-25 15:20 UTC", "2026-02-25 15:21 UTC", "2026-02-25 15:22 UTC", "2026-02-25 15:23 UTC", "2026-02-25 15:24 UTC", "2026-02-25 15:25 UTC", "2026-02-25 15:26 UTC", "2026-02-25 15:27 UTC", "2026-02-25 15:28 UTC", "2026-02-25 15:30 UTC", "2026-02-25 15:31 UTC", "2026-02-25 15:32 UTC", "2026-02-25 15:33 UTC", "2026-02-25 15:34 UTC", "2026-02-25 15:35 UTC", "2026-02-25 15:36 UTC", "2026-02-25 15:37 UTC", "2026-02-25 15:38 UTC", "2026-02-25 15:39 UTC", "2026-02-25 15:40 UTC", "2026-02-25 15:42 UTC", "2026-02-25 15:43 UTC", "2026-02-25 15:44 UTC", "2026-02-25 15:45 UTC", "2026-02-25 15:46 UTC", "2026-02-25 15:47 UTC", "2026-02-25 15:48 UTC", "2026-02-25 15:49 UTC", "2026-02-25 15:50 UTC", "2026-02-25 15:51 UTC", "2026-02-25 15:52 UTC", "2026-02-25 15:53 UTC", "2026-02-25 15:54 UTC", "2026-02-25 15:56 UTC", "2026-02-25 15:57 UTC", "2026-02-25 15:58 UTC", "2026-02-25 15:59 UTC", "2026-02-25 16:00 UTC", "2026-02-25 16:01 UTC", "2026-02-25 16:02 UTC", "2026-02-25 16:03 UTC", "2026-02-25 16:04 UTC", "2026-02-25 16:05 UTC", "2026-02-25 16:06 UTC", "2026-02-25 16:07 UTC", "2026-02-25 16:08 UTC", "2026-02-25 16:10 UTC", "2026-02-25 16:11 UTC", "2026-02-25 16:12 UTC", "2026-02-25 16:13 UTC", "2026-02-25 16:14 UTC", "2026-02-25 16:15 UTC", "2026-02-25 16:16 UTC", "2026-02-25 16:17 UTC", "2026-02-25 16:18 UTC", "2026-02-25 16:19 UTC", "2026-02-25 16:20 UTC", "2026-02-25 16:21 UTC", "2026-02-25 16:23 UTC", "2026-02-25 16:24 UTC", "2026-02-25 16:25 UTC", "2026-02-25 16:26 UTC", "2026-02-25 16:27 UTC", "2026-02-25 16:28 UTC", "2026-02-25 16:29 UTC", "2026-02-25 16:30 UTC", "2026-02-25 16:31 UTC", "2026-02-25 16:32 UTC", "2026-02-25 16:33 UTC", "2026-02-25 16:39 UTC"];
+const views  = [18, 23, 20, 20, 22, 17, 24, 24, 27, 31, 30, 30, 30, 37, 34, 32, 31, 25, 29, 37, 37, 43, 39, 33, 33, 29, 20, 20, 26, 36, 36, 39, 36, 41, 38, 37, 34, 34, 33, 35, 34, 32, 33, 35, 31, 32, 30, 33, 34, 37, 35, 33, 37, 37, 37, 34, 35, 32, 38, 40, 35, 37, 36, 36, 38, 36, 36, 40, 39, 39, 40, 42, 39, 37, 40, 42, 47, 44, 43, 42, 41, 43, 46, 45, 40, 41, 39, 39, 43, 39, 43, 45, 47, 50, 45, 47, 48, 51, 49, 49, 51, 51, 47, 48, 45, 42, 43, 42, 42, 39, 44, 50, 51, 44, 49, 49, 43, 44, 45, 47, 55, 50, 50, 47, 48, 50, 45];
+const likes  = [20, 23, 23, 23, 25, 26, 28, 28, 29, 32, 35, 35, 36, 37, 38, 40, 42, 42, 43, 47, 47, 49, 51, 51, 53, 53, 53, 56, 57, 60, 60, 61, 62, 63, 64, 65, 65, 65, 65, 66, 66, 67, 68, 68, 69, 71, 71, 72, 74, 74, 75, 75, 77, 77, 79, 79, 79, 80, 80, 81, 81, 82, 82, 82, 82, 83, 83, 83, 84, 85, 86, 87, 87, 87, 87, 88, 89, 89, 89, 89, 90, 91, 91, 91, 92, 92, 92, 92, 93, 94, 96, 97, 98, 98, 98, 98, 98, 100, 101, 103, 104, 104, 104, 104, 104, 105, 106, 107, 108, 108, 108, 108, 109, 109, 109, 110, 110, 110, 110, 110, 111, 111, 111, 111, 111, 111, 111];
+const comms  = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+const gridColor  = 'rgba(30,30,46,0.8)';
+const tickColor  = '#5a5a7a';
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  interaction: { mode: 'index', intersect: false },
+  plugins: { legend: { labels: { color: tickColor, font: { family: 'DM Mono', size: 11 }, boxWidth: 12 } } },
+  scales: {
+    x: { ticks: { color: tickColor, font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 10, maxRotation: 0 }, grid: { color: gridColor } },
+    y: { ticks: { color: tickColor, font: { family: 'DM Mono', size: 10 } }, grid: { color: gridColor } }
+  }
+};
+
+new Chart(document.getElementById('viewerChart'), {
+  type: 'line',
+  data: {
+    labels: ts,
+    datasets: [{
+      label: 'Concurrent Viewers',
+      data: views,
+      borderColor: '#e8ff47',
+      backgroundColor: 'rgba(232,255,71,0.07)',
+      borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3
+    }]
+  },
+  options: { ...baseOpts }
+});
+
+new Chart(document.getElementById('engagementChart'), {
+  type: 'line',
+  data: {
+    labels: ts,
+    datasets: [
+      {
+        label: 'Likes',
+        data: likes,
+        borderColor: '#ff4f6d',
+        backgroundColor: 'rgba(255,79,109,0.05)',
+        borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3
+      },
+      {
+        label: 'Comments',
+        data: comms,
+        borderColor: '#4fc3f7',
+        backgroundColor: 'rgba(79,195,247,0.05)',
+        borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3
+      }
+    ]
+  },
+  options: { ...baseOpts }
+});
+</script>
+</body>
+</html>
