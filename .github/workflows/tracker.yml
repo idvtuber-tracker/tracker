@@ -1,49 +1,64 @@
 name: YouTube Livestream Tracker
 
 on:
-  workflow_dispatch:          # manual start from Actions tab
+  workflow_dispatch:
   push:
-    branches: [main]          # auto-restarts when you push changes
+    branches: [main]
 
 jobs:
   track:
     runs-on: self-hosted
-    # No timeout-minutes — runs until manually stopped or PC shuts down
 
     env:
-      YOUTUBE_API_KEY:    ${{ secrets.YOUTUBE_API_KEY }}
-      CHANNEL_IDS:        ${{ secrets.CHANNEL_IDS }}
-      AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
-      GH_PAT:             ${{ secrets.GH_PAT }}
-      GITHUB_REPOSITORY:  ${{ github.repository }}        # auto-provided by GitHub
-      CSV_OUTPUT_PATH:    analytics.csv
-      POLL_INTERVAL_SEC:  "900"
-      STREAM_POLL_SEC:    "60"
-      MAX_HISTORY_POINTS: "60"
-      PYTHONUTF8:         "1"
-      PYTHONIOENCODING:   "utf-8"
+      YOUTUBE_API_KEY:      ${{ secrets.YOUTUBE_API_KEY }}
+      CHANNEL_IDS:          ${{ secrets.CHANNEL_IDS }}
+      AIVEN_DATABASE_URL:   ${{ secrets.AIVEN_DATABASE_URL }}
+      GH_PAT:               ${{ secrets.GH_PAT }}
+      GITHUB_REPOSITORY:    ${{ github.repository }}
+      CSV_OUTPUT_PATH:      analytics.csv
+      DASHBOARD_OUTPUT_DIR: dashboard
+      POLL_INTERVAL_SEC:    "900"
+      STREAM_POLL_SEC:      "60"
+      MAX_HISTORY_POINTS:   "60"
+      PYTHONUTF8:           "1"
+      PYTHONIOENCODING:     "utf-8"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Verify secrets are loaded
+        shell: powershell
         run: |
-          if [ -z "$GH_PAT" ]; then
-            echo "ERROR: GH_PAT is empty or not set"
+          $pat  = "${{ secrets.GH_PAT }}"
+          $repo = "${{ github.repository }}"
+
+          if ([string]::IsNullOrEmpty($pat)) {
+            Write-Host "ERROR: GH_PAT is empty or not set"
             exit 1
-          else
-            echo "GH_PAT is set (length: ${#GH_PAT})"
-          fi
-          if [ -z "$GITHUB_REPOSITORY" ]; then
-            echo "ERROR: GITHUB_REPOSITORY is empty"
+          } else {
+            Write-Host "GH_PAT is set (length: $($pat.Length))"
+          }
+
+          if ([string]::IsNullOrEmpty($repo)) {
+            Write-Host "ERROR: GITHUB_REPOSITORY is empty"
             exit 1
-          else
-            echo "GITHUB_REPOSITORY is: $GITHUB_REPOSITORY"
-          fi
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-            
+          } else {
+            Write-Host "GITHUB_REPOSITORY is: $repo"
+          }
+
+      - name: Configure git credentials
+        shell: powershell
+        run: |
+          $pat  = "${{ secrets.GH_PAT }}"
+          $repo = "${{ github.repository }}"
+          git config --global credential.helper store
+          $credLine = "https://x-access-token:$($pat)@github.com"
+          $credFile = "$env:USERPROFILE\.git-credentials"
+          Set-Content -Path $credFile -Value $credLine -Encoding UTF8
+          git remote set-url origin "https://x-access-token:$($pat)@github.com/$repo.git"
+          Write-Host "Git credentials configured."
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -51,7 +66,9 @@ jobs:
           cache: pip
 
       - name: Install dependencies
+        shell: powershell
         run: pip install -r requirements.txt
 
       - name: Run tracker
+        shell: powershell
         run: python tracker.py
