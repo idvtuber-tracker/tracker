@@ -27,11 +27,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
+      - name: Verify secrets are loaded
+        run: |
+          if [ -z "$GH_PAT" ]; then
+            echo "ERROR: GH_PAT is empty or not set"
+            exit 1
+          else
+            echo "GH_PAT is set (length: ${#GH_PAT})"
+          fi
+          if [ -z "$GITHUB_REPOSITORY" ]; then
+            echo "ERROR: GITHUB_REPOSITORY is empty"
+            exit 1
+          else
+            echo "GITHUB_REPOSITORY is: $GITHUB_REPOSITORY"
+          fi
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+            
+            - name: Set up Python 3.12
+              uses: actions/setup-python@v5
+              with:
+                python-version: "3.12"
+                cache: pip
 
       - name: Install dependencies
         run: pip install -r requirements.txt
