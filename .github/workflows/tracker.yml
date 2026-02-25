@@ -37,37 +37,6 @@ jobs:
           $line = "https://x-access-token:$($pat)@github.com"
           Set-Content -Path "$env:USERPROFILE\.git-credentials" -Value $line -Encoding UTF8
           Write-Host "Remote URL and credentials set."
-            - name: Verify secrets are loaded
-              shell: powershell
-              run: |
-                $pat  = "${{ secrets.GH_PAT }}"
-                $repo = "${{ github.repository }}"
-      
-                if ([string]::IsNullOrEmpty($pat)) {
-                  Write-Host "ERROR: GH_PAT is empty or not set"
-                  exit 1
-                } else {
-                  Write-Host "GH_PAT is set (length: $($pat.Length))"
-                }
-      
-                if ([string]::IsNullOrEmpty($repo)) {
-                  Write-Host "ERROR: GITHUB_REPOSITORY is empty"
-                  exit 1
-                } else {
-                  Write-Host "GITHUB_REPOSITORY is: $repo"
-                }
-      
-      - name: Configure git credentials
-        shell: powershell
-        run: |
-          $pat  = "${{ secrets.GH_PAT }}"
-          $repo = "${{ github.repository }}"
-          git config --global credential.helper store
-          $credLine = "https://x-access-token:$($pat)@github.com"
-          $credFile = "$env:USERPROFILE\.git-credentials"
-          Set-Content -Path $credFile -Value $credLine -Encoding UTF8
-          git remote set-url origin "https://x-access-token:$($pat)@github.com/$repo.git"
-          Write-Host "Git credentials configured."
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
