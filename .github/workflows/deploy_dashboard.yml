@@ -49,19 +49,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-```
-
----
-
-## How it all flows now
-```
-tracker.py running continuously on your PC
-    └── Every STREAM_POLL_SEC (60s):
-            └── Fetch analytics from YouTube API
-            └── Write to Aiven DB + CSV
-            └── generate_dashboard.py runs as subprocess
-                    └── Pulls latest data from Aiven
-                    └── Rewrites dashboard/ HTML files
-            └── git add dashboard/ → git commit → git push
-                    └── GitHub Pages detects push and republishes
-                            └── Live site updated within ~30s
