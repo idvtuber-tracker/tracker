@@ -1,0 +1,59 @@
+name: Deploy Dashboard
+
+on:
+  repository_dispatch:
+    types: [deploy-dashboard]
+
+permissions:
+  contents: read
+  pages:    write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url:  ${{ steps.deployment.outputs.page_url }}
+
+    env:
+      AIVEN_DATABASE_URL:   ${{ secrets.AIVEN_DATABASE_URL }}
+      DASHBOARD_OUTPUT_DIR: dashboard
+      PYTHONUTF8:           "1"
+      PYTHONIOENCODING:     "utf-8"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: idvtuber-tracker/tracker
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate dashboard
+        run: python generate_dashboard.py
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          repository: idvtuber-tracker/tracker
+          token: ${{ secrets.GH_PAT }}
