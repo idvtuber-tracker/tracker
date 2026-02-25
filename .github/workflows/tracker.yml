@@ -14,6 +14,8 @@ jobs:
       YOUTUBE_API_KEY:    ${{ secrets.YOUTUBE_API_KEY }}
       CHANNEL_IDS:        ${{ secrets.CHANNEL_IDS }}
       AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+      GH_PAT:             ${{ secrets.GH_PAT }}
+      GITHUB_REPOSITORY:  ${{ github.repository }}        # auto-provided by GitHub
       CSV_OUTPUT_PATH:    analytics.csv
       POLL_INTERVAL_SEC:  "900"
       STREAM_POLL_SEC:    "60"
@@ -24,12 +26,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Configure git credentials
-        run: |
-          git config user.email "tracker-bot@localhost"
-          git config user.name "Stream Tracker Bot"
-          git remote set-url origin https://${{ github.actor }}:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
