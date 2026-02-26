@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — IDVTuber Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #13131a;
+    --border:  #1e1e2e;
+    --accent:  #e8ff47;
+    --muted:   #5a5a7a;
+    --text:    #e2e2f0;
+    --red:     #ff4f6d;
+    --blue:    #4fc3f7;
+    --green:   #47ffb2;
+    --white:   #ffffff;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── noise overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.5;
+  }
+
+  /* ── layout ── */
+  .page { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 4rem 2rem 6rem; }
+
+  /* ── back link ── */
+  .back {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); text-decoration: none; margin-bottom: 3.5rem;
+    transition: color 0.2s;
+    animation: fadeUp 0.4s ease both;
+  }
+  .back:hover { color: var(--accent); }
+  .back::before { content: '←'; font-size: 0.9rem; }
+
+  /* ── header ── */
+  header {
+    margin-bottom: 4rem;
+    animation: fadeUp 0.5s 0.05s ease both;
+  }
+  .eyebrow {
+    font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 0.75rem;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2.2rem, 5vw, 4rem);
+    font-weight: 700; line-height: 1.05;
+    color: var(--white); margin-bottom: 1rem;
+  }
+  h1 em { color: var(--accent); font-style: italic; }
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 1.5rem;
+    font-size: 0.7rem; color: var(--muted); margin-top: 1.25rem;
+  }
+  .meta-row span { display: flex; align-items: center; gap: 0.4rem; }
+  .meta-row span::before { content: '·'; color: var(--accent); }
+
+  /* ── toc ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 3rem;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+  .toc-title {
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 1rem;
+  }
+  .toc ol { padding-left: 1.25rem; }
+  .toc li { margin: 0.3rem 0; }
+  .toc a {
+    color: var(--muted); text-decoration: none; font-size: 0.8rem;
+    transition: color 0.2s;
+  }
+  .toc a:hover { color: var(--accent); }
+
+  /* ── sections ── */
+  .section {
+    margin-bottom: 3rem;
+    animation: fadeUp 0.5s ease both;
+  }
+  .section:nth-child(1)  { animation-delay: 0.12s; }
+  .section:nth-child(2)  { animation-delay: 0.16s; }
+  .section:nth-child(3)  { animation-delay: 0.20s; }
+  .section:nth-child(4)  { animation-delay: 0.24s; }
+  .section:nth-child(5)  { animation-delay: 0.28s; }
+  .section:nth-child(6)  { animation-delay: 0.32s; }
+  .section:nth-child(7)  { animation-delay: 0.36s; }
+  .section:nth-child(8)  { animation-delay: 0.40s; }
+  .section:nth-child(9)  { animation-delay: 0.44s; }
+
+  .section-header {
+    display: flex; align-items: baseline; gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.6rem; margin-bottom: 1.25rem;
+  }
+  .section-num {
+    font-size: 0.65rem; color: var(--accent);
+    letter-spacing: 0.15em; flex-shrink: 0;
+  }
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 1.3rem; font-weight: 700;
+    color: var(--white);
+  }
+
+  p { margin-bottom: 1rem; color: var(--text); font-size: 0.88rem; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── data table ── */
+  .data-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 1rem 0;
+  }
+  .data-item {
+    display: grid; grid-template-columns: 1fr 2fr;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+  .data-item:last-child { border-bottom: none; }
+  .data-key {
+    padding: 0.65rem 1rem;
+    background: rgba(232,255,71,0.04);
+    color: var(--accent); font-weight: 500;
+    border-right: 1px solid var(--border);
+  }
+  .data-val {
+    padding: 0.65rem 1rem;
+    color: var(--text);
+  }
+
+  /* ── callout ── */
+  .callout {
+    display: flex; gap: 1rem; align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 4px;
+    padding: 1rem 1.25rem;
+    margin: 1.25rem 0;
+    font-size: 0.82rem;
+  }
+  .callout-icon { color: var(--green); flex-shrink: 0; font-size: 1rem; margin-top: 0.1rem; }
+  .callout p { margin: 0; color: var(--text); }
+
+  .callout.warn { border-left-color: var(--accent); }
+  .callout.warn .callout-icon { color: var(--accent); }
+
+  /* ── link ── */
+  a { color: var(--accent); text-decoration: none; transition: opacity 0.2s; }
+  a:hover { opacity: 0.75; text-decoration: underline; }
+
+  /* ── contact box ── */
+  .contact-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    font-size: 0.82rem;
+  }
+  .contact-box .contact-row {
+    display: flex; gap: 0.75rem; align-items: center;
+    margin-bottom: 0.5rem; color: var(--text);
+  }
+  .contact-box .contact-row:last-child { margin-bottom: 0; }
+  .contact-box .label { color: var(--muted); min-width: 70px; }
+
+  /* ── footer ── */
+  footer {
+    margin-top: 5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; justify-content: space-between;
+    gap: 1rem; font-size: 0.7rem; color: var(--muted);
+  }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--accent); }
+
+  /* ── animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── responsive ── */
+  @media (max-width: 600px) {
+    .data-item { grid-template-columns: 1fr; }
+    .data-key  { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">All streams</a>
+
+  <header>
+    <p class="eyebrow">IDVTuber Tracker — Legal</p>
+    <h1>Privacy <em>Policy</em></h1>
+    <div class="meta-row">
+      <span>Effective: February 27, 2026</span>
+      <span>Last updated: February 27, 2026</span>
+      <span>Version 1.0</span>
+    </div>
+  </header>
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc">
+    <p class="toc-title">Contents</p>
+    <ol>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#youtube-api">YouTube API Services</a></li>
+      <li><a href="#data-collected">Data We Collect</a></li>
+      <li><a href="#data-use">How We Use Data</a></li>
+      <li><a href="#data-sharing">Data Sharing</a></li>
+      <li><a href="#data-retention">Data Retention &amp; Deletion</a></li>
+      <li><a href="#cookies">Cookies &amp; Tracking Technologies</a></li>
+      <li><a href="#user-rights">Your Rights &amp; Revoking Access</a></li>
+      <li><a href="#contact">Contact Information</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. OVERVIEW -->
+  <div class="section" id="overview">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Overview</h2>
+    </div>
+    <p>
+      IDVTuber Tracker ("we", "our", "the project") is a non-commercial fan community
+      project that monitors and displays publicly available livestream analytics from
+      Indonesian Virtual YouTuber (VTuber) channels on YouTube. This Privacy Policy
+      explains what data we collect, how we use it, and your rights regarding that data.
+    </p>
+    <p>
+      We are committed to operating transparently and in full compliance with the
+      YouTube API Services Terms of Service and all applicable developer policies.
+      By using this dashboard, you acknowledge that you have read and understood
+      this Privacy Policy.
+    </p>
+    <div class="callout">
+      <span class="callout-icon">✓</span>
+      <p>IDVTuber Tracker is strictly non-commercial. We collect no personal data,
+      display no advertising, and generate no revenue of any kind.</p>
+    </div>
+  </div>
+
+  <!-- 2. YOUTUBE API -->
+  <div class="section" id="youtube-api">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>YouTube API Services</h2>
+    </div>
+    <p>
+      IDVTuber Tracker uses the <strong>YouTube Data API v3</strong>, provided by Google LLC,
+      to collect publicly available livestream analytics data from YouTube channels.
+      By using this dashboard, you are also subject to Google's Privacy Policy and the
+      YouTube Terms of Service.
+    </p>
+    <div class="callout warn">
+      <span class="callout-icon">→</span>
+      <p>
+        Google's Privacy Policy:
+        <a href="http://www.google.com/policies/privacy" target="_blank" rel="noopener">
+          http://www.google.com/policies/privacy
+        </a><br>
+        YouTube Terms of Service:
+        <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">
+          https://www.youtube.com/t/terms
+        </a>
+      </p>
+    </div>
+    <p>
+      All data collected via the YouTube API is publicly available information —
+      the same data any person could view by watching a YouTube livestream.
+      No private, authenticated, or restricted YouTube data is accessed at any time.
+    </p>
+  </div>
+
+  <!-- 3. DATA COLLECTED -->
+  <div class="section" id="data-collected">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>Data We Collect</h2>
+    </div>
+    <p>
+      IDVTuber Tracker collects only the following publicly available data
+      returned by the YouTube Data API v3 during active or upcoming livestreams:
+    </p>
+    <div class="data-list">
+      <div class="data-item">
+        <div class="data-key">Channel ID</div>
+        <div class="data-val">Unique YouTube channel identifier (e.g. UCxxxxxx)</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Channel Name</div>
+        <div class="data-val">Public display name of the YouTube channel</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Video ID</div>
+        <div class="data-val">Unique YouTube video/stream identifier</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Video Title</div>
+        <div class="data-val">Public title of the livestream at time of collection</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Concurrent Viewers</div>
+        <div class="data-val">Number of viewers watching the stream at time of snapshot</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Like Count</div>
+        <div class="data-val">Cumulative public like count at time of snapshot</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Comment Count</div>
+        <div class="data-val">Cumulative public comment count at time of snapshot</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Stream Status</div>
+        <div class="data-val">"live" or "upcoming" as reported by YouTube API</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Stream Start Time</div>
+        <div class="data-val">Scheduled and actual stream start timestamps</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Collection Timestamp</div>
+        <div class="data-val">Date and time when each data snapshot was recorded</div>
+      </div>
+    </div>
+    <div class="callout">
+      <span class="callout-icon">✓</span>
+      <p>
+        IDVTuber Tracker does <strong>not</strong> collect, access, or store any personally
+        identifiable information about YouTube users, channel subscribers, comment authors,
+        or dashboard visitors. No usernames, profile pictures, email addresses, IP addresses,
+        or any other personal data are collected at any time.
+      </p>
+    </div>
+  </div>
+
+  <!-- 4. HOW WE USE DATA -->
+  <div class="section" id="data-use">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>How We Use Data</h2>
+    </div>
+    <p>
+      Data collected via the YouTube API is used exclusively for the following purpose:
+    </p>
+    <p>
+      To generate and display analytics visualizations on this public dashboard,
+      including concurrent viewer trend charts, peak viewer counts, engagement metrics,
+      and historical data tables for each tracked livestream. This data is displayed
+      solely for informational and fan community engagement purposes.
+    </p>
+    <p>
+      Collected data is stored in a private PostgreSQL database hosted on Supabase
+      and is never used for advertising, user profiling, machine learning training,
+      resale, or any commercial purpose whatsoever.
+    </p>
+  </div>
+
+  <!-- 5. DATA SHARING -->
+  <div class="section" id="data-sharing">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>Data Sharing</h2>
+    </div>
+    <p>
+      IDVTuber Tracker does not sell, rent, license, or share any collected data
+      with any third party for any purpose. The only parties with access to the
+      raw database are the project operators.
+    </p>
+    <p>
+      Aggregated, anonymized analytics (such as viewer trend charts) are displayed
+      publicly on this dashboard. This data contains no personally identifiable
+      information and reflects only publicly available YouTube metrics.
+    </p>
+    <p>
+      The following third-party services are used to operate this project:
+    </p>
+    <div class="data-list">
+      <div class="data-item">
+        <div class="data-key">YouTube Data API v3</div>
+        <div class="data-val">Data source — Google LLC. Subject to Google Privacy Policy.</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">Supabase</div>
+        <div class="data-val">Database hosting — Supabase Inc. Data stored in private PostgreSQL instance.</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">GitHub Pages</div>
+        <div class="data-val">Dashboard hosting — GitHub Inc. Static files served publicly.</div>
+      </div>
+      <div class="data-item">
+        <div class="data-key">GitHub Actions</div>
+        <div class="data-val">Automation — GitHub Inc. Used for running the tracker workflow.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. DATA RETENTION -->
+  <div class="section" id="data-retention">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>Data Retention &amp; Deletion</h2>
+    </div>
+    <p>
+      YouTube API data is retained for a rolling <strong>90-day window</strong>.
+      A scheduled database job automatically and permanently deletes all records
+      older than 90 days on a daily basis at 03:00 UTC.
+    </p>
+    <p>
+      This means no individual stream analytics snapshot is stored for longer
+      than 90 days from its collection date. Data is never archived or transferred
+      to any other storage system beyond our primary database.
+    </p>
+    <div class="callout">
+      <span class="callout-icon">✓</span>
+      <p>
+        To request deletion of any specific data, contact us at the email address
+        in the Contact section below. All verified deletion requests will be
+        fulfilled within <strong>7 business days</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- 7. COOKIES -->
+  <div class="section" id="cookies">
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <h2>Cookies &amp; Tracking Technologies</h2>
+    </div>
+    <p>
+      IDVTuber Tracker does <strong>not</strong> use cookies, local storage, session storage,
+      tracking pixels, browser fingerprinting, web beacons, or any other technology
+      to collect information from visitors' devices or browsers.
+    </p>
+    <p>
+      This dashboard is a fully static website served via GitHub Pages. It contains
+      no analytics scripts (such as Google Analytics), no advertisement scripts,
+      no social media tracking widgets, and no third-party JavaScript of any kind
+      beyond the Chart.js visualization library loaded from a public CDN for
+      rendering viewer trend charts.
+    </p>
+    <div class="callout">
+      <span class="callout-icon">✓</span>
+      <p>
+        No information is stored on or retrieved from your device at any point
+        during your visit to this dashboard.
+      </p>
+    </div>
+  </div>
+
+  <!-- 8. USER RIGHTS -->
+  <div class="section" id="user-rights">
+    <div class="section-header">
+      <span class="section-num">08</span>
+      <h2>Your Rights &amp; Revoking Access</h2>
+    </div>
+    <p>
+      IDVTuber Tracker uses only a server-side API key to access the YouTube Data API.
+      No individual user OAuth authentication or user tokens are used or stored.
+      As such, there is no per-user API access to revoke through this dashboard.
+    </p>
+    <p>
+      In accordance with YouTube API Services Developer Policies, you may revoke
+      access that any Google-authenticated application has to your YouTube data
+      by visiting the Google Security Settings page:
+    </p>
+    <div class="callout warn">
+      <span class="callout-icon">→</span>
+      <p>
+        Google Security Settings:
+        <a href="https://security.google.com/settings/security/permissions" target="_blank" rel="noopener">
+          https://security.google.com/settings/security/permissions
+        </a>
+      </p>
+    </div>
+    <p>
+      If you are a content creator whose channel is tracked by this project and
+      wish to request removal from the tracker, please contact us using the details
+      in the Contact section below. We will remove your channel from tracking and
+      permanently delete all associated data within 7 business days.
+    </p>
+  </div>
+
+  <!-- 9. CONTACT -->
+  <div class="section" id="contact">
+    <div class="section-header">
+      <span class="section-num">09</span>
+      <h2>Contact Information</h2>
+    </div>
+    <p>
+      For questions, concerns, or requests regarding this Privacy Policy or the
+      data practices of IDVTuber Tracker, please contact us through any of the
+      following channels:
+    </p>
+    <div class="contact-box">
+      <div class="contact-row">
+        <span class="label">Email</span>
+        <a href="mailto:[idvtuber.tracker@gmail.com]">idvtuber.tracker@gmail.com</a>
+      </div>
+      <div class="contact-row">
+        <span class="label">GitHub</span>
+        <a href="https://github.com/idvtuber-tracker/tracker" target="_blank" rel="noopener">
+          github.com/idvtuber-tracker/tracker
+        </a>
+      </div>
+      <div class="contact-row">
+        <span class="label">Dashboard</span>
+        <a href="https://idvtuber-tracker.github.io/tracker/" target="_blank" rel="noopener">
+          idvtuber-tracker.github.io/tracker
+        </a>
+      </div>
+    </div>
+    <p style="margin-top:1rem;">
+      We aim to respond to all enquiries within <strong>5 business days</strong>.
+    </p>
+  </div>
+
+  <footer>
+    <span>© 2026 IDVTuber Tracker — Non-commercial fan project</span>
+    <span>
+      <a href="index.html">Dashboard</a> &nbsp;·&nbsp;
+      <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+      <a href="terms.html">Terms of Use</a>
+    </span>
+  </footer>
+
+</div>
+</body>
+</html>
