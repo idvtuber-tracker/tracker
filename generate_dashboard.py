@@ -25,9 +25,9 @@ for legal_file in ["privacy.html", "terms.html"]:
     dst = Path(_output_dir) / legal_file
     if src.exists():
         shutil.copy2(src, dst)
-        log.info("Copied %s to %s/", legal_file, _output_dir)
+        print(f"Copied {legal_file} to {_output_dir}/")
     else:
-        log.warning("Legal file not found: %s — skipping", legal_file)
+        print(f"Warning: {legal_file} not found at repo root — skipping")
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
