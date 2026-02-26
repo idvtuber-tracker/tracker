@@ -16,19 +16,8 @@ from string import Template
 import psycopg2
 import psycopg2.extras
 import shutil
-import os
 
-# ── copy static legal pages into dashboard output ─────────────────────────
-_output_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
-for legal_file in ["privacy.html", "terms.html"]:
-    src = Path(legal_file)
-    dst = Path(_output_dir) / legal_file
-    if src.exists():
-        shutil.copy2(src, dst)
-        print(f"Copied {legal_file} to {_output_dir}/")
-    else:
-        print(f"Warning: {legal_file} not found at repo root — skipping")
-
+AIVEN_DATABASE_URL = os.environ.get("AIVEN_DATABASE_URL", "")
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
@@ -571,6 +560,9 @@ def build_stream_page(
 
 
 def build_dashboard() -> None:
+    if not AIVEN_DATABASE_URL:
+        print("ERROR: AIVEN_DATABASE_URL environment variable is not set.")
+        raise SystemExit(1)
     conn = psycopg2.connect(AIVEN_DATABASE_URL, sslmode="require")
     channels = get_channel_tables(conn)
 
@@ -646,3 +638,15 @@ def build_dashboard() -> None:
 
 if __name__ == "__main__":
     build_dashboard()
+    
+    # Copy static legal pages into dashboard output
+    import shutil
+    _output_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
+    for legal_file in ["privacy.html", "terms.html"]:
+        src = Path(legal_file)
+        dst = Path(_output_dir) / legal_file
+        if src.exists():
+            shutil.copy2(src, dst)
+            print(f"Copied {legal_file} to {_output_dir}/")
+        else:
+            print(f"Warning: {legal_file} not found at repo root — skipping")
