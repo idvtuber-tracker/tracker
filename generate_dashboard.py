@@ -15,6 +15,17 @@ from string import Template
 
 import psycopg2
 import psycopg2.extras
+import shutil
+
+# ── copy static legal pages into dashboard output ─────────────────────────
+for legal_file in ["privacy.html", "terms.html"]:
+    src = Path(legal_file)                          # repo root
+    dst = Path(OUTPUT_DIR) / legal_file             # dashboard/
+    if src.exists():
+        shutil.copy2(src, dst)
+        log.info("Copied %s to dashboard/", legal_file)
+    else:
+        log.warning("Legal file not found: %s — skipping", legal_file)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
