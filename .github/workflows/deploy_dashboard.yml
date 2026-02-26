@@ -3,6 +3,7 @@ name: Deploy Dashboard
 on:
   repository_dispatch:
     types: [deploy-dashboard]
+  workflow_dispatch:
 
 permissions:
   contents: read
