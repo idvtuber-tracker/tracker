@@ -565,9 +565,20 @@ def build_dashboard() -> None:
         raise SystemExit(1)
     conn = psycopg2.connect(AIVEN_DATABASE_URL, sslmode="require")
     channels = get_channel_tables(conn)
-
+    OUTPUT_DIR = Path(os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard"))
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # ── copy static legal pages ────────────────────────────────────────────
+    import shutil
+    for legal_file in ["privacy.html", "terms.html"]:
+        src = Path(legal_file)
+        dst = OUTPUT_DIR / legal_file
+        if src.exists():
+            shutil.copy2(src, dst)
+            print(f"Copied {legal_file} to {OUTPUT_DIR}/")
+        else:
+            print(f"Warning: {legal_file} not found at repo root — skipping")    
+    
     total_streams = 0
     channel_blocks_html = ""
 
@@ -638,15 +649,6 @@ def build_dashboard() -> None:
 
 if __name__ == "__main__":
     build_dashboard()
-    
-    # Copy static legal pages into dashboard output
-    import shutil
-    _output_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
-    for legal_file in ["privacy.html", "terms.html"]:
-        src = Path(legal_file)
-        dst = Path(_output_dir) / legal_file
-        if src.exists():
-            shutil.copy2(src, dst)
             print(f"Copied {legal_file} to {_output_dir}/")
         else:
             print(f"Warning: {legal_file} not found at repo root — skipping")
