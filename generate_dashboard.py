@@ -649,6 +649,3 @@ def build_dashboard() -> None:
 
 if __name__ == "__main__":
     build_dashboard()
-            print(f"Copied {legal_file} to {_output_dir}/")
-        else:
-            print(f"Warning: {legal_file} not found at repo root — skipping")
