@@ -46,11 +46,11 @@ ORG_MAP = {
         "desc":    "An Indonesian VTuber organization with a rich mythological theme inspired by the Mahabharata.",
         "channels": [
             ("PANDAVVA Official",             "org"),
-            ("Yudistira Yogendra 【PANDAVVA】", "talent"),
-            ("Bima Bayusena",                 "talent"),   # not yet in DB
-            ("Arjuna Arkana",                 "talent"),   # not yet in DB
-            ("Nakula Narenda",                "talent"),   # not yet in DB
-            ("Sadewa Sagara【PANDAVVA】",        "talent"),
+            ("Yudistira Yogendra【PANDAVVA】", "talent"),
+            ("Bima Bayusena【PANDAVVA】",      "talent"),   # not yet in DB
+            ("Arjuna Arkana【PANDAVVA】",      "talent"),   # not yet in DB
+            ("Nakula Narenda【PANDAVVA】",     "talent"),   # not yet in DB
+            ("Sadewa Sagara【PANDAVVA】",      "talent"),
         ],
     },
     "project-livium": {
@@ -60,10 +60,10 @@ ORG_MAP = {
         "channels": [
             ("Project:LIVIUM",                             "org"),    # not yet in DB
             ("Indira Naylarissa Ch.〔LiviPro〕",    "talent"),
-            ("Silvia Valleria",                            "talent"), # not yet in DB
+            ("Silvia Valleria Ch.〔LiviPro〕",      "talent"), # not yet in DB
             ("Yuura Yozakura Ch.〔LiviPro〕",       "talent"),
-            ("Ymelia Meiru",                               "talent"), # not yet in DB
-            ("Fareye Closhartt",                           "talent"), # not yet in DB
+            ("Ymelia Meiru Ch.〔LiviPro〕",         "talent"), # not yet in DB
+            ("Fareye Closhartt Ch.〔LiviPro〕",     "talent"), # not yet in DB
             ("Yuela GuiGui Ch.〔LiviPro〕",         "talent"),
             ("Lillis Infernallies Ch.〔LiviPro〕",  "talent"),
         ],
