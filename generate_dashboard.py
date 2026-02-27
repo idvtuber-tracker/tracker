@@ -17,6 +17,13 @@ import psycopg2
 import psycopg2.extras
 import shutil
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger(__name__)
+
 AIVEN_DATABASE_URL = os.environ.get("AIVEN_DATABASE_URL", "")
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
@@ -569,7 +576,6 @@ def build_dashboard() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # ── copy static legal pages ────────────────────────────────────────────
-    import shutil
     for legal_file in ["privacy.html", "terms.html"]:
         src = Path(legal_file)
         dst = OUTPUT_DIR / legal_file
