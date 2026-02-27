@@ -45,12 +45,12 @@ ORG_MAP = {
         "color":   "#e8ff47",
         "desc":    "An Indonesian VTuber organization with a rich mythological theme inspired by the Mahabharata.",
         "channels": [
-            ("PANDAVVA",           "org"),
-            ("Yudistira Yogendra", "talent"),
-            ("Bima Bayusena",      "talent"),
-            ("Arjuna Arkana",      "talent"),
-            ("Nakula Narenda",     "talent"),
-            ("Sadewa Sagara",      "talent"),
+            ("PANDAVVA Official",             "org"),
+            ("Yudistira Yogendra 【PANDAVVA】", "talent"),
+            ("Bima Bayusena",                 "talent"),   # not yet in DB
+            ("Arjuna Arkana",                 "talent"),   # not yet in DB
+            ("Nakula Narenda",                "talent"),   # not yet in DB
+            ("Sadewa Sagara【PANDAVVA】",        "talent"),
         ],
     },
     "project-livium": {
@@ -58,14 +58,14 @@ ORG_MAP = {
         "color":   "#47ffb2",
         "desc":    "A dynamic VTuber project featuring seven unique talents spanning a wide range of creative personalities.",
         "channels": [
-            ("Project:LIVIUM",       "org"),
-            ("Indira Naylarissa",    "talent"),
-            ("Silvia Valleria",      "talent"),
-            ("Yuura Yozakura",       "talent"),
-            ("Ymelia Meiru",         "talent"),
-            ("Fareye Closhartt",     "talent"),
-            ("Yuela GuiGui",         "talent"),
-            ("Lillis Infernallies",  "talent"),
+            ("Project:LIVIUM",                             "org"),    # not yet in DB
+            ("Indira Naylarissa Ch.〔LiviPro〕",    "talent"),
+            ("Silvia Valleria",                            "talent"), # not yet in DB
+            ("Yuura Yozakura Ch.〔LiviPro〕",       "talent"),
+            ("Ymelia Meiru",                               "talent"), # not yet in DB
+            ("Fareye Closhartt",                           "talent"), # not yet in DB
+            ("Yuela GuiGui Ch.〔LiviPro〕",         "talent"),
+            ("Lillis Infernallies Ch.〔LiviPro〕",  "talent"),
         ],
     },
     "whicker-butler": {
@@ -73,12 +73,12 @@ ORG_MAP = {
         "color":   "#b47fff",
         "desc":    "A boutique VTuber agency known for its refined aesthetic and five distinctive talents with global appeal.",
         "channels": [
-            ("Whicker Butler",     "org"),
-            ("Valthea Nankila",    "talent"),
-            ("Ignis Grimoire",     "talent"),
-            ("Darlyne Nightbloom", "talent"),
-            ("Thalita Sylvaine",   "talent"),
-            ("Oriana Solstair",    "talent"),
+            ("Whicker Butler",                             "org"),    # not yet in DB
+            ("Valthea Nankila 【 Whicker Butler 】",   "talent"),
+            ("Ignis Grimoire【Whicker Butler】",        "talent"),
+            ("Darlyne Nightbloom【Whicker Butler】",    "talent"),
+            ("Thalita Sylvaine【Whicker Butler】",      "talent"),
+            ("Oriana Solstair【Whicker Butler】",       "talent"),
         ],
     },
 }
