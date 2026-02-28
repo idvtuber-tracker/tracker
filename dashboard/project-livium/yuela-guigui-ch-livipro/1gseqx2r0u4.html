@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project:LIVIUM — IDVTuber Tracker</title>
+<title>〔FreeTalk〕sahurrrrrr〔Yuela GuiGui | LIVIUM〕 — IDVTuber Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 
   :root {
@@ -210,87 +210,99 @@
 </head>
 <body>
 <div class="page">
-<nav class="breadcrumb"><a href="../index.html">Home</a> <span class="sep">&#8250;</span> <span class="current">Project:LIVIUM</span></nav>
+<nav class="breadcrumb"><a href="../../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../../index.html">Project:LIVIUM</a> <span class="sep">&#8250;</span> <a href="../index.html">Yuela GuiGui Ch.〔LiviPro〕</a> <span class="sep">&#8250;</span> <span class="current">〔FreeTalk〕sahurrrrrr〔Yuela GuiGui | LIVI…</span></nav>
   <header>
-    <p class="eyebrow">Project:LIVIUM</p>
-    <h1>Project:LIVIUM</h1>
-    <p class="page-meta">8 channels &#8212; select a channel to view streams</p>
+    <p class="eyebrow">Project:LIVIUM &nbsp;&#183;&nbsp; Yuela GuiGui Ch.〔LiviPro〕</p>
+    <span class="stream-status status-live" style="display:inline-block;margin-bottom:0.75rem;">&#128308; Live</span>
+    <h1>〔FreeTalk〕sahurrrrrr〔Yuela GuiGui | LIVIUM〕</h1>
+    <p class="page-meta">Video ID: 1GSEqX2r0U4 &nbsp;&#183;&nbsp; 10 data points</p>
   </header>
-  <div class="channels-list">
-    <a class="channel-item" href="project-livium/index.html">
-      <div class="channel-item-left">
-        <span class="channel-badge">ORG CH</span>
-        <span class="channel-name-text">Project:LIVIUM</span>
-      </div>
-      <span style="font-size:0.7rem;color:var(--muted);">0 streams</span>
-      <span class="channel-arrow">&#8594;</span>
-    </a>
-    <a class="channel-item" href="indira-naylarissa-ch-livipro/index.html">
-      <div class="channel-item-left">
-        <span class="channel-badge">TALENT</span>
-        <span class="channel-name-text">Indira Naylarissa Ch.〔LiviPro〕</span>
-      </div>
-      <span style="font-size:0.7rem;color:var(--muted);">4 streams</span>
-      <span class="channel-arrow">&#8594;</span>
-    </a>
-    <a class="channel-item" href="silvia-valleria-ch-livipro/index.html">
-      <div class="channel-item-left">
-        <span class="channel-badge">TALENT</span>
-        <span class="channel-name-text">Silvia Valleria Ch.〔LiviPro〕</span>
-      </div>
-      <span style="font-size:0.7rem;color:var(--muted);">0 streams</span>
-      <span class="channel-arrow">&#8594;</span>
-    </a>
-    <a class="channel-item" href="yuura-yozakura-ch-livipro/index.html">
-      <div class="channel-item-left">
-        <span class="channel-badge">TALENT</span>
-        <span class="channel-name-text">Yuura Yozakura Ch.〔LiviPro〕</span>
-      </div>
-      <span style="font-size:0.7rem;color:var(--muted);">4 streams</span>
-      <span class="channel-arrow">&#8594;</span>
-    </a>
-    <a class="channel-item" href="ymelia-meiru-ch-livipro/index.html">
-      <div class="channel-item-left">
-        <span class="channel-badge">TALENT</span>
-        <span class="channel-name-text">Ymelia Meiru Ch.〔LiviPro〕</span>
-      </div>
-      <span style="font-size:0.7rem;color:var(--muted);">0 streams</span>
-      <span class="channel-arrow">&#8594;</span>
-    </a>
-    <a class="channel-item" href="fareye-closhartt-ch-livipro/index.html">
-      <div class="channel-item-left">
-        <span class="channel-badge">TALENT</span>
-        <span class="channel-name-text">Fareye Closhartt Ch.〔LiviPro〕</span>
-      </div>
-      <span style="font-size:0.7rem;color:var(--muted);">0 streams</span>
-      <span class="channel-arrow">&#8594;</span>
-    </a>
-    <a class="channel-item" href="yuela-guigui-ch-livipro/index.html">
-      <div class="channel-item-left">
-        <span class="channel-badge">TALENT</span>
-        <span class="channel-name-text">Yuela GuiGui Ch.〔LiviPro〕</span>
-      </div>
-      <span style="font-size:0.7rem;color:var(--muted);">3 streams</span>
-      <span class="channel-arrow">&#8594;</span>
-    </a>
-    <a class="channel-item" href="lillis-infernallies-ch-livipro/index.html">
-      <div class="channel-item-left">
-        <span class="channel-badge">TALENT</span>
-        <span class="channel-name-text">Lillis Infernallies Ch.〔LiviPro〕</span>
-      </div>
-      <span style="font-size:0.7rem;color:var(--muted);">3 streams</span>
-      <span class="channel-arrow">&#8594;</span>
-    </a>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">51</div><div class="kpi-sub">concurrent</div></div>
+    <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">35</div></div>
+    <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">0</div></div>
+    <div class="kpi"><div class="kpi-label">First Seen</div><div class="kpi-value" style="font-size:1.1rem;">2026-02-28 20:59 UTC</div></div>
+    <div class="kpi"><div class="kpi-label">Last Seen</div><div class="kpi-value" style="font-size:1.1rem;">2026-02-28 21:08 UTC</div></div>
   </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Concurrent Viewers over Time</div>
+    <div class="chart-wrap"><canvas id="viewerChart"></canvas></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Likes &amp; Comments over Time</div>
+    <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>
+  </div>
+
+  <p class="section-title">All collected data points</p>
+  <table class="data-table">
+    <thead><tr>
+      <th>Collected At</th><th>Status</th>
+      <th style="text-align:right">Viewers</th>
+      <th style="text-align:right">Likes</th>
+      <th style="text-align:right">Comments</th>
+      <th>Stream Start</th>
+    </tr></thead>
+    <tbody>
+        <tr><td class="ts">2026-02-28 21:08 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">48</td><td class="num">35</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 21:07 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">50</td><td class="num">32</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 21:06 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">51</td><td class="num">29</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 21:05 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">49</td><td class="num">27</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 21:04 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">48</td><td class="num">25</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 21:03 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">43</td><td class="num">24</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 21:02 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">40</td><td class="num">23</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 21:01 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">38</td><td class="num">21</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 21:00 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">31</td><td class="num">21</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+        <tr><td class="ts">2026-02-28 20:59 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">46</td><td class="num">17</td><td class="num">0</td><td class="ts">2026-02-28 20:49 UTC</td></tr>
+    </tbody>
+  </table>
+
+  <p class="generated">Generated 2026-02-28 21:08 UTC &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+
+<script>
+const ts    = ["2026-02-28 20:59 UTC", "2026-02-28 21:00 UTC", "2026-02-28 21:01 UTC", "2026-02-28 21:02 UTC", "2026-02-28 21:03 UTC", "2026-02-28 21:04 UTC", "2026-02-28 21:05 UTC", "2026-02-28 21:06 UTC", "2026-02-28 21:07 UTC", "2026-02-28 21:08 UTC"];
+const views = [46, 31, 38, 40, 43, 48, 49, 51, 50, 48];
+const likes = [17, 21, 21, 23, 24, 25, 27, 29, 32, 35];
+const comms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const orgColor  = '#47ffb2';
+const gridColor = 'rgba(30,30,46,0.8)';
+const tickColor = '#5a5a7a';
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  interaction: { mode: "index", intersect: false },
+  plugins: { legend: { labels: { color: tickColor, font: { family: "DM Mono", size: 11 }, boxWidth: 12 } } },
+  scales: {
+    x: { ticks: { color: tickColor, font: { family: "DM Mono", size: 10 }, maxTicksLimit: 10, maxRotation: 0 }, grid: { color: gridColor } },
+    y: { ticks: { color: tickColor, font: { family: "DM Mono", size: 10 } }, grid: { color: gridColor } }
+  }
+};
+new Chart(document.getElementById("viewerChart"), {
+  type: "line",
+  data: { labels: ts, datasets: [{ label: "Concurrent Viewers", data: views,
+    borderColor: orgColor, backgroundColor: orgColor + "22",
+    borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }] },
+  options: { ...baseOpts }
+});
+new Chart(document.getElementById("engagementChart"), {
+  type: "line",
+  data: { labels: ts, datasets: [
+    { label: "Likes",    data: likes, borderColor: "#ff4f6d", backgroundColor: "rgba(255,79,109,0.05)",  borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 },
+    { label: "Comments", data: comms, borderColor: "#4fc3f7", backgroundColor: "rgba(79,195,247,0.05)", borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }
+  ] },
+  options: { ...baseOpts }
+});
+</script>
 
   <footer>
     <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>
     <span>
-      <a href="../index.html">Home</a>
+      <a href="../../../index.html">Home</a>
       &nbsp;&middot;&nbsp;
-      <a href="../privacy.html">Privacy Policy</a>
+      <a href="../../../privacy.html">Privacy Policy</a>
       &nbsp;&middot;&nbsp;
-      <a href="../terms.html">Terms of Use</a>
+      <a href="../../../terms.html">Terms of Use</a>
     </span>
   </footer>
 </div>
