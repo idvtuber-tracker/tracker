@@ -46,7 +46,7 @@ ORG_MAP = {
         "desc":    "An Indonesian VTuber organization with a rich mythological theme inspired by the Mahabharata.",
         "channels": [
             ("PANDAVVA Official",             "org"),
-            ("Yudistira Yogendra【PANDAVVA】", "talent"),
+            ("Yudistira Yogendra 【PANDAVVA】", "talent"),
             ("Bima Bayusena【PANDAVVA】",      "talent"),   # not yet in DB
             ("Arjuna Arkana【PANDAVVA】",      "talent"),   # not yet in DB
             ("Nakula Narenda【PANDAVVA】",     "talent"),   # not yet in DB
