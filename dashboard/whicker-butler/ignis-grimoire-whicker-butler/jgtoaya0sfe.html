@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ignis Grimoire【Whicker Butler】 — IDVTuber Tracker</title>
+<title>【 DOOMSCROLLING 】TAHAN YAA TAHANNN — IDVTuber Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 
   :root {
@@ -210,43 +210,103 @@
 </head>
 <body>
 <div class="page">
-<nav class="breadcrumb"><a href="../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../index.html">Whicker Butler</a> <span class="sep">&#8250;</span> <span class="current">Ignis Grimoire【Whicker Butler】</span></nav>
+<nav class="breadcrumb"><a href="../../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../../index.html">Whicker Butler</a> <span class="sep">&#8250;</span> <a href="../index.html">Ignis Grimoire【Whicker Butler】</a> <span class="sep">&#8250;</span> <span class="current">【 DOOMSCROLLING 】TAHAN YAA TAHANNN</span></nav>
   <header>
-    <p class="eyebrow">Whicker Butler</p>
-    <h1>Ignis Grimoire【Whicker Butler】</h1>
-    <p class="page-meta">2 streams recorded &#8212; sorted by date</p>
+    <p class="eyebrow">Whicker Butler &nbsp;&#183;&nbsp; Ignis Grimoire【Whicker Butler】</p>
+    <span class="stream-status status-live" style="display:inline-block;margin-bottom:0.75rem;">&#128308; Live</span>
+    <h1>【 DOOMSCROLLING 】TAHAN YAA TAHANNN</h1>
+    <p class="page-meta">Video ID: jGtoAYa0SfE &nbsp;&#183;&nbsp; 14 data points</p>
   </header>
-  <div class="streams-grid">
-    <a class="stream-card" href="jgtoaya0sfe.html">
-      <span class="stream-status status-live">&#128308; Live</span>
-      <div class="stream-title">【 DOOMSCROLLING 】TAHAN YAA TAHANNN</div>
-      <div class="stream-stats">
-        <div><div class="stat-label">Peak Viewers</div><div class="stat-value">23</div></div>
-        <div><div class="stat-label">Peak Likes</div><div class="stat-value">9</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">0</div></div>
-      </div>
-      <div class="stream-date">2026-03-01 09:08 UTC</div>
-    </a>
-    <a class="stream-card" href="ebshqcuihi.html">
-      <span class="stream-status status-live">&#128308; Live</span>
-      <div class="stream-title">【 ASFTUB 】NGABUBURIT BERSAMA GAME TERBAIK</div>
-      <div class="stream-stats">
-        <div><div class="stat-label">Peak Viewers</div><div class="stat-value">31</div></div>
-        <div><div class="stat-label">Peak Likes</div><div class="stat-value">27</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">0</div></div>
-      </div>
-      <div class="stream-date">2026-02-27 09:04 UTC</div>
-    </a>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">23</div><div class="kpi-sub">concurrent</div></div>
+    <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">9</div></div>
+    <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">0</div></div>
+    <div class="kpi"><div class="kpi-label">First Seen</div><div class="kpi-value" style="font-size:1.1rem;">2026-03-01 09:08 UTC</div></div>
+    <div class="kpi"><div class="kpi-label">Last Seen</div><div class="kpi-value" style="font-size:1.1rem;">2026-03-01 09:22 UTC</div></div>
   </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Concurrent Viewers over Time</div>
+    <div class="chart-wrap"><canvas id="viewerChart"></canvas></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Likes &amp; Comments over Time</div>
+    <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>
+  </div>
+
+  <p class="section-title">All collected data points</p>
+  <table class="data-table">
+    <thead><tr>
+      <th>Collected At</th><th>Status</th>
+      <th style="text-align:right">Viewers</th>
+      <th style="text-align:right">Likes</th>
+      <th style="text-align:right">Comments</th>
+      <th>Stream Start</th>
+    </tr></thead>
+    <tbody>
+        <tr><td class="ts">2026-03-01 09:22 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">20</td><td class="num">9</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:21 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">21</td><td class="num">9</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:20 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">23</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:19 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">21</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:18 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">20</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:17 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">16</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:16 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">21</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:15 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">17</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:14 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">18</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:12 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">19</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:11 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">18</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:10 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">21</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:09 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">16</td><td class="num">8</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+        <tr><td class="ts">2026-03-01 09:08 UTC</td><td><span class="pill pill-live">live</span></td><td class="num">18</td><td class="num">7</td><td class="num">0</td><td class="ts">2026-03-01 09:00 UTC</td></tr>
+    </tbody>
+  </table>
+
+  <p class="generated">Generated 2026-03-01 09:23 UTC &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+
+<script>
+const ts    = ["2026-03-01 09:08 UTC", "2026-03-01 09:09 UTC", "2026-03-01 09:10 UTC", "2026-03-01 09:11 UTC", "2026-03-01 09:12 UTC", "2026-03-01 09:14 UTC", "2026-03-01 09:15 UTC", "2026-03-01 09:16 UTC", "2026-03-01 09:17 UTC", "2026-03-01 09:18 UTC", "2026-03-01 09:19 UTC", "2026-03-01 09:20 UTC", "2026-03-01 09:21 UTC", "2026-03-01 09:22 UTC"];
+const views = [18, 16, 21, 18, 19, 18, 17, 21, 16, 20, 21, 23, 21, 20];
+const likes = [7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9];
+const comms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const orgColor  = '#b47fff';
+const gridColor = 'rgba(30,30,46,0.8)';
+const tickColor = '#5a5a7a';
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  interaction: { mode: "index", intersect: false },
+  plugins: { legend: { labels: { color: tickColor, font: { family: "DM Mono", size: 11 }, boxWidth: 12 } } },
+  scales: {
+    x: { ticks: { color: tickColor, font: { family: "DM Mono", size: 10 }, maxTicksLimit: 10, maxRotation: 0 }, grid: { color: gridColor } },
+    y: { ticks: { color: tickColor, font: { family: "DM Mono", size: 10 } }, grid: { color: gridColor } }
+  }
+};
+new Chart(document.getElementById("viewerChart"), {
+  type: "line",
+  data: { labels: ts, datasets: [{ label: "Concurrent Viewers", data: views,
+    borderColor: orgColor, backgroundColor: orgColor + "22",
+    borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }] },
+  options: { ...baseOpts }
+});
+new Chart(document.getElementById("engagementChart"), {
+  type: "line",
+  data: { labels: ts, datasets: [
+    { label: "Likes",    data: likes, borderColor: "#ff4f6d", backgroundColor: "rgba(255,79,109,0.05)",  borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 },
+    { label: "Comments", data: comms, borderColor: "#4fc3f7", backgroundColor: "rgba(79,195,247,0.05)", borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }
+  ] },
+  options: { ...baseOpts }
+});
+</script>
 
   <footer>
     <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>
     <span>
-      <a href="../../index.html">Home</a>
+      <a href="../../../index.html">Home</a>
       &nbsp;&middot;&nbsp;
-      <a href="../../privacy.html">Privacy Policy</a>
+      <a href="../../../privacy.html">Privacy Policy</a>
       &nbsp;&middot;&nbsp;
-      <a href="../../terms.html">Terms of Use</a>
+      <a href="../../../terms.html">Terms of Use</a>
     </span>
   </footer>
 </div>
