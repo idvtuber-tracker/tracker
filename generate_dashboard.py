@@ -22,6 +22,12 @@ from pathlib import Path
 import psycopg2
 import psycopg2.extras
 
+try:
+    from googleapiclient.discovery import build as yt_build
+    _YT_AVAILABLE = True
+except ImportError:
+    _YT_AVAILABLE = False
+
 # ── logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -47,10 +53,10 @@ ORG_MAP = {
         "channels": [
             ("PANDAVVA Official",             "org"),
             ("Yudistira Yogendra 【PANDAVVA】", "talent"),
-            ("Bima Bayusena【PANDAVVA】",      "talent"),   # not yet in DB
-            ("Arjuna Arkana【PANDAVVA】",      "talent"),   # not yet in DB
-            ("Nakula Narenda【PANDAVVA】",     "talent"),   # not yet in DB
-            ("Sadewa Sagara【PANDAVVA】",      "talent"),
+            ("Bima Bayusena",                 "talent"),   # not yet in DB
+            ("Arjuna Arkana",                 "talent"),   # not yet in DB
+            ("Nakula Narenda",                "talent"),   # not yet in DB
+            ("Sadewa Sagara【PANDAVVA】",        "talent"),
         ],
     },
     "project-livium": {
@@ -60,10 +66,10 @@ ORG_MAP = {
         "channels": [
             ("Project:LIVIUM",                             "org"),    # not yet in DB
             ("Indira Naylarissa Ch.〔LiviPro〕",    "talent"),
-            ("Silvia Valleria Ch.〔LiviPro〕",      "talent"), # not yet in DB
+            ("Silvia Valleria",                            "talent"), # not yet in DB
             ("Yuura Yozakura Ch.〔LiviPro〕",       "talent"),
-            ("Ymelia Meiru Ch.〔LiviPro〕",         "talent"), # not yet in DB
-            ("Fareye Closhartt Ch.〔LiviPro〕",     "talent"), # not yet in DB
+            ("Ymelia Meiru",                               "talent"), # not yet in DB
+            ("Fareye Closhartt",                           "talent"), # not yet in DB
             ("Yuela GuiGui Ch.〔LiviPro〕",         "talent"),
             ("Lillis Infernallies Ch.〔LiviPro〕",  "talent"),
         ],
@@ -141,6 +147,67 @@ def get_all_rows(conn, table: str, video_id: str) -> list[dict]:
             ORDER BY collected_at DESC
         """, (video_id,))
         return cur.fetchall()
+
+
+_LOGO_CACHE_FILE = "channel_logos_cache.json"
+
+
+def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
+    """
+    Fetch channel thumbnail URLs from YouTube API.
+    Results are cached to disk for the remainder of the UTC day so that
+    repeated dashboard regenerations (every 30s during live streams) only
+    cost 1 API unit per day instead of 1 per regeneration.
+    Falls back gracefully if the API key is missing or the call fails.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # ── return from cache if still valid ──────────────────────────────────────
+    if os.path.exists(_LOGO_CACHE_FILE):
+        try:
+            with open(_LOGO_CACHE_FILE, encoding="utf-8") as f:
+                cache = json.load(f)
+            if cache.get("date") == today:
+                log.info("Using cached channel logos (%d entries).", len(cache.get("logos", {})))
+                return cache["logos"]
+        except Exception as e:
+            log.warning("Logo cache unreadable (%s) — will re-fetch.", e)
+
+    # ── fetch from API ─────────────────────────────────────────────────────────
+    api_key = os.environ.get("YOUTUBE_API_KEYS") or os.environ.get("YOUTUBE_API_KEY", "")
+    if api_key:
+        api_key = api_key.split(",")[0].strip()  # use first key only
+    if not api_key or not _YT_AVAILABLE or not channel_ids:
+        return {}
+
+    logos: dict[str, str] = {}
+    for i in range(0, len(channel_ids), 50):
+        batch = channel_ids[i:i + 50]
+        try:
+            yt = yt_build("youtube", "v3", developerKey=api_key)
+            resp = yt.channels().list(
+                part="snippet",
+                id=",".join(batch),
+                maxResults=50,
+            ).execute()
+            for item in resp.get("items", []):
+                cid    = item["id"]
+                thumbs = item.get("snippet", {}).get("thumbnails", {})
+                url    = (thumbs.get("medium") or thumbs.get("default") or {}).get("url", "")
+                if url:
+                    logos[cid] = url
+        except Exception as e:
+            log.warning("Could not fetch channel logos: %s", e)
+
+    # ── persist cache ──────────────────────────────────────────────────────────
+    try:
+        with open(_LOGO_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump({"date": today, "logos": logos}, f)
+        log.info("Channel logos fetched and cached (%d entries).", len(logos))
+    except Exception as e:
+        log.warning("Could not save logo cache: %s", e)
+
+    return logos
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -263,26 +330,56 @@ _BASE_CSS = """
   .org-stat { font-size: 0.72rem; color: var(--muted); }
   .org-stat strong { color: var(--org-color); }
 
-  /* channel list */
-  .channels-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 2.5rem; }
-  .channel-item {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.25rem 1.5rem;
-    text-decoration: none; color: inherit;
-    display: flex; align-items: center; justify-content: space-between;
-    transition: border-color 0.2s, background 0.2s;
+  /* channel card grid */
+  .channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.25rem; margin-top: 2.5rem;
   }
-  .channel-item:hover { border-color: var(--org-color); background: var(--surface2); }
-  .channel-item-left { display: flex; align-items: center; gap: 1rem; }
+  .channel-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.5rem 1.25rem;
+    text-decoration: none; color: inherit; display: flex;
+    flex-direction: column; align-items: center; text-align: center;
+    gap: 0.9rem;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .channel-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.35s;
+  }
+  .channel-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
+  .channel-card:hover::after { transform: scaleX(1); }
+  .channel-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+    transition: border-color 0.2s;
+    background: var(--surface2);
+  }
+  .channel-card:hover .channel-avatar { border-color: var(--org-color); }
+  .channel-avatar-placeholder {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700;
+    color: var(--org-color); flex-shrink: 0;
+    transition: border-color 0.2s;
+  }
+  .channel-card:hover .channel-avatar-placeholder { border-color: var(--org-color); }
   .channel-badge {
-    font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase;
-    padding: 0.2rem 0.5rem; border-radius: 2px;
+    font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 0.18rem 0.45rem; border-radius: 2px;
     border: 1px solid var(--org-color); color: var(--org-color);
     background: rgba(0,0,0,0.3); flex-shrink: 0;
   }
-  .channel-name-text { font-size: 0.95rem; color: var(--white); }
-  .channel-arrow { color: var(--muted); font-size: 0.8rem; transition: transform 0.2s, color 0.2s; }
-  .channel-item:hover .channel-arrow { transform: translateX(4px); color: var(--org-color); }
+  .channel-card-name {
+    font-family: 'Fraunces', serif; font-size: 0.95rem; font-weight: 700;
+    color: var(--white); line-height: 1.25;
+  }
+  .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
 
   /* stream cards */
   .streams-grid {
@@ -323,6 +420,19 @@ _BASE_CSS = """
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
   /* stream detail */
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
+    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+  .embed-wrap iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+  }
+  .embed-label {
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 0.6rem;
+  }
   .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
   .kpi {
     background: var(--surface); border: 1px solid var(--border);
@@ -461,23 +571,38 @@ def write_index(total_streams: int, total_channels: int, generated_at: str) -> N
     log.info("Written: index.html")
 
 
-def write_org_page(org_slug: str, org: dict, stream_counts: dict) -> None:
+def write_org_page(org_slug: str, org: dict, stream_counts: dict,
+                   logos: dict[str, str] | None = None,
+                   channel_ids_map: dict[str, str] | None = None) -> None:
+    """
+    logos: {channel_id: thumbnail_url}
+    channel_ids_map: {channel_name: channel_id}
+    """
     org_dir = OUTPUT_DIR / org_slug
     org_dir.mkdir(exist_ok=True)
+    logos          = logos or {}
+    channel_ids_map = channel_ids_map or {}
 
-    items = ""
+    cards = ""
     for ch_name, ch_type in org["channels"]:
-        ch_slug = slugify(ch_name)
-        badge   = "ORG CH" if ch_type == "org" else "TALENT"
-        n_str   = stream_counts.get(ch_name, 0)
-        items += (
-            f'\n    <a class="channel-item" href="{ch_slug}/index.html">\n'
-            f'      <div class="channel-item-left">\n'
-            f'        <span class="channel-badge">{badge}</span>\n'
-            f'        <span class="channel-name-text">{esc(ch_name)}</span>\n'
-            f'      </div>\n'
-            f'      <span style="font-size:0.7rem;color:var(--muted);">{n_str} streams</span>\n'
-            f'      <span class="channel-arrow">&#8594;</span>\n'
+        ch_slug  = slugify(ch_name)
+        badge    = "ORG CH" if ch_type == "org" else "TALENT"
+        n_str    = stream_counts.get(ch_name, 0)
+        ch_id    = channel_ids_map.get(ch_name, "")
+        logo_url = logos.get(ch_id, "")
+
+        if logo_url:
+            avatar_html = f'<img class="channel-avatar" src="{logo_url}" alt="{esc(ch_name)}" loading="lazy">'
+        else:
+            initial = ch_name[0].upper()
+            avatar_html = f'<div class="channel-avatar-placeholder">{initial}</div>'
+
+        cards += (
+            f'\n    <a class="channel-card" href="{ch_slug}/index.html">\n'
+            f'      {avatar_html}\n'
+            f'      <span class="channel-badge">{badge}</span>\n'
+            f'      <div class="channel-card-name">{esc(ch_name)}</div>\n'
+            f'      <div class="channel-card-meta">{n_str} stream{"s" if n_str != 1 else ""}</div>\n'
             f'    </a>'
         )
 
@@ -489,7 +614,7 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict) -> None:
         f'    <h1>{esc(org["label"])}</h1>\n'
         f'    <p class="page-meta">{len(org["channels"])} channels &#8212; select a channel to view streams</p>\n'
         f'  </header>\n'
-        f'  <div class="channels-list">{items}\n  </div>\n'
+        f'  <div class="channels-grid">{cards}\n  </div>\n'
     )
 
     html = _html_head(org["label"], 1, org["color"]) + body + _html_foot(1)
@@ -608,6 +733,18 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         '</script>'
     )
 
+    embed_html = (
+        f'  <p class="embed-label">Watch on YouTube</p>\n'
+        f'  <div class="embed-wrap">\n'
+        f'    <iframe\n'
+        f'      src="https://www.youtube.com/embed/{esc(vid)}"\n'
+        f'      title="{esc(title_text)}"\n'
+        f'      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n'
+        f'      allowfullscreen>\n'
+        f'    </iframe>\n'
+        f'  </div>\n'
+    )
+
     body = (
         bc
         + f'  <header>\n'
@@ -616,7 +753,8 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'    <h1>{esc(title_text)}</h1>\n'
         f'    <p class="page-meta">Video ID: {esc(vid)} &nbsp;&#183;&nbsp; {fmt(stream["data_points"])} data points</p>\n'
         f'  </header>\n\n'
-        f'  <div class="kpi-row">\n'
+        + embed_html
+        + f'  <div class="kpi-row">\n'
         f'    <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">{fmt(stream["peak_viewers"])}</div><div class="kpi-sub">concurrent</div></div>\n'
         f'    <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">{fmt(stream["peak_likes"])}</div></div>\n'
         f'    <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">{fmt(stream["peak_comments"])}</div></div>\n'
@@ -709,6 +847,15 @@ def build_dashboard() -> None:
     db_channels  = get_channel_rows(conn)
     db_by_name   = {ch["channel_name"]: ch for ch in db_channels}
 
+    # build channel_id → name and name → channel_id maps
+    channel_ids_map: dict[str, str] = {ch["channel_name"]: ch["channel_id"] for ch in db_channels}
+    all_channel_ids = [ch["channel_id"] for ch in db_channels]
+
+    # fetch channel logos from YouTube API once for all channels
+    log.info("Fetching channel logos from YouTube API…")
+    logos = get_channel_logos(all_channel_ids)
+    log.info("Fetched %d logo(s) for %d channel(s).", len(logos), len(all_channel_ids))
+
     total_streams  = 0
     total_channels = 0
     stream_counts: dict[str, int] = {}
@@ -739,7 +886,8 @@ def build_dashboard() -> None:
 
             write_channel_page(org_slug, org, ch_name, streams)
 
-        write_org_page(org_slug, org, stream_counts)
+        write_org_page(org_slug, org, stream_counts,
+                       logos=logos, channel_ids_map=channel_ids_map)
 
     write_index(total_streams, total_channels, generated_at)
 
