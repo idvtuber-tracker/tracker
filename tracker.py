@@ -63,15 +63,36 @@ MAX_HISTORY_POINTS   = int(os.environ.get("MAX_HISTORY_POINTS", "60"))   # chart
 _key_index         = 0          # index of the currently active key
 _exhausted: set    = set()      # keys confirmed quota-exceeded for today
 
-# Write to a fixed path on the runner machine so the file persists across
-# GitHub Actions runs (each run gets a fresh workspace checkout, so a
-# relative path would be wiped on every restart).
-_EXHAUSTED_FILE = os.path.join(
-    os.environ.get("RUNNER_TOOL_CACHE",          # GitHub-managed runners
-        os.environ.get("USERPROFILE",            # Windows self-hosted runner
-            os.environ.get("HOME", ""))),        # Linux/macOS self-hosted
-    "yt_tracker_exhausted_keys.json"
-)
+# Write to a fixed path outside the workspace so the file survives the
+# fresh checkout that happens on every GitHub Actions run.
+# Uses C:\actions-runner (the runner install dir) which persists across runs
+# on a Windows self-hosted runner running as Local System.
+def _resolve_persistent_dir() -> str:
+    candidates = [
+        os.environ.get("RUNNER_TOOL_CACHE", ""),
+        # RUNNER_WORKSPACE is e.g. C:\actions-runner\_work\repo\repo
+        # Three levels up reaches C:\actions-runner
+        os.path.join(os.environ.get("RUNNER_WORKSPACE", ""), "..", "..", ".."),
+        "C:\\actions-runner",
+        "/tmp",
+    ]
+    for c in candidates:
+        if not c:
+            continue
+        resolved = os.path.normpath(c)
+        if os.path.isdir(resolved):
+            test = os.path.join(resolved, ".write_test")
+            try:
+                with open(test, "w") as f:
+                    f.write("x")
+                os.remove(test)
+                return resolved
+            except Exception:
+                continue
+    return os.path.dirname(os.path.abspath(__file__))
+
+_EXHAUSTED_FILE = os.path.join(_resolve_persistent_dir(), "yt_tracker_exhausted_keys.json")
+log.info("Exhausted keys file path: %s", _EXHAUSTED_FILE)
 
 def _current_key() -> str:
     return YOUTUBE_API_KEYS[_key_index]
