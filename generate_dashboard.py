@@ -177,8 +177,18 @@ def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
     api_key = os.environ.get("YOUTUBE_API_KEYS") or os.environ.get("YOUTUBE_API_KEY", "")
     if api_key:
         api_key = api_key.split(",")[0].strip()  # use first key only
-    if not api_key or not _YT_AVAILABLE or not channel_ids:
+
+    if not _YT_AVAILABLE:
+        log.warning("Logo fetch skipped: google-api-python-client not installed.")
         return {}
+    if not api_key:
+        log.warning("Logo fetch skipped: no YOUTUBE_API_KEYS or YOUTUBE_API_KEY in environment.")
+        return {}
+    if not channel_ids:
+        log.warning("Logo fetch skipped: channel_ids list is empty.")
+        return {}
+
+    log.info("Fetching logos for %d channel IDs using key ...%s", len(channel_ids), api_key[-6:])
 
     logos: dict[str, str] = {}
     for i in range(0, len(channel_ids), 50):
@@ -190,14 +200,20 @@ def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
                 id=",".join(batch),
                 maxResults=50,
             ).execute()
-            for item in resp.get("items", []):
+            items_returned = resp.get("items", [])
+            log.info("channels.list batch %d–%d: %d item(s) returned (totalResults=%s).",
+                     i, i + len(batch), len(items_returned),
+                     resp.get("pageInfo", {}).get("totalResults", "?"))
+            for item in items_returned:
                 cid    = item["id"]
                 thumbs = item.get("snippet", {}).get("thumbnails", {})
                 url    = (thumbs.get("medium") or thumbs.get("default") or {}).get("url", "")
                 if url:
                     logos[cid] = url
+                else:
+                    log.warning("No thumbnail URL found for channel ID: %s", cid)
         except Exception as e:
-            log.warning("Could not fetch channel logos: %s", e)
+            log.error("channels.list API call failed: %s", e, exc_info=True)
 
     # ── persist cache ──────────────────────────────────────────────────────────
     try:
@@ -592,7 +608,7 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
         logo_url = logos.get(ch_id, "")
 
         if logo_url:
-            avatar_html = f'<img class="channel-avatar" src="{logo_url}" alt="{esc(ch_name)}" loading="lazy" referrerpolicy="no-referrer">'
+            avatar_html = f'<img class="channel-avatar" src="{logo_url}" alt="{esc(ch_name)}" loading="lazy">'
         else:
             initial = ch_name[0].upper()
             avatar_html = f'<div class="channel-avatar-placeholder">{initial}</div>'
