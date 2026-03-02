@@ -89,26 +89,56 @@
   .org-stat { font-size: 0.72rem; color: var(--muted); }
   .org-stat strong { color: var(--org-color); }
 
-  /* channel list */
-  .channels-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 2.5rem; }
-  .channel-item {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.25rem 1.5rem;
-    text-decoration: none; color: inherit;
-    display: flex; align-items: center; justify-content: space-between;
-    transition: border-color 0.2s, background 0.2s;
+  /* channel card grid */
+  .channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.25rem; margin-top: 2.5rem;
   }
-  .channel-item:hover { border-color: var(--org-color); background: var(--surface2); }
-  .channel-item-left { display: flex; align-items: center; gap: 1rem; }
+  .channel-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.5rem 1.25rem;
+    text-decoration: none; color: inherit; display: flex;
+    flex-direction: column; align-items: center; text-align: center;
+    gap: 0.9rem;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .channel-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.35s;
+  }
+  .channel-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
+  .channel-card:hover::after { transform: scaleX(1); }
+  .channel-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+    transition: border-color 0.2s;
+    background: var(--surface2);
+  }
+  .channel-card:hover .channel-avatar { border-color: var(--org-color); }
+  .channel-avatar-placeholder {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700;
+    color: var(--org-color); flex-shrink: 0;
+    transition: border-color 0.2s;
+  }
+  .channel-card:hover .channel-avatar-placeholder { border-color: var(--org-color); }
   .channel-badge {
-    font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase;
-    padding: 0.2rem 0.5rem; border-radius: 2px;
+    font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 0.18rem 0.45rem; border-radius: 2px;
     border: 1px solid var(--org-color); color: var(--org-color);
     background: rgba(0,0,0,0.3); flex-shrink: 0;
   }
-  .channel-name-text { font-size: 0.95rem; color: var(--white); }
-  .channel-arrow { color: var(--muted); font-size: 0.8rem; transition: transform 0.2s, color 0.2s; }
-  .channel-item:hover .channel-arrow { transform: translateX(4px); color: var(--org-color); }
+  .channel-card-name {
+    font-family: 'Fraunces', serif; font-size: 0.95rem; font-weight: 700;
+    color: var(--white); line-height: 1.25;
+  }
+  .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
 
   /* stream cards */
   .streams-grid {
@@ -149,6 +179,19 @@
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
   /* stream detail */
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
+    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+  .embed-wrap iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+  }
+  .embed-label {
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 0.6rem;
+  }
   .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
   .kpi {
     background: var(--surface); border: 1px solid var(--border);
@@ -218,6 +261,15 @@
     <p class="page-meta">Video ID: n-4vODWbiHs &nbsp;&#183;&nbsp; 180 data points</p>
   </header>
 
+  <p class="embed-label">Watch on YouTube</p>
+  <div class="embed-wrap">
+    <iframe
+      src="https://www.youtube.com/embed/n-4vODWbiHs"
+      title="Good morning 【Guerilla】"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen>
+    </iframe>
+  </div>
   <div class="kpi-row">
     <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">453</div><div class="kpi-sub">concurrent</div></div>
     <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">860</div></div>
@@ -429,7 +481,7 @@
     </tbody>
   </table>
 
-  <p class="generated">Generated 2026-03-02 09:11 UTC &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+  <p class="generated">Generated 2026-03-02 10:34 UTC &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
 
 <script>
 const ts    = ["2026-02-28 06:11 UTC", "2026-02-28 06:12 UTC", "2026-02-28 06:13 UTC", "2026-02-28 06:14 UTC", "2026-02-28 06:15 UTC", "2026-02-28 06:16 UTC", "2026-02-28 06:17 UTC", "2026-02-28 06:18 UTC", "2026-02-28 06:19 UTC", "2026-02-28 06:20 UTC", "2026-02-28 06:21 UTC", "2026-02-28 06:22 UTC", "2026-02-28 06:23 UTC", "2026-02-28 06:24 UTC", "2026-02-28 06:26 UTC", "2026-02-28 06:27 UTC", "2026-02-28 06:28 UTC", "2026-02-28 06:29 UTC", "2026-02-28 06:30 UTC", "2026-02-28 06:31 UTC", "2026-02-28 06:32 UTC", "2026-02-28 06:33 UTC", "2026-02-28 06:34 UTC", "2026-02-28 06:35 UTC", "2026-02-28 06:36 UTC", "2026-02-28 06:37 UTC", "2026-02-28 06:38 UTC", "2026-02-28 06:39 UTC", "2026-02-28 06:40 UTC", "2026-02-28 06:41 UTC", "2026-02-28 06:42 UTC", "2026-02-28 06:43 UTC", "2026-02-28 06:44 UTC", "2026-02-28 06:45 UTC", "2026-02-28 06:46 UTC", "2026-02-28 06:47 UTC", "2026-02-28 06:48 UTC", "2026-02-28 06:49 UTC", "2026-02-28 06:51 UTC", "2026-02-28 06:52 UTC", "2026-02-28 06:53 UTC", "2026-02-28 06:54 UTC", "2026-02-28 06:55 UTC", "2026-02-28 06:56 UTC", "2026-02-28 06:57 UTC", "2026-02-28 06:58 UTC", "2026-02-28 06:59 UTC", "2026-02-28 07:00 UTC", "2026-02-28 07:01 UTC", "2026-02-28 07:02 UTC", "2026-02-28 07:03 UTC", "2026-02-28 07:04 UTC", "2026-02-28 07:05 UTC", "2026-02-28 07:06 UTC", "2026-02-28 07:07 UTC", "2026-02-28 07:08 UTC", "2026-02-28 07:09 UTC", "2026-02-28 07:10 UTC", "2026-02-28 07:11 UTC", "2026-02-28 07:12 UTC", "2026-02-28 07:13 UTC", "2026-02-28 07:14 UTC", "2026-02-28 07:16 UTC", "2026-02-28 07:17 UTC", "2026-02-28 07:18 UTC", "2026-02-28 07:19 UTC", "2026-02-28 07:20 UTC", "2026-02-28 07:21 UTC", "2026-02-28 07:22 UTC", "2026-02-28 07:23 UTC", "2026-02-28 07:24 UTC", "2026-02-28 07:25 UTC", "2026-02-28 07:26 UTC", "2026-02-28 07:27 UTC", "2026-02-28 07:28 UTC", "2026-02-28 07:29 UTC", "2026-02-28 07:30 UTC", "2026-02-28 07:31 UTC", "2026-02-28 07:32 UTC", "2026-02-28 07:33 UTC", "2026-02-28 07:34 UTC", "2026-02-28 07:35 UTC", "2026-02-28 07:36 UTC", "2026-02-28 07:37 UTC", "2026-02-28 07:38 UTC", "2026-02-28 07:39 UTC", "2026-02-28 07:40 UTC", "2026-02-28 07:41 UTC", "2026-02-28 07:42 UTC", "2026-02-28 07:43 UTC", "2026-02-28 07:45 UTC", "2026-02-28 07:46 UTC", "2026-02-28 07:47 UTC", "2026-02-28 07:48 UTC", "2026-02-28 07:49 UTC", "2026-02-28 07:50 UTC", "2026-02-28 07:51 UTC", "2026-02-28 07:52 UTC", "2026-02-28 07:53 UTC", "2026-02-28 07:54 UTC", "2026-02-28 07:55 UTC", "2026-02-28 07:56 UTC", "2026-02-28 07:57 UTC", "2026-02-28 07:58 UTC", "2026-02-28 07:59 UTC", "2026-02-28 08:00 UTC", "2026-02-28 08:01 UTC", "2026-02-28 08:02 UTC", "2026-02-28 08:03 UTC", "2026-02-28 08:04 UTC", "2026-02-28 08:05 UTC", "2026-02-28 08:06 UTC", "2026-02-28 08:07 UTC", "2026-02-28 08:08 UTC", "2026-02-28 08:10 UTC", "2026-02-28 08:11 UTC", "2026-02-28 08:12 UTC", "2026-02-28 08:13 UTC", "2026-02-28 08:14 UTC", "2026-02-28 08:15 UTC", "2026-02-28 08:16 UTC", "2026-02-28 08:17 UTC", "2026-02-28 08:18 UTC", "2026-02-28 08:19 UTC", "2026-02-28 08:20 UTC", "2026-02-28 08:21 UTC", "2026-02-28 08:22 UTC", "2026-02-28 08:23 UTC", "2026-02-28 08:24 UTC", "2026-02-28 08:25 UTC", "2026-02-28 08:26 UTC", "2026-02-28 08:27 UTC", "2026-02-28 08:28 UTC", "2026-02-28 08:29 UTC", "2026-02-28 08:30 UTC", "2026-02-28 08:32 UTC", "2026-02-28 08:33 UTC", "2026-02-28 08:34 UTC", "2026-02-28 08:35 UTC", "2026-02-28 08:36 UTC", "2026-02-28 08:37 UTC", "2026-02-28 08:38 UTC", "2026-02-28 08:39 UTC", "2026-02-28 08:40 UTC", "2026-02-28 08:41 UTC", "2026-02-28 08:42 UTC", "2026-02-28 08:43 UTC", "2026-02-28 08:44 UTC", "2026-02-28 08:45 UTC", "2026-02-28 08:46 UTC", "2026-02-28 08:47 UTC", "2026-02-28 08:48 UTC", "2026-02-28 08:49 UTC", "2026-02-28 08:50 UTC", "2026-02-28 08:51 UTC", "2026-02-28 08:52 UTC", "2026-02-28 08:53 UTC", "2026-02-28 08:54 UTC", "2026-02-28 08:55 UTC", "2026-02-28 08:56 UTC", "2026-02-28 08:57 UTC", "2026-02-28 08:58 UTC", "2026-02-28 08:59 UTC", "2026-02-28 09:01 UTC", "2026-02-28 09:02 UTC", "2026-02-28 09:03 UTC", "2026-02-28 09:04 UTC", "2026-02-28 09:05 UTC", "2026-02-28 09:06 UTC", "2026-02-28 09:07 UTC", "2026-02-28 09:08 UTC", "2026-02-28 09:09 UTC", "2026-02-28 09:11 UTC", "2026-02-28 09:12 UTC", "2026-02-28 09:13 UTC", "2026-02-28 09:14 UTC", "2026-02-28 09:15 UTC", "2026-02-28 09:16 UTC", "2026-02-28 09:17 UTC", "2026-02-28 09:18 UTC"];

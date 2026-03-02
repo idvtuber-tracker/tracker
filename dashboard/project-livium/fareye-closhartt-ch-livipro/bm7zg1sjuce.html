@@ -89,26 +89,56 @@
   .org-stat { font-size: 0.72rem; color: var(--muted); }
   .org-stat strong { color: var(--org-color); }
 
-  /* channel list */
-  .channels-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 2.5rem; }
-  .channel-item {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.25rem 1.5rem;
-    text-decoration: none; color: inherit;
-    display: flex; align-items: center; justify-content: space-between;
-    transition: border-color 0.2s, background 0.2s;
+  /* channel card grid */
+  .channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.25rem; margin-top: 2.5rem;
   }
-  .channel-item:hover { border-color: var(--org-color); background: var(--surface2); }
-  .channel-item-left { display: flex; align-items: center; gap: 1rem; }
+  .channel-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.5rem 1.25rem;
+    text-decoration: none; color: inherit; display: flex;
+    flex-direction: column; align-items: center; text-align: center;
+    gap: 0.9rem;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .channel-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.35s;
+  }
+  .channel-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
+  .channel-card:hover::after { transform: scaleX(1); }
+  .channel-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+    transition: border-color 0.2s;
+    background: var(--surface2);
+  }
+  .channel-card:hover .channel-avatar { border-color: var(--org-color); }
+  .channel-avatar-placeholder {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700;
+    color: var(--org-color); flex-shrink: 0;
+    transition: border-color 0.2s;
+  }
+  .channel-card:hover .channel-avatar-placeholder { border-color: var(--org-color); }
   .channel-badge {
-    font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase;
-    padding: 0.2rem 0.5rem; border-radius: 2px;
+    font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 0.18rem 0.45rem; border-radius: 2px;
     border: 1px solid var(--org-color); color: var(--org-color);
     background: rgba(0,0,0,0.3); flex-shrink: 0;
   }
-  .channel-name-text { font-size: 0.95rem; color: var(--white); }
-  .channel-arrow { color: var(--muted); font-size: 0.8rem; transition: transform 0.2s, color 0.2s; }
-  .channel-item:hover .channel-arrow { transform: translateX(4px); color: var(--org-color); }
+  .channel-card-name {
+    font-family: 'Fraunces', serif; font-size: 0.95rem; font-weight: 700;
+    color: var(--white); line-height: 1.25;
+  }
+  .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
 
   /* stream cards */
   .streams-grid {
@@ -149,6 +179,19 @@
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
   /* stream detail */
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
+    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+  .embed-wrap iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+  }
+  .embed-label {
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 0.6rem;
+  }
   .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
   .kpi {
     background: var(--surface); border: 1px solid var(--border);
@@ -218,6 +261,15 @@
     <p class="page-meta">Video ID: BM7Zg1sJUCE &nbsp;&#183;&nbsp; 165 data points</p>
   </header>
 
+  <p class="embed-label">Watch on YouTube</p>
+  <div class="embed-wrap">
+    <iframe
+      src="https://www.youtube.com/embed/BM7Zg1sJUCE"
+      title="Stepping Forward Again… Finding My Way Back ;"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen>
+    </iframe>
+  </div>
   <div class="kpi-row">
     <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">65</div><div class="kpi-sub">concurrent</div></div>
     <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">140</div></div>
@@ -414,7 +466,7 @@
     </tbody>
   </table>
 
-  <p class="generated">Generated 2026-03-02 09:11 UTC &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+  <p class="generated">Generated 2026-03-02 10:34 UTC &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
 
 <script>
 const ts    = ["2026-03-01 14:40 UTC", "2026-03-01 14:41 UTC", "2026-03-01 14:42 UTC", "2026-03-01 14:43 UTC", "2026-03-01 14:44 UTC", "2026-03-01 14:45 UTC", "2026-03-01 14:46 UTC", "2026-03-01 14:47 UTC", "2026-03-01 14:48 UTC", "2026-03-01 14:49 UTC", "2026-03-01 14:51 UTC", "2026-03-01 14:52 UTC", "2026-03-01 14:53 UTC", "2026-03-01 14:54 UTC", "2026-03-01 14:55 UTC", "2026-03-01 14:56 UTC", "2026-03-01 14:57 UTC", "2026-03-01 14:58 UTC", "2026-03-01 14:59 UTC", "2026-03-01 15:00 UTC", "2026-03-01 15:01 UTC", "2026-03-01 15:03 UTC", "2026-03-01 15:04 UTC", "2026-03-01 15:05 UTC", "2026-03-01 15:06 UTC", "2026-03-01 15:07 UTC", "2026-03-01 15:08 UTC", "2026-03-01 15:09 UTC", "2026-03-01 15:10 UTC", "2026-03-01 15:11 UTC", "2026-03-01 15:13 UTC", "2026-03-01 15:14 UTC", "2026-03-01 15:15 UTC", "2026-03-01 15:16 UTC", "2026-03-01 15:17 UTC", "2026-03-01 15:18 UTC", "2026-03-01 15:19 UTC", "2026-03-01 15:20 UTC", "2026-03-01 15:21 UTC", "2026-03-01 15:22 UTC", "2026-03-01 15:23 UTC", "2026-03-01 15:24 UTC", "2026-03-01 15:25 UTC", "2026-03-01 15:27 UTC", "2026-03-01 15:28 UTC", "2026-03-01 15:29 UTC", "2026-03-01 15:30 UTC", "2026-03-01 15:31 UTC", "2026-03-01 15:32 UTC", "2026-03-01 15:33 UTC", "2026-03-01 15:34 UTC", "2026-03-01 15:35 UTC", "2026-03-01 15:36 UTC", "2026-03-01 15:37 UTC", "2026-03-01 15:38 UTC", "2026-03-01 15:40 UTC", "2026-03-01 15:41 UTC", "2026-03-01 15:42 UTC", "2026-03-01 15:43 UTC", "2026-03-01 15:44 UTC", "2026-03-01 15:45 UTC", "2026-03-01 15:46 UTC", "2026-03-01 15:47 UTC", "2026-03-01 15:48 UTC", "2026-03-01 15:49 UTC", "2026-03-01 15:50 UTC", "2026-03-01 15:51 UTC", "2026-03-01 15:53 UTC", "2026-03-01 15:54 UTC", "2026-03-01 15:55 UTC", "2026-03-01 15:56 UTC", "2026-03-01 15:57 UTC", "2026-03-01 15:58 UTC", "2026-03-01 15:59 UTC", "2026-03-01 16:00 UTC", "2026-03-01 16:01 UTC", "2026-03-01 16:02 UTC", "2026-03-01 16:04 UTC", "2026-03-01 16:05 UTC", "2026-03-01 16:06 UTC", "2026-03-01 16:07 UTC", "2026-03-01 16:08 UTC", "2026-03-01 16:09 UTC", "2026-03-01 16:10 UTC", "2026-03-01 16:11 UTC", "2026-03-01 16:12 UTC", "2026-03-01 16:13 UTC", "2026-03-01 16:14 UTC", "2026-03-01 16:15 UTC", "2026-03-01 16:16 UTC", "2026-03-01 16:18 UTC", "2026-03-01 16:19 UTC", "2026-03-01 16:20 UTC", "2026-03-01 16:21 UTC", "2026-03-01 16:22 UTC", "2026-03-01 16:23 UTC", "2026-03-01 16:24 UTC", "2026-03-01 16:25 UTC", "2026-03-01 16:26 UTC", "2026-03-01 16:27 UTC", "2026-03-01 16:28 UTC", "2026-03-01 16:29 UTC", "2026-03-01 16:31 UTC", "2026-03-01 16:32 UTC", "2026-03-01 16:33 UTC", "2026-03-01 16:34 UTC", "2026-03-01 16:35 UTC", "2026-03-01 16:36 UTC", "2026-03-01 16:37 UTC", "2026-03-01 16:38 UTC", "2026-03-01 16:39 UTC", "2026-03-01 16:40 UTC", "2026-03-01 16:41 UTC", "2026-03-01 16:43 UTC", "2026-03-01 16:44 UTC", "2026-03-01 16:45 UTC", "2026-03-01 16:46 UTC", "2026-03-01 16:47 UTC", "2026-03-01 16:48 UTC", "2026-03-01 16:49 UTC", "2026-03-01 16:50 UTC", "2026-03-01 16:51 UTC", "2026-03-01 16:52 UTC", "2026-03-01 16:53 UTC", "2026-03-01 16:54 UTC", "2026-03-01 16:56 UTC", "2026-03-01 16:57 UTC", "2026-03-01 16:58 UTC", "2026-03-01 16:59 UTC", "2026-03-01 17:00 UTC", "2026-03-01 17:01 UTC", "2026-03-01 17:02 UTC", "2026-03-01 17:03 UTC", "2026-03-01 17:04 UTC", "2026-03-01 17:05 UTC", "2026-03-01 17:06 UTC", "2026-03-01 17:08 UTC", "2026-03-01 17:09 UTC", "2026-03-01 17:10 UTC", "2026-03-01 17:11 UTC", "2026-03-01 17:12 UTC", "2026-03-01 17:13 UTC", "2026-03-01 17:14 UTC", "2026-03-01 17:15 UTC", "2026-03-01 17:16 UTC", "2026-03-01 17:17 UTC", "2026-03-01 17:18 UTC", "2026-03-01 17:19 UTC", "2026-03-01 17:20 UTC", "2026-03-01 17:22 UTC", "2026-03-01 17:23 UTC", "2026-03-01 17:24 UTC", "2026-03-01 17:25 UTC", "2026-03-01 17:26 UTC", "2026-03-01 17:27 UTC", "2026-03-01 17:28 UTC", "2026-03-01 17:29 UTC", "2026-03-01 17:30 UTC", "2026-03-01 17:31 UTC", "2026-03-01 17:32 UTC", "2026-03-01 17:34 UTC", "2026-03-01 17:35 UTC", "2026-03-01 17:36 UTC", "2026-03-01 17:37 UTC", "2026-03-01 17:38 UTC"];
