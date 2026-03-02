@@ -62,7 +62,16 @@ MAX_HISTORY_POINTS   = int(os.environ.get("MAX_HISTORY_POINTS", "60"))   # chart
 # ── API key rotation ───────────────────────────────────────────────────────────
 _key_index         = 0          # index of the currently active key
 _exhausted: set    = set()      # keys confirmed quota-exceeded for today
-_EXHAUSTED_FILE    = "exhausted_keys.json"
+
+# Write to a fixed path on the runner machine so the file persists across
+# GitHub Actions runs (each run gets a fresh workspace checkout, so a
+# relative path would be wiped on every restart).
+_EXHAUSTED_FILE = os.path.join(
+    os.environ.get("RUNNER_TOOL_CACHE",          # GitHub-managed runners
+        os.environ.get("USERPROFILE",            # Windows self-hosted runner
+            os.environ.get("HOME", ""))),        # Linux/macOS self-hosted
+    "yt_tracker_exhausted_keys.json"
+)
 
 def _current_key() -> str:
     return YOUTUBE_API_KEYS[_key_index]
