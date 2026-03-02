@@ -44,7 +44,14 @@ log = logging.getLogger(__name__)
 console = Console()
 
 # ── config from env ────────────────────────────────────────────────────────────
-YOUTUBE_API_KEY      = os.environ["YOUTUBE_API_KEY"]
+# YOUTUBE_API_KEYS accepts a comma-separated list of keys, e.g.:
+#   YOUTUBE_API_KEYS=key1,key2,key3
+# Falls back to the single YOUTUBE_API_KEY secret for backwards compatibility.
+_raw_keys = os.environ.get("YOUTUBE_API_KEYS") or os.environ.get("YOUTUBE_API_KEY", "")
+YOUTUBE_API_KEYS     = [k.strip() for k in _raw_keys.split(",") if k.strip()]
+if not YOUTUBE_API_KEYS:
+    raise RuntimeError("No YouTube API keys found. Set YOUTUBE_API_KEYS or YOUTUBE_API_KEY.")
+
 CHANNEL_IDS          = [c.strip() for c in os.environ["CHANNEL_IDS"].split(",")]
 AIVEN_DATABASE_URL   = os.environ.get("AIVEN_DATABASE_URL")          # postgres DSN
 CSV_OUTPUT_PATH      = os.environ.get("CSV_OUTPUT_PATH", "analytics.csv")
@@ -52,7 +59,92 @@ POLL_INTERVAL_SEC    = int(os.environ.get("POLL_INTERVAL_SEC", "60"))
 STREAM_POLL_SEC      = int(os.environ.get("STREAM_POLL_SEC", "30"))
 MAX_HISTORY_POINTS   = int(os.environ.get("MAX_HISTORY_POINTS", "60"))   # chart window
 
-youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+# ── API key rotation ───────────────────────────────────────────────────────────
+_key_index         = 0          # index of the currently active key
+_exhausted: set    = set()      # keys confirmed quota-exceeded for today
+_EXHAUSTED_FILE    = "exhausted_keys.json"
+
+def _current_key() -> str:
+    return YOUTUBE_API_KEYS[_key_index]
+
+def _build_client(key: str):
+    return build("youtube", "v3", developerKey=key)
+
+def _quota_reset_date() -> str:
+    """YouTube quota resets at midnight Pacific (UTC-7/UTC-8). Use UTC date as
+    a conservative proxy — close enough for a 6-hour restart cycle."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+def _load_exhausted() -> None:
+    """Load persisted exhausted keys from disk. Clears them if the date has changed."""
+    global _exhausted, _key_index
+    try:
+        if os.path.exists(_EXHAUSTED_FILE):
+            with open(_EXHAUSTED_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if data.get("date") == _quota_reset_date():
+                _exhausted = set(data.get("keys", []))
+                log.info(
+                    "Loaded %d exhausted key(s) from previous run (date: %s).",
+                    len(_exhausted), data["date"],
+                )
+            else:
+                _exhausted = set()
+                log.info(
+                    "New quota day (%s) — exhausted key list cleared.",
+                    _quota_reset_date(),
+                )
+                _save_exhausted()
+        # Advance _key_index to first non-exhausted key so we don't start
+        # on a key that was already spent in a previous run today.
+        for i in range(len(YOUTUBE_API_KEYS)):
+            if YOUTUBE_API_KEYS[i] not in _exhausted:
+                _key_index = i
+                break
+        else:
+            _key_index = 0   # all exhausted — will be caught at first API call
+    except Exception as e:
+        log.warning("Could not load exhausted keys file: %s — starting fresh.", e)
+        _exhausted = set()
+
+def _save_exhausted() -> None:
+    """Persist the current exhausted key set to disk."""
+    try:
+        with open(_EXHAUSTED_FILE, "w", encoding="utf-8") as f:
+            json.dump({"date": _quota_reset_date(), "keys": list(_exhausted)}, f)
+    except Exception as e:
+        log.warning("Could not save exhausted keys file: %s", e)
+
+def _rotate_key() -> bool:
+    """
+    Advance to the next non-exhausted key.
+    Returns True if a fresh key was found, False if all keys are exhausted.
+    """
+    global _key_index
+    for _ in range(len(YOUTUBE_API_KEYS)):
+        _key_index = (_key_index + 1) % len(YOUTUBE_API_KEYS)
+        if _current_key() not in _exhausted:
+            log.warning(
+                "API key rotated → key index %d (%d/%d keys remaining).",
+                _key_index,
+                len(YOUTUBE_API_KEYS) - len(_exhausted),
+                len(YOUTUBE_API_KEYS),
+            )
+            return True
+    log.error("All %d API key(s) are quota-exhausted. Pausing until tomorrow.", len(YOUTUBE_API_KEYS))
+    return False
+
+def _mark_exhausted() -> bool:
+    """Mark the current key as exhausted, persist to disk, and rotate.
+    Returns True if a fresh key is still available."""
+    _exhausted.add(_current_key())
+    _save_exhausted()
+    return _rotate_key()
+
+_load_exhausted()
+youtube = _build_client(_current_key())
+log.info("YouTube API client initialised with %d key(s) (%d exhausted today).",
+         len(YOUTUBE_API_KEYS), len(_exhausted))
 
 # ── in-memory history for charts ───────────────────────────────────────────────
 history: dict[str, list] = {}   # video_id -> list of (ts, viewers, likes, comments)
@@ -62,15 +154,39 @@ history: dict[str, list] = {}   # video_id -> list of (ts, viewers, likes, comme
 # DATABASE
 # ══════════════════════════════════════════════════════════════════════════════
 
-def get_db_connection() -> Optional[psycopg2.extensions.connection]:
+def _new_conn() -> Optional[psycopg2.extensions.connection]:
+    """Open and return a fresh DB connection, or None on failure."""
     if not AIVEN_DATABASE_URL:
         return None
     try:
-        conn = psycopg2.connect(AIVEN_DATABASE_URL, sslmode="require")
-        return conn
+        return psycopg2.connect(
+            AIVEN_DATABASE_URL,
+            sslmode="require",
+            connect_timeout=10,
+            options="-c search_path=public -c statement_timeout=30000",
+        )
     except Exception as e:
         log.error("DB connection failed: %s", e)
         return None
+
+
+def ping_db() -> bool:
+    """Lightweight connectivity check. Returns True if DB is reachable."""
+    conn = _new_conn()
+    if conn is None:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        return True
+    except Exception as e:
+        log.warning("DB ping failed: %s", e)
+        return False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def get_table_name(channel_name: str) -> str:
@@ -83,81 +199,116 @@ def get_table_name(channel_name: str) -> str:
     return f"stream_{safe}"
 
 
-def init_db(conn) -> None:
-    conn.autocommit = True
-    with conn.cursor() as cur:
-        # Master channel registry table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS channels (
-                channel_id      TEXT PRIMARY KEY,
-                channel_name    TEXT NOT NULL,
-                table_name      TEXT NOT NULL,
-                added_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-        """)
-    conn.autocommit = False
-    log.info("Database initialised.")
+def init_db() -> None:
+    """Create channels registry table if it does not exist."""
+    conn = _new_conn()
+    if conn is None:
+        return
+    try:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS channels (
+                    channel_id      TEXT PRIMARY KEY,
+                    channel_name    TEXT NOT NULL,
+                    table_name      TEXT NOT NULL,
+                    added_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+        log.info("Database initialised.")
+    except Exception as e:
+        log.error("DB init failed: %s", e)
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
-def init_channel_table(conn, channel_id: str, channel_name: str) -> str:
+def init_channel_table(channel_id: str, channel_name: str) -> Optional[str]:
     """
-    Create a dedicated analytics table for a channel if it doesn't exist.
-    Returns the table name used.
+    Register channel and create its analytics table if needed.
+    Opens a fresh connection, runs DDL, closes immediately.
+    Returns the table name, or None on failure.
     """
     table = get_table_name(channel_name)
-    conn.autocommit = True
-    with conn.cursor() as cur:
-        # Register channel in master table
-        cur.execute("""
-            INSERT INTO channels (channel_id, channel_name, table_name)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (channel_id) DO UPDATE
-                SET channel_name = EXCLUDED.channel_name
-        """, (channel_id, channel_name, table))
-
-        # Create the channel's own analytics table
-        cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS {table} (
-                id                 SERIAL PRIMARY KEY,
-                collected_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                channel_id         TEXT NOT NULL,
-                channel_name       TEXT,
-                video_id           TEXT NOT NULL,
-                video_title        TEXT,
-                concurrent_viewers BIGINT,
-                like_count         BIGINT,
-                comment_count      BIGINT,
-                stream_status      TEXT,
-                scheduled_start    TIMESTAMPTZ,
-                actual_start       TIMESTAMPTZ
-            )
-        """)
-        cur.execute(f"""
-            CREATE INDEX IF NOT EXISTS idx_{table}_video_id
-                ON {table}(video_id)
-        """)
-        cur.execute(f"""
-            CREATE INDEX IF NOT EXISTS idx_{table}_collected_at
-                ON {table}(collected_at)
-        """)
-    conn.autocommit = False
-    log.info("Table '%s' ready for channel '%s'.", table, channel_name)
-    return table
+    conn = _new_conn()
+    if conn is None:
+        return None
+    try:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO channels (channel_id, channel_name, table_name)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (channel_id) DO UPDATE
+                    SET channel_name = EXCLUDED.channel_name
+            """, (channel_id, channel_name, table))
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {table} (
+                    id                 SERIAL PRIMARY KEY,
+                    collected_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    channel_id         TEXT NOT NULL,
+                    channel_name       TEXT,
+                    video_id           TEXT NOT NULL,
+                    video_title        TEXT,
+                    concurrent_viewers BIGINT,
+                    like_count         BIGINT,
+                    comment_count      BIGINT,
+                    stream_status      TEXT,
+                    scheduled_start    TIMESTAMPTZ,
+                    actual_start       TIMESTAMPTZ
+                )
+            """)
+            cur.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{table}_video_id
+                    ON {table}(video_id)
+            """)
+            cur.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{table}_collected_at
+                    ON {table}(collected_at)
+            """)
+        log.info("Table '%s' ready for channel '%s'.", table, channel_name)
+        return table
+    except Exception as e:
+        log.error("DB init_channel_table failed: %s", e)
+        return None
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
     
-def save_to_db(conn, row: dict, table: str) -> None:
-    sql = f"""
-        INSERT INTO {table}
-            (collected_at, channel_id, channel_name, video_id, video_title,
-             concurrent_viewers, like_count, comment_count, stream_status,
-             scheduled_start, actual_start)
-        VALUES
-            (%(collected_at)s, %(channel_id)s, %(channel_name)s, %(video_id)s, %(video_title)s,
-             %(concurrent_viewers)s, %(like_count)s, %(comment_count)s, %(stream_status)s,
-             %(scheduled_start)s, %(actual_start)s)
-    """
-    with conn.cursor() as cur:
-        cur.execute(sql, row)
-    conn.commit()
+def save_to_db(row: dict, table: str) -> None:
+    """Open a fresh connection, insert one analytics row, close immediately."""
+    conn = _new_conn()
+    if conn is None:
+        return
+    try:
+        sql = f"""
+            INSERT INTO {table}
+                (collected_at, channel_id, channel_name, video_id, video_title,
+                 concurrent_viewers, like_count, comment_count, stream_status,
+                 scheduled_start, actual_start)
+            VALUES
+                (%(collected_at)s, %(channel_id)s, %(channel_name)s, %(video_id)s, %(video_title)s,
+                 %(concurrent_viewers)s, %(like_count)s, %(comment_count)s, %(stream_status)s,
+                 %(scheduled_start)s, %(actual_start)s)
+        """
+        with conn.cursor() as cur:
+            cur.execute(sql, row)
+        conn.commit()
+    except Exception as e:
+        log.error("DB save failed: %s", e)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 # ══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD REGENERATION
 # ══════════════════════════════════════════════════════════════════════════════
@@ -264,77 +415,97 @@ def find_live_videos(channel_id: str) -> list[dict]:
     """
     Use activities.list (1 unit) instead of search.list (100 units)
     to detect live streams on a channel.
+    Rotates to the next API key automatically on a 403 quota error.
     """
+    global youtube
     results = []
-    try:
-        resp = youtube.activities().list(
-            part="snippet,contentDetails",
-            channelId=channel_id,
-            maxResults=10,
-        ).execute()
-
-        for item in resp.get("items", []):
-            details = item.get("contentDetails", {})
-
-            # activities feed includes uploads; we then check if it's live
-            upload = details.get("upload", {})
-            video_id = upload.get("videoId")
-            if not video_id:
-                continue
-
-            # cheap videos.list call (1 unit) to confirm it's live
-            video_resp = youtube.videos().list(
-                part="snippet,liveStreamingDetails",
-                id=video_id,
+    for attempt in range(len(YOUTUBE_API_KEYS)):
+        try:
+            resp = youtube.activities().list(
+                part="snippet,contentDetails",
+                channelId=channel_id,
+                maxResults=10,
             ).execute()
-            video_items = video_resp.get("items", [])
-            if not video_items:
-                continue
 
-            snippet     = video_items[0].get("snippet", {})
-            live_detail = video_items[0].get("liveStreamingDetails", {})
+            for item in resp.get("items", []):
+                details = item.get("contentDetails", {})
+                upload  = details.get("upload", {})
+                video_id = upload.get("videoId")
+                if not video_id:
+                    continue
 
-            broadcast_status = snippet.get("liveBroadcastContent")  # "live" | "upcoming" | "none"
-            if broadcast_status not in ("live", "upcoming"):
-                continue
+                video_resp = youtube.videos().list(
+                    part="snippet,liveStreamingDetails",
+                    id=video_id,
+                ).execute()
+                video_items = video_resp.get("items", [])
+                if not video_items:
+                    continue
 
-            results.append({
-                "video_id":      video_id,
-                "channel_id":    channel_id,
-                "channel_name":  snippet.get("channelTitle", ""),
-                "video_title":   snippet.get("title", ""),
-                "stream_status": broadcast_status,
-            })
+                snippet          = video_items[0].get("snippet", {})
+                broadcast_status = snippet.get("liveBroadcastContent")
+                if broadcast_status not in ("live", "upcoming"):
+                    continue
 
-    except HttpError as e:
-        log.error("activities API error for %s: %s", channel_id, e)
+                results.append({
+                    "video_id":      video_id,
+                    "channel_id":    channel_id,
+                    "channel_name":  snippet.get("channelTitle", ""),
+                    "video_title":   snippet.get("title", ""),
+                    "stream_status": broadcast_status,
+                })
+            return results
+
+        except HttpError as e:
+            if e.resp.status == 403:
+                log.warning("403 on find_live_videos (key index %d): %s", _key_index, e)
+                if not _mark_exhausted():
+                    return results   # all keys exhausted
+                youtube = _build_client(_current_key())
+                continue            # retry with new key
+            log.error("activities API error for %s: %s", channel_id, e)
+            return results
 
     return results
 
 
 def get_video_analytics(video_id: str) -> Optional[dict]:
-    """Fetch liveStreamingDetails + statistics for a single video."""
-    try:
-        resp = youtube.videos().list(
-            part="liveStreamingDetails,statistics,snippet",
-            id=video_id,
-        ).execute()
-        items = resp.get("items", [])
-        if not items:
+    """
+    Fetch liveStreamingDetails + statistics for a single video.
+    Rotates to the next API key automatically on a 403 quota error.
+    """
+    global youtube
+    for attempt in range(len(YOUTUBE_API_KEYS)):
+        try:
+            resp = youtube.videos().list(
+                part="liveStreamingDetails,statistics,snippet",
+                id=video_id,
+            ).execute()
+            items = resp.get("items", [])
+            if not items:
+                return None
+            item  = items[0]
+            stats = item.get("statistics", {})
+            live  = item.get("liveStreamingDetails", {})
+            return {
+                "concurrent_viewers": int(live.get("concurrentViewers", 0) or 0),
+                "like_count":         int(stats.get("likeCount", 0) or 0),
+                "comment_count":      int(stats.get("commentCount", 0) or 0),
+                "scheduled_start":    live.get("scheduledStartTime"),
+                "actual_start":       live.get("actualStartTime"),
+            }
+
+        except HttpError as e:
+            if e.resp.status == 403:
+                log.warning("403 on get_video_analytics (key index %d): %s", _key_index, e)
+                if not _mark_exhausted():
+                    return None   # all keys exhausted
+                youtube = _build_client(_current_key())
+                continue          # retry with new key
+            log.error("videos API error for %s: %s", video_id, e)
             return None
-        item  = items[0]
-        stats = item.get("statistics", {})
-        live  = item.get("liveStreamingDetails", {})
-        return {
-            "concurrent_viewers": int(live.get("concurrentViewers", 0) or 0),
-            "like_count":         int(stats.get("likeCount", 0) or 0),
-            "comment_count":      int(stats.get("commentCount", 0) or 0),
-            "scheduled_start":    live.get("scheduledStartTime"),
-            "actual_start":       live.get("actualStartTime"),
-        }
-    except HttpError as e:
-        log.error("videos API error for %s: %s", video_id, e)
-        return None
+
+    return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -419,7 +590,7 @@ signal.signal(signal.SIGINT,  _handle_signal)
 signal.signal(signal.SIGTERM, _handle_signal)
 
 
-def collect_and_store(stream: dict, conn, table: str) -> None:
+def collect_and_store(stream: dict, table: str) -> None:
     video_id  = stream["video_id"]
     analytics = get_video_analytics(video_id)
     if analytics is None:
@@ -438,19 +609,15 @@ def collect_and_store(stream: dict, conn, table: str) -> None:
         history[video_id].pop(0)
 
     save_to_csv(stream)
-    if conn:
-        try:
-            save_to_db(conn, stream, table)
-        except Exception as e:
-            log.error("DB save failed: %s", e)
+    if table:
+        save_to_db(stream, table)
 
     regenerate_dashboard()
 
 def run() -> None:
     log.info("Tracker starting. Monitoring channels: %s", CHANNEL_IDS)
-    conn = get_db_connection()
-    if conn:
-        init_db(conn)
+    if AIVEN_DATABASE_URL:
+        init_db()
     else:
         log.warning("No DB connection – CSV-only mode.")
 
@@ -473,9 +640,9 @@ def run() -> None:
                         discovered[vid] = s
     
                         # initialise the channel's table on first encounter
-                        if conn and ch not in channel_tables:
+                        if AIVEN_DATABASE_URL and ch not in channel_tables:
                             channel_tables[ch] = init_channel_table(
-                                conn, ch, s["channel_name"]
+                                ch, s["channel_name"]
                             )
     
                         if vid not in known_streams:
@@ -507,7 +674,7 @@ def run() -> None:
         for stream in active_streams:
             if stream["stream_status"] == "live":
                 table = channel_tables.get(stream["channel_id"])
-                collect_and_store(stream, conn, table)
+                collect_and_store(stream, table)
                 now = datetime.now(timezone.utc)
                 if (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC:
                     deploy_dashboard()
@@ -530,8 +697,6 @@ def run() -> None:
         )
         time.sleep(STREAM_POLL_SEC)
 
-    if conn:
-        conn.close()
     log.info("Tracker stopped.")
 
 if __name__ == "__main__":
