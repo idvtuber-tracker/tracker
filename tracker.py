@@ -332,15 +332,25 @@ def regenerate_dashboard() -> None:
         log.error("Dashboard generation error: %s", e)
         
 def deploy_dashboard() -> None:
-    try:
-        dashboard_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
-        pat           = os.environ.get("GH_PAT", "")
-        repo_slug     = os.environ.get("GITHUB_REPOSITORY", "")
+    dashboard_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
+    pat           = os.environ.get("GH_PAT", "")
+    repo_slug     = os.environ.get("GITHUB_REPOSITORY", "")
 
+    try:
         subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"],
                        check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Stream Tracker Bot"],
                        check=True, capture_output=True)
+
+        # Pull latest remote state before staging anything, so our push is
+        # always a fast-forward even if another workflow committed in between.
+        pull = subprocess.run(
+            ["git", "pull", "--rebase", "origin", "HEAD"],
+            capture_output=True, text=True
+        )
+        if pull.returncode != 0:
+            log.warning("git pull --rebase failed (will still attempt push): %s", pull.stderr.strip())
+
         subprocess.run(["git", "add", dashboard_dir],
                        check=True, capture_output=True)
 
@@ -357,11 +367,28 @@ def deploy_dashboard() -> None:
             ["git", "commit", "-m", f"chore: dashboard update {ts}"],
             check=True, capture_output=True
         )
-        subprocess.run(["git", "push", "origin", "HEAD"],
-                       check=True, capture_output=True)
-        log.info("Dashboard pushed to repository.")
 
-        # Fire a dedicated deploy trigger — no commit message parsing needed
+        # Push with up to 3 retries, re-pulling on each rejection.
+        for attempt in range(1, 4):
+            push = subprocess.run(
+                ["git", "push", "origin", "HEAD"],
+                capture_output=True, text=True
+            )
+            if push.returncode == 0:
+                log.info("Dashboard pushed to repository (attempt %d).", attempt)
+                break
+            log.warning("git push failed (attempt %d): %s", attempt, push.stderr.strip())
+            if attempt < 3:
+                # Re-pull and rebase our commit on top of whatever was pushed
+                subprocess.run(
+                    ["git", "pull", "--rebase", "origin", "HEAD"],
+                    capture_output=True
+                )
+        else:
+            log.error("git push failed after 3 attempts — skipping deploy dispatch.")
+            return
+
+        # Fire the Pages deploy trigger
         if pat and repo_slug:
             headers = {
                 "Authorization":        f"Bearer {pat}",
