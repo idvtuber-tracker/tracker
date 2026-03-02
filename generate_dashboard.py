@@ -592,7 +592,7 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
         logo_url = logos.get(ch_id, "")
 
         if logo_url:
-            avatar_html = f'<img class="channel-avatar" src="{logo_url}" alt="{esc(ch_name)}" loading="lazy">'
+            avatar_html = f'<img class="channel-avatar" src="{logo_url}" alt="{esc(ch_name)}" loading="lazy" referrerpolicy="no-referrer">'
         else:
             initial = ch_name[0].upper()
             avatar_html = f'<div class="channel-avatar-placeholder">{initial}</div>'
