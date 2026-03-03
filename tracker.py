@@ -384,28 +384,29 @@ def deploy_dashboard() -> None:
     dashboard_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
     pat           = os.environ.get("GH_PAT", "")
     repo_slug     = os.environ.get("GITHUB_REPOSITORY", "")
+    repo_dir      = os.getcwd()
 
     try:
         subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"],
-                       check=True, capture_output=True)
+                       cwd=repo_dir, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Stream Tracker Bot"],
-                       check=True, capture_output=True)
+                       cwd=repo_dir, check=True, capture_output=True)
 
         # Pull latest remote state before staging anything, so our push is
         # always a fast-forward even if another workflow committed in between.
         pull = subprocess.run(
             ["git", "pull", "--rebase", "origin", "HEAD"],
-            capture_output=True, text=True
+            cwd=repo_dir, capture_output=True, text=True
         )
         if pull.returncode != 0:
             log.warning("git pull --rebase failed (will still attempt push): %s", pull.stderr.strip())
 
         subprocess.run(["git", "add", dashboard_dir],
-                       check=True, capture_output=True)
+                       cwd=repo_dir, check=True, capture_output=True)
 
         result = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
-            capture_output=True
+            cwd=repo_dir, capture_output=True
         )
         if result.returncode == 0:
             log.info("Dashboard unchanged — skipping deploy commit.")
@@ -414,14 +415,14 @@ def deploy_dashboard() -> None:
         ts = _now_local().strftime("%Y-%m-%d %H:%M:%S WIB")
         subprocess.run(
             ["git", "commit", "-m", f"chore: dashboard update {ts}"],
-            check=True, capture_output=True
+            cwd=repo_dir, check=True, capture_output=True
         )
 
         # Push with up to 3 retries, re-pulling on each rejection.
         for attempt in range(1, 4):
             push = subprocess.run(
                 ["git", "push", "origin", "HEAD"],
-                capture_output=True, text=True
+                cwd=repo_dir, capture_output=True, text=True
             )
             if push.returncode == 0:
                 log.info("Dashboard pushed to repository (attempt %d).", attempt)
@@ -431,7 +432,7 @@ def deploy_dashboard() -> None:
                 # Re-pull and rebase our commit on top of whatever was pushed
                 subprocess.run(
                     ["git", "pull", "--rebase", "origin", "HEAD"],
-                    capture_output=True
+                    cwd=repo_dir, capture_output=True
                 )
         else:
             log.error("git push failed after 3 attempts — skipping deploy dispatch.")
