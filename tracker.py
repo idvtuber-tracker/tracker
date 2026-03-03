@@ -385,11 +385,19 @@ def deploy_dashboard() -> None:
     dashboard_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
     pat           = os.environ.get("GH_PAT", "")
     repo_slug     = os.environ.get("GITHUB_REPOSITORY", "")
-    # Use the directory containing this script as the repo root.
-    # os.getcwd() is unreliable under GitHub Actions (Local System account
-    # sets cwd to a system directory, not the checkout).
-    repo_dir      = os.path.dirname(os.path.abspath(__file__))
+    # Derive repo root from GITHUB_WORKSPACE env var which GitHub Actions
+    # always sets to the exact checkout directory, regardless of which user
+    # account the runner uses. Fall back to __file__ for local runs.
+    repo_dir = os.environ.get("GITHUB_WORKSPACE") or os.path.dirname(os.path.abspath(__file__))
     log.info("deploy_dashboard: repo_dir resolved to %s", repo_dir)
+
+    # Git refuses to operate on directories not owned by the current user
+    # (safe.directory check). Under Local System this often triggers even on
+    # the Actions workspace. Mark the repo as safe before any git command.
+    subprocess.run(
+        ["git", "config", "--global", "safe.directory", repo_dir],
+        capture_output=True
+    )
 
     try:
         subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"],
