@@ -16,8 +16,16 @@ import re
 import json
 import shutil
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+# Display timezone for dashboard timestamps.
+# Indonesia does not observe DST so this is always UTC+7.
+_LOCAL_TZ = ZoneInfo("Asia/Jakarta")
+
+def _now_local() -> datetime:
+    return datetime.now(_LOCAL_TZ)
 
 import psycopg2
 import psycopg2.extras
@@ -160,7 +168,7 @@ def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
     cost 1 API unit per day instead of 1 per regeneration.
     Falls back gracefully if the API key is missing or the call fails.
     """
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = _now_local().strftime("%Y-%m-%d")
 
     # ── return from cache if still valid ──────────────────────────────────────
     if os.path.exists(_LOGO_CACHE_FILE):
@@ -244,8 +252,19 @@ def fmt_dt(dt) -> str:
     if dt is None:
         return "—"
     if isinstance(dt, datetime):
-        return dt.strftime("%Y-%m-%d %H:%M UTC")
-    return str(dt)[:16]
+        # DB stores timestamps as UTC; convert to local display timezone (UTC+7)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        local_dt = dt.astimezone(_LOCAL_TZ)
+        return local_dt.strftime("%Y-%m-%d %H:%M WIB")
+    # String fallback — assume UTC, parse and convert
+    try:
+        parsed = datetime.fromisoformat(str(dt).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(_LOCAL_TZ).strftime("%Y-%m-%d %H:%M WIB")
+    except Exception:
+        return str(dt)[:16]
 
 
 def esc(s) -> str:
@@ -796,7 +815,7 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'    </tr></thead>\n'
         f'    <tbody>{table_rows_html}\n    </tbody>\n'
         f'  </table>\n\n'
-        f'  <p class="generated">Generated {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}'
+        f'  <p class="generated">Generated {_now_local().strftime("%Y-%m-%d %H:%M WIB")}'
         f' &nbsp;&#183;&nbsp; yt-livestream-tracker</p>\n\n'
         f'<script>\n'
         f'const ts    = {json.dumps(labels)};\n'
@@ -875,7 +894,7 @@ def build_dashboard() -> None:
     total_streams  = 0
     total_channels = 0
     stream_counts: dict[str, int] = {}
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    generated_at = _now_local().strftime("%Y-%m-%d %H:%M WIB")
 
     for org_slug, org in ORG_MAP.items():
         log.info("── Org: %s", org["label"])
