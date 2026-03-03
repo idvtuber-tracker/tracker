@@ -69,9 +69,9 @@ _exhausted: set    = set()      # keys confirmed quota-exceeded for today
 # on a Windows self-hosted runner running as Local System.
 def _resolve_persistent_dir() -> str:
     candidates = [
-        os.environ.get("RUNNER_TOOL_CACHE", ""),
+        # RUNNER_TOOL_CACHE is inside _work and gets wiped between runs — skip it.
         # RUNNER_WORKSPACE is e.g. C:\actions-runner\_work\repo\repo
-        # Three levels up reaches C:\actions-runner
+        # Three levels up reaches C:\actions-runner which persists across runs.
         os.path.join(os.environ.get("RUNNER_WORKSPACE", ""), "..", "..", ".."),
         "C:\\actions-runner",
         "/tmp",
@@ -101,9 +101,10 @@ def _build_client(key: str):
     return build("youtube", "v3", developerKey=key)
 
 def _quota_reset_date() -> str:
-    """YouTube quota resets at midnight Pacific (UTC-7/UTC-8). Use UTC date as
-    a conservative proxy — close enough for a 6-hour restart cycle."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    """Return the current date in Pacific time (UTC-8).
+    YouTube quota resets at midnight Pacific, so this is the correct
+    boundary for determining whether the exhausted key list should clear."""
+    return _now_pacific().strftime("%Y-%m-%d")
 
 def _load_exhausted() -> None:
     """Load persisted exhausted keys from disk. Clears them if the date has changed."""
@@ -175,6 +176,24 @@ _load_exhausted()
 youtube = _build_client(_current_key())
 log.info("YouTube API client initialised with %d key(s) (%d exhausted today).",
          len(YOUTUBE_API_KEYS), len(_exhausted))
+
+# ── timezone helpers ──────────────────────────────────────────────────────────
+from datetime import timedelta
+from zoneinfo import ZoneInfo
+
+# YouTube API quota resets at midnight Pacific time.
+# ZoneInfo handles DST automatically (PST=UTC-8 in winter, PDT=UTC-7 in summer).
+_PACIFIC_TZ = ZoneInfo("America/Los_Angeles")
+# Display timezone — Indonesia does not observe DST so this is always UTC+7.
+_LOCAL_TZ   = ZoneInfo("Asia/Jakarta")
+
+def _now_local() -> datetime:
+    """Current time in local display timezone (WIB / UTC+7)."""
+    return datetime.now(_LOCAL_TZ)
+
+def _now_pacific() -> datetime:
+    """Current time in Pacific timezone, DST-aware."""
+    return datetime.now(_PACIFIC_TZ)
 
 # ── in-memory history for charts ───────────────────────────────────────────────
 history: dict[str, list] = {}   # video_id -> list of (ts, viewers, likes, comments)
@@ -392,7 +411,7 @@ def deploy_dashboard() -> None:
             log.info("Dashboard unchanged — skipping deploy commit.")
             return
 
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        ts = _now_local().strftime("%Y-%m-%d %H:%M:%S WIB")
         subprocess.run(
             ["git", "commit", "-m", f"chore: dashboard update {ts}"],
             check=True, capture_output=True
@@ -614,7 +633,7 @@ def draw_viewer_chart(video_id: str, channel_name: str) -> None:
 def render_dashboard(active_streams: list[dict]) -> str:
     """Return a plain-text snapshot for the console (used outside Rich Live)."""
     lines = []
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    now = _now_local().strftime("%Y-%m-%d %H:%M:%S WIB")
     lines.append(f"\n{'═'*64}")
     lines.append(f"  YouTube Livestream Tracker  |  {now}")
     lines.append(f"{'═'*64}")
