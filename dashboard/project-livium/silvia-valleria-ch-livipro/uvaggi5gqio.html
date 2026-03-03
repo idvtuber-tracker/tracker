@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>〔VALORANT〕 — IDVTuber Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #13131a;
+    --surface2:  #1a1a26;
+    --border:    #1e1e2e;
+    --muted:     #5a5a7a;
+    --text:      #e2e2f0;
+    --white:     #ffffff;
+    --red:       #ff4f6d;
+    --blue:      #4fc3f7;
+    --org-color: #e8ff47;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px; line-height: 1.7; min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    opacity: 0.5;
+  }
+  .page { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* breadcrumb */
+  .breadcrumb {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem;
+    padding: 1.5rem 0; font-size: 0.68rem;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--border); margin-bottom: 3rem;
+  }
+  .breadcrumb a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  .breadcrumb a:hover { color: var(--org-color); }
+  .breadcrumb .sep { color: var(--border); }
+  .breadcrumb .current { color: var(--org-color); }
+
+  /* headings */
+  .eyebrow {
+    font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--org-color); margin-bottom: 0.6rem;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2rem, 5vw, 4.5rem);
+    font-weight: 700; line-height: 1.0; color: var(--white); margin-bottom: 0.5rem;
+  }
+  h1 em { font-style: italic; color: var(--org-color); }
+  .page-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.75rem; }
+
+  /* org cards */
+  .orgs-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem; margin-top: 3rem;
+  }
+  .org-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 2rem;
+    text-decoration: none; color: inherit; display: block;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .org-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.35s;
+  }
+  .org-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
+  .org-card:hover::after { transform: scaleX(1); }
+  .org-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--org-color); margin-bottom: 1.25rem;
+    box-shadow: 0 0 12px var(--org-color);
+  }
+  .org-title { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--white); margin-bottom: 0.5rem; }
+  .org-desc { font-size: 0.78rem; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.6; }
+  .org-stat { font-size: 0.72rem; color: var(--muted); }
+  .org-stat strong { color: var(--org-color); }
+
+  /* channel card grid */
+  .channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.25rem; margin-top: 2.5rem;
+  }
+  .channel-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.5rem 1.25rem;
+    text-decoration: none; color: inherit; display: flex;
+    flex-direction: column; align-items: center; text-align: center;
+    gap: 0.9rem;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .channel-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.35s;
+  }
+  .channel-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
+  .channel-card:hover::after { transform: scaleX(1); }
+  .channel-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+    transition: border-color 0.2s;
+    background: var(--surface2);
+  }
+  .channel-card:hover .channel-avatar { border-color: var(--org-color); }
+  .channel-avatar-placeholder {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700;
+    color: var(--org-color); flex-shrink: 0;
+    transition: border-color 0.2s;
+  }
+  .channel-card:hover .channel-avatar-placeholder { border-color: var(--org-color); }
+  .channel-badge {
+    font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 0.18rem 0.45rem; border-radius: 2px;
+    border: 1px solid var(--org-color); color: var(--org-color);
+    background: rgba(0,0,0,0.3); flex-shrink: 0;
+  }
+  .channel-card-name {
+    font-family: 'Fraunces', serif; font-size: 0.95rem; font-weight: 700;
+    color: var(--white); line-height: 1.25;
+  }
+  .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
+
+  /* stream cards */
+  .streams-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 1rem; margin-top: 2.5rem;
+  }
+  .stream-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.25rem;
+    text-decoration: none; color: inherit; display: block;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .stream-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.3s;
+  }
+  .stream-card:hover { border-color: var(--org-color); transform: translateY(-2px); }
+  .stream-card:hover::before { transform: scaleX(1); }
+  .stream-status {
+    display: inline-block; font-size: 0.6rem; letter-spacing: 0.15em;
+    text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2px;
+    margin-bottom: 0.75rem;
+  }
+  .status-live     { background: rgba(255,79,109,0.15); color: var(--red);   border: 1px solid var(--red); }
+  .status-upcoming { background: rgba(79,195,247,0.10); color: var(--blue);  border: 1px solid var(--blue); }
+  .status-vod      { background: rgba(90,90,122,0.20);  color: var(--muted); border: 1px solid var(--muted); }
+  .stream-title {
+    font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 700;
+    color: var(--white); margin-bottom: 1rem; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .stream-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+  .stat-label { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-value { font-size: 0.9rem; color: var(--org-color); font-weight: 500; }
+  .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
+  .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
+
+  /* stream detail */
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
+    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+  .embed-wrap iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+  }
+  .embed-label {
+    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 0.6rem;
+  }
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.25rem; position: relative; overflow: hidden;
+  }
+  .kpi::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color);
+  }
+  .kpi-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.5rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; color: var(--org-color); }
+  .kpi-sub   { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
+  .chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
+  }
+  .chart-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 1.25rem; }
+  .chart-wrap  { position: relative; height: 280px; }
+  .section-title {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-bottom: 3rem; }
+  .data-table th {
+    text-align: left; padding: 0.5rem 0.75rem; color: var(--muted);
+    font-weight: 500; font-size: 0.65rem; text-transform: uppercase;
+    letter-spacing: 0.1em; border-bottom: 1px solid var(--border);
+  }
+  .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(30,30,46,0.5); color: var(--text); }
+  .data-table tr:hover td { background: var(--surface); }
+  .data-table .num { text-align: right; color: var(--org-color); font-weight: 500; }
+  .data-table .ts  { color: var(--muted); }
+  .pill { display: inline-block; font-size: 0.6rem; padding: 0.15rem 0.4rem; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .pill-live     { background: rgba(255,79,109,0.15); color: var(--red);  border: 1px solid var(--red); }
+  .pill-upcoming { background: rgba(79,195,247,0.10); color: var(--blue); border: 1px solid var(--blue); }
+  .generated { text-align: center; color: var(--muted); font-size: 0.7rem; margin-top: 3rem; }
+
+  /* footer */
+  footer {
+    margin-top: 5rem; padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; justify-content: space-between;
+    gap: 1rem; font-size: 0.7rem; color: var(--muted);
+  }
+  footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  footer a:hover { color: var(--org-color); }
+
+  /* animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  header { animation: fadeUp 0.5s ease both; }
+  .orgs-grid, .channels-list, .streams-grid, .kpi-row { animation: fadeUp 0.5s 0.1s ease both; }
+
+  :root { --org-color: #47ffb2; }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="breadcrumb"><a href="../../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../../index.html">Project:LIVIUM</a> <span class="sep">&#8250;</span> <a href="../index.html">Silvia Valleria Ch.〔LiviPro〕</a> <span class="sep">&#8250;</span> <span class="current">〔VALORANT〕</span></nav>
+  <header>
+    <p class="eyebrow">Project:LIVIUM &nbsp;&#183;&nbsp; Silvia Valleria Ch.〔LiviPro〕</p>
+    <span class="stream-status status-live" style="display:inline-block;margin-bottom:0.75rem;">&#128308; Live</span>
+    <h1>〔VALORANT〕</h1>
+    <p class="page-meta">Video ID: uvaggI5gQio &nbsp;&#183;&nbsp; 75 data points</p>
+  </header>
+
+  <p class="embed-label">Watch on YouTube</p>
+  <div class="embed-wrap">
+    <iframe
+      src="https://www.youtube.com/embed/uvaggI5gQio"
+      title="〔VALORANT〕"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen>
+    </iframe>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">187</div><div class="kpi-sub">concurrent</div></div>
+    <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">264</div></div>
+    <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">0</div></div>
+    <div class="kpi"><div class="kpi-label">First Seen</div><div class="kpi-value" style="font-size:1.1rem;">2026-03-03 06:51 WIB</div></div>
+    <div class="kpi"><div class="kpi-label">Last Seen</div><div class="kpi-value" style="font-size:1.1rem;">2026-03-03 08:09 WIB</div></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Concurrent Viewers over Time</div>
+    <div class="chart-wrap"><canvas id="viewerChart"></canvas></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Likes &amp; Comments over Time</div>
+    <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>
+  </div>
+
+  <p class="section-title">All collected data points</p>
+  <table class="data-table">
+    <thead><tr>
+      <th>Collected At</th><th>Status</th>
+      <th style="text-align:right">Viewers</th>
+      <th style="text-align:right">Likes</th>
+      <th style="text-align:right">Comments</th>
+      <th>Stream Start</th>
+    </tr></thead>
+    <tbody>
+        <tr><td class="ts">2026-03-03 08:09 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">0</td><td class="num">264</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 08:08 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">0</td><td class="num">263</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 08:07 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">0</td><td class="num">263</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 08:06 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">164</td><td class="num">261</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 08:05 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">165</td><td class="num">260</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 08:04 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">177</td><td class="num">259</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 08:03 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">181</td><td class="num">257</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 08:02 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">177</td><td class="num">254</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 08:01 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">180</td><td class="num">251</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:59 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">185</td><td class="num">251</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:58 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">177</td><td class="num">250</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:57 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">171</td><td class="num">248</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:56 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">173</td><td class="num">247</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:55 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">187</td><td class="num">246</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:54 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">181</td><td class="num">246</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:53 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">179</td><td class="num">242</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:52 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">171</td><td class="num">238</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:51 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">158</td><td class="num">237</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:50 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">159</td><td class="num">236</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:49 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">159</td><td class="num">236</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:48 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">155</td><td class="num">236</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:47 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">173</td><td class="num">231</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:46 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">146</td><td class="num">229</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:45 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">157</td><td class="num">228</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:44 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">150</td><td class="num">226</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:43 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">148</td><td class="num">224</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:42 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">149</td><td class="num">223</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:40 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">146</td><td class="num">220</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:39 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">140</td><td class="num">219</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:38 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">149</td><td class="num">217</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:37 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">148</td><td class="num">216</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:36 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">155</td><td class="num">211</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:35 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">148</td><td class="num">207</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:34 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">155</td><td class="num">206</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:33 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">160</td><td class="num">203</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:32 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">167</td><td class="num">201</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:31 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">168</td><td class="num">198</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:30 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">162</td><td class="num">196</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:29 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">164</td><td class="num">196</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:28 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">165</td><td class="num">194</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:27 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">171</td><td class="num">189</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:26 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">162</td><td class="num">189</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:25 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">149</td><td class="num">187</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:24 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">172</td><td class="num">184</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:22 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">169</td><td class="num">184</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:21 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">163</td><td class="num">180</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:20 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">151</td><td class="num">178</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:19 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">160</td><td class="num">175</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:18 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">148</td><td class="num">173</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:17 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">156</td><td class="num">170</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:16 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">157</td><td class="num">167</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:15 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">159</td><td class="num">165</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:14 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">156</td><td class="num">162</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:13 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">143</td><td class="num">160</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:12 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">155</td><td class="num">160</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:11 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">163</td><td class="num">157</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:10 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">153</td><td class="num">155</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:09 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">150</td><td class="num">153</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:08 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">137</td><td class="num">147</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:07 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">135</td><td class="num">147</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:05 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">132</td><td class="num">143</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:04 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">126</td><td class="num">141</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:03 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">140</td><td class="num">138</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:02 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">134</td><td class="num">135</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:01 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">132</td><td class="num">131</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 07:00 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">123</td><td class="num">130</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:59 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">117</td><td class="num">126</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:58 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">118</td><td class="num">122</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:57 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">111</td><td class="num">117</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:56 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">123</td><td class="num">106</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:55 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">118</td><td class="num">102</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:54 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">112</td><td class="num">97</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:53 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">122</td><td class="num">91</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:52 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">140</td><td class="num">84</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+        <tr><td class="ts">2026-03-03 06:51 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">147</td><td class="num">69</td><td class="num">0</td><td class="ts">2026-03-03 06:46 WIB</td></tr>
+    </tbody>
+  </table>
+
+  <p class="generated">Generated 2026-03-03 14:47 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+
+<script>
+const ts    = ["2026-03-03 06:51 WIB", "2026-03-03 06:52 WIB", "2026-03-03 06:53 WIB", "2026-03-03 06:54 WIB", "2026-03-03 06:55 WIB", "2026-03-03 06:56 WIB", "2026-03-03 06:57 WIB", "2026-03-03 06:58 WIB", "2026-03-03 06:59 WIB", "2026-03-03 07:00 WIB", "2026-03-03 07:01 WIB", "2026-03-03 07:02 WIB", "2026-03-03 07:03 WIB", "2026-03-03 07:04 WIB", "2026-03-03 07:05 WIB", "2026-03-03 07:07 WIB", "2026-03-03 07:08 WIB", "2026-03-03 07:09 WIB", "2026-03-03 07:10 WIB", "2026-03-03 07:11 WIB", "2026-03-03 07:12 WIB", "2026-03-03 07:13 WIB", "2026-03-03 07:14 WIB", "2026-03-03 07:15 WIB", "2026-03-03 07:16 WIB", "2026-03-03 07:17 WIB", "2026-03-03 07:18 WIB", "2026-03-03 07:19 WIB", "2026-03-03 07:20 WIB", "2026-03-03 07:21 WIB", "2026-03-03 07:22 WIB", "2026-03-03 07:24 WIB", "2026-03-03 07:25 WIB", "2026-03-03 07:26 WIB", "2026-03-03 07:27 WIB", "2026-03-03 07:28 WIB", "2026-03-03 07:29 WIB", "2026-03-03 07:30 WIB", "2026-03-03 07:31 WIB", "2026-03-03 07:32 WIB", "2026-03-03 07:33 WIB", "2026-03-03 07:34 WIB", "2026-03-03 07:35 WIB", "2026-03-03 07:36 WIB", "2026-03-03 07:37 WIB", "2026-03-03 07:38 WIB", "2026-03-03 07:39 WIB", "2026-03-03 07:40 WIB", "2026-03-03 07:42 WIB", "2026-03-03 07:43 WIB", "2026-03-03 07:44 WIB", "2026-03-03 07:45 WIB", "2026-03-03 07:46 WIB", "2026-03-03 07:47 WIB", "2026-03-03 07:48 WIB", "2026-03-03 07:49 WIB", "2026-03-03 07:50 WIB", "2026-03-03 07:51 WIB", "2026-03-03 07:52 WIB", "2026-03-03 07:53 WIB", "2026-03-03 07:54 WIB", "2026-03-03 07:55 WIB", "2026-03-03 07:56 WIB", "2026-03-03 07:57 WIB", "2026-03-03 07:58 WIB", "2026-03-03 07:59 WIB", "2026-03-03 08:01 WIB", "2026-03-03 08:02 WIB", "2026-03-03 08:03 WIB", "2026-03-03 08:04 WIB", "2026-03-03 08:05 WIB", "2026-03-03 08:06 WIB", "2026-03-03 08:07 WIB", "2026-03-03 08:08 WIB", "2026-03-03 08:09 WIB"];
+const views = [147, 140, 122, 112, 118, 123, 111, 118, 117, 123, 132, 134, 140, 126, 132, 135, 137, 150, 153, 163, 155, 143, 156, 159, 157, 156, 148, 160, 151, 163, 169, 172, 149, 162, 171, 165, 164, 162, 168, 167, 160, 155, 148, 155, 148, 149, 140, 146, 149, 148, 150, 157, 146, 173, 155, 159, 159, 158, 171, 179, 181, 187, 173, 171, 177, 185, 180, 177, 181, 177, 165, 164, 0, 0, 0];
+const likes = [69, 84, 91, 97, 102, 106, 117, 122, 126, 130, 131, 135, 138, 141, 143, 147, 147, 153, 155, 157, 160, 160, 162, 165, 167, 170, 173, 175, 178, 180, 184, 184, 187, 189, 189, 194, 196, 196, 198, 201, 203, 206, 207, 211, 216, 217, 219, 220, 223, 224, 226, 228, 229, 231, 236, 236, 236, 237, 238, 242, 246, 246, 247, 248, 250, 251, 251, 254, 257, 259, 260, 261, 263, 263, 264];
+const comms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const orgColor  = '#47ffb2';
+const gridColor = 'rgba(30,30,46,0.8)';
+const tickColor = '#5a5a7a';
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  interaction: { mode: "index", intersect: false },
+  plugins: { legend: { labels: { color: tickColor, font: { family: "DM Mono", size: 11 }, boxWidth: 12 } } },
+  scales: {
+    x: { ticks: { color: tickColor, font: { family: "DM Mono", size: 10 }, maxTicksLimit: 10, maxRotation: 0 }, grid: { color: gridColor } },
+    y: { ticks: { color: tickColor, font: { family: "DM Mono", size: 10 } }, grid: { color: gridColor } }
+  }
+};
+new Chart(document.getElementById("viewerChart"), {
+  type: "line",
+  data: { labels: ts, datasets: [{ label: "Concurrent Viewers", data: views,
+    borderColor: orgColor, backgroundColor: orgColor + "22",
+    borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }] },
+  options: { ...baseOpts }
+});
+new Chart(document.getElementById("engagementChart"), {
+  type: "line",
+  data: { labels: ts, datasets: [
+    { label: "Likes",    data: likes, borderColor: "#ff4f6d", backgroundColor: "rgba(255,79,109,0.05)",  borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 },
+    { label: "Comments", data: comms, borderColor: "#4fc3f7", backgroundColor: "rgba(79,195,247,0.05)", borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }
+  ] },
+  options: { ...baseOpts }
+});
+</script>
+
+  <footer>
+    <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>
+    <span>
+      <a href="../../../index.html">Home</a>
+      &nbsp;&middot;&nbsp;
+      <a href="../../../privacy.html">Privacy Policy</a>
+      &nbsp;&middot;&nbsp;
+      <a href="../../../terms.html">Terms of Use</a>
+    </span>
+  </footer>
+</div>
+</body>
+</html>
