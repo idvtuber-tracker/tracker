@@ -63,7 +63,7 @@ ORG_MAP = {
             ("Yudistira Yogendra 【PANDAVVA】", "talent"),
             ("Bima Bayusena【PANDAVVA】",       "talent"), 
             ("Arjuna Arkana【PANDAVVA】",     "talent"),   
-            ("Nakula Narenda【PANDAVVA】",     "talent"),   # not yet in DB
+            ("Nakula Nalendra【PANDAVVA】",     "talent"),
             ("Sadewa Sagara【PANDAVVA】",      "talent"),
         ],
     },
@@ -72,9 +72,9 @@ ORG_MAP = {
         "color":   "#47ffb2",
         "desc":    "A dynamic VTuber project featuring seven unique talents spanning a wide range of creative personalities.",
         "channels": [
-            ("Project:LIVIUM",                             "org"),    # not yet in DB
+            ("Project:LIVIUM",                             "org"),
             ("Indira Naylarissa Ch.〔LiviPro〕",    "talent"),
-            ("Silvia Valleria Ch.〔LiviPro〕",      "talent"), # not yet in DB
+            ("Silvia Valleria Ch.〔LiviPro〕",      "talent"),
             ("Yuura Yozakura Ch.〔LiviPro〕",       "talent"),
             ("Ymelia Meiru Ch.〔LiviPro〕",         "talent"), # not yet in DB
             ("Fareye Closhartt Ch.〔LiviPro〕",     "talent"),
