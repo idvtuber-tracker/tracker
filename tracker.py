@@ -451,7 +451,7 @@ def deploy_dashboard() -> None:
             log.error("git push failed after 3 attempts — skipping deploy dispatch.")
             return
 
-        # Fire the Pages deploy trigger
+        # Fire the Pages deploy trigger — retry up to 3 times on network errors
         if pat and repo_slug:
             headers = {
                 "Authorization":        f"Bearer {pat}",
@@ -463,16 +463,23 @@ def deploy_dashboard() -> None:
                 "event_type": "deploy-dashboard",
                 "client_payload": {"triggered_by": "tracker"}
             })
-            resp = requests.post(
-                f"https://api.github.com/repos/{repo_slug}/dispatches",
-                headers=headers,
-                data=payload,
-                timeout=10,
-            )
-            if resp.status_code == 204:
-                log.info("Deploy event fired successfully.")
-            else:
-                log.error("Deploy event failed: %s %s", resp.status_code, resp.text)
+            for dispatch_attempt in range(1, 4):
+                try:
+                    resp = requests.post(
+                        f"https://api.github.com/repos/{repo_slug}/dispatches",
+                        headers=headers,
+                        data=payload,
+                        timeout=30,  # increased from 10s
+                    )
+                    if resp.status_code == 204:
+                        log.info("Deploy event fired successfully (attempt %d).", dispatch_attempt)
+                    else:
+                        log.error("Deploy event failed: %s %s", resp.status_code, resp.text)
+                    break
+                except Exception as e:
+                    log.warning("Deploy dispatch attempt %d failed: %s", dispatch_attempt, e)
+                    if dispatch_attempt < 3:
+                        time.sleep(10 * dispatch_attempt)  # 10s, 20s backoff
 
     except subprocess.CalledProcessError as e:
         log.error("Deploy failed: %s\nstderr: %s",
@@ -721,20 +728,22 @@ def run() -> None:
         time.sleep(1)
 
     while _running:
+        active_streams: list[dict] = []
         try:
+            # ── channel discovery (runs every POLL_INTERVAL_SEC) ──────────────
             if channel_poll_counter == 0:
                 discovered: dict[str, dict] = {}
                 for ch in CHANNEL_IDS:
                     for s in find_live_videos(ch):
                         vid = s["video_id"]
                         discovered[vid] = s
-    
+
                         # initialise the channel's table on first encounter
                         if AIVEN_DATABASE_URL and ch not in channel_tables:
                             channel_tables[ch] = init_channel_table(
                                 ch, s["channel_name"]
                             )
-    
+
                         if vid not in known_streams:
                             console.print(
                                 Panel(
@@ -751,34 +760,46 @@ def run() -> None:
                     if vid not in discovered:
                         log.info("Stream ended: %s", vid)
                 known_streams = discovered
-    
+
             channel_poll_counter = (channel_poll_counter + 1) % max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC)
-    
+
+            # ── analytics collection + deploy ─────────────────────────────────
+            active_streams = list(known_streams.values())
+            for stream in active_streams:
+                if stream["stream_status"] == "live":
+                    table = channel_tables.get(stream["channel_id"])
+                    try:
+                        collect_and_store(stream, table)
+                    except Exception as e:
+                        log.error("collect_and_store failed for %s — skipping: %s",
+                                  stream.get("video_id"), e)
+                    now = datetime.now(timezone.utc)
+                    if (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC:
+                        try:
+                            deploy_dashboard()
+                        except Exception as e:
+                            log.error("deploy_dashboard failed — will retry next interval: %s", e)
+                        last_deploy_time = now
+                else:
+                    # Ensure upcoming streams always have safe default keys
+                    stream.setdefault("concurrent_viewers", 0)
+                    stream.setdefault("like_count", 0)
+                    stream.setdefault("comment_count", 0)
+
         except Exception as e:
             log.error("Unexpected error in main loop: %s — continuing in %ds",
                       e, STREAM_POLL_SEC)
             time.sleep(STREAM_POLL_SEC)
             continue
-        
-        active_streams: list[dict] = list(known_streams.values())
-        for stream in active_streams:
-            if stream["stream_status"] == "live":
-                table = channel_tables.get(stream["channel_id"])
-                collect_and_store(stream, table)
-                now = datetime.now(timezone.utc)
-                if (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC:
-                    deploy_dashboard()
-                    last_deploy_time = now
-            else:
-                # Ensure upcoming streams always have safe default keys
-                stream.setdefault("concurrent_viewers", 0)
-                stream.setdefault("like_count", 0)
-                stream.setdefault("comment_count", 0)
-        
-        console.print(build_summary_table(active_streams))
-        for s in active_streams:
-            if s["stream_status"] == "live":
-                draw_viewer_chart(s["video_id"], s["channel_name"])
+
+        # ── console display (non-fatal if it fails) ───────────────────────────
+        try:
+            console.print(build_summary_table(active_streams))
+            for s in active_streams:
+                if s["stream_status"] == "live":
+                    draw_viewer_chart(s["video_id"], s["channel_name"])
+        except Exception as e:
+            log.warning("Dashboard display error (non-fatal): %s", e)
 
         console.print(
             f"[dim]Next analytics poll in {STREAM_POLL_SEC}s  |  "
