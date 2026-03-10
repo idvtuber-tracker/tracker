@@ -65,7 +65,7 @@ ORG_MAP = {
             ("Yudistira Yogendra 【PANDAVVA】", "talent", "UCdVRAGFhvkSIhMYxPdVBDzA"),
             ("Bima Bayusena【PANDAVVA】",       "talent", "UCJTNnAFxljZnKGMb5B8XKIA"),
             ("Arjuna Arkana【PANDAVVA】",       "talent", "UCmpT2MkZjPYkqLMrEHv6k0w"),
-            ("Nakula Narenda【PANDAVVA】",      "talent", "UCtGgHePeV6ePoTtlEspXJbQ"),  # not yet in DB
+            ("Nakula Nalenda【PANDAVVA】",      "talent", "UCtGgHePeV6ePoTtlEspXJbQ"),  # not yet in DB
             ("Sadewa Sagara【PANDAVVA】",       "talent", "UCaQwGFUjKGFz0kqxJrP6etA"),
         ],
     },
