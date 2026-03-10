@@ -128,6 +128,7 @@ def get_streams_for_channel(conn, table: str) -> list[dict]:
                 MIN(collected_at)       AS first_seen,
                 MAX(collected_at)       AS last_seen,
                 MAX(concurrent_viewers) AS peak_viewers,
+                MAX(view_count)         AS view_count,
                 MAX(like_count)         AS peak_likes,
                 MAX(comment_count)      AS peak_comments,
                 COUNT(*)                AS data_points
@@ -829,6 +830,8 @@ def write_channel_page(org_slug: str, org: dict,
                 f'<div class="stat-value">{fmt(stream["peak_viewers"])}</div></div>\n'
                 f'        <div><div class="stat-label">Avg Viewers</div>'
                 f'<div class="stat-value">{fmt(stream.get("avg_viewers"))}</div></div>\n'
+                f'        <div><div class="stat-label">View Count</div>'
+                f'<div class="stat-value">{fmt(stream.get("view_count"))}</div></div>\n'
                 f'        <div><div class="stat-label">Peak Likes</div>'
                 f'<div class="stat-value">{fmt(stream["peak_likes"])}</div></div>\n'
                 f'      </div>\n'
@@ -955,6 +958,7 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'      <div class="kpi-grid">\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">{fmt(stream["peak_viewers"])}</div><div class="kpi-sub">concurrent</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Avg Viewers</div><div class="kpi-value">{fmt(stream.get("avg_viewers"))}</div><div class="kpi-sub">concurrent</div></div>\n'
+        f'        <div class="kpi"><div class="kpi-label">View Count</div><div class="kpi-value">{fmt(stream.get("view_count"))}</div><div class="kpi-sub">total plays</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">{fmt(stream["peak_likes"])}</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">{fmt(stream["peak_comments"])}</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Stream Start</div><div class="kpi-value kpi-sm">{fmt_dt(stream["first_seen"])}</div></div>\n'
