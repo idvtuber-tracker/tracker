@@ -139,6 +139,32 @@
     color: var(--white); line-height: 1.25;
   }
   .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
 
   /* stream cards */
   .streams-grid {
@@ -178,32 +204,75 @@
   .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
-  /* stream detail */
-  .embed-wrap {
-    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
-    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+  /* month heading on channel page */
+  .month-heading {
+    font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--muted); margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .month-heading::before {
+    content: ''; display: block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--org-color);
+    box-shadow: 0 0 6px var(--org-color); flex-shrink: 0;
+  }
+
+  /* stream detail: side-by-side hero */
+  .stream-hero {
+    display: grid;
+    grid-template-columns: 37fr 63fr;
+    gap: 1.5rem;
+    margin: 2rem 0 2.5rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) { .stream-hero { grid-template-columns: 1fr; } }
+  .embed-side {
+    min-width: 0;
     border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%;
     background: #000;
   }
   .embed-wrap iframe {
     position: absolute; inset: 0; width: 100%; height: 100%; border: none;
   }
-  .embed-label {
-    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 0.6rem;
+  .stream-thumb-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 0.9rem;
+    background: var(--surface); border-top: 1px solid var(--border);
+    font-size: 0.65rem; color: var(--muted);
   }
-  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
+  .stream-thumb-meta a {
+    color: var(--org-color); text-decoration: none;
+  }
+  .stream-thumb-meta a:hover { text-decoration: underline; }
+  .kpi-side { min-width: 0; }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
   .kpi {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.25rem; position: relative; overflow: hidden;
+    background: var(--surface);
+    padding: 1.1rem 1.25rem;
+    position: relative;
   }
-  .kpi::after {
-    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  .kpi.kpi-wide { grid-column: span 2; }
+  .kpi-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.45rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--org-color); line-height: 1.1; }
+  .kpi-value.kpi-sm { font-size: 1rem; }
+  .kpi-sub   { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
+  .kpi-grid .kpi:nth-child(-n+2)::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: var(--org-color);
   }
-  .kpi-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.5rem; }
-  .kpi-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; color: var(--org-color); }
-  .kpi-sub   { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
   .chart-box {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
@@ -264,37 +333,37 @@
       <div class="channel-avatar-placeholder">W</div>
       <span class="channel-badge">ORG CH</span>
       <div class="channel-card-name">Whicker Butler</div>
-      <div class="channel-card-meta">0 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">0 streams</span></div></div>
     </a>
     <a class="channel-card" href="valthea-nankila-whicker-butler/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/cfJtWQk-roSLSTUTP37XzulIXsd1xJCJKPJYAQEi0vOk-2v7zjyHQ9cVvkL_M_Y-qP8EOx265A=s240-c-k-c0x00ffffff-no-rj" alt="Valthea Nankila 【 Whicker Butler 】" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/cfJtWQk-roSLSTUTP37XzulIXsd1xJCJKPJYAQEi0vOk-2v7zjyHQ9cVvkL_M_Y-qP8EOx265A=s240-c-k-c0x00ffffff-no-rj" alt="Valthea Nankila 【 Whicker Butler 】" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Valthea Nankila 【 Whicker Butler 】</div>
-      <div class="channel-card-meta">8 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">8 streams</span></div></div>
     </a>
     <a class="channel-card" href="ignis-grimoire-whicker-butler/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/fXvUDopMON120iLEqz6pPSNSe6foJ72jMeBsefC2a2j-ZCAOshGon_fS3gQbCnvvN8RMnftDjw=s240-c-k-c0x00ffffff-no-rj" alt="Ignis Grimoire【Whicker Butler】" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/fXvUDopMON120iLEqz6pPSNSe6foJ72jMeBsefC2a2j-ZCAOshGon_fS3gQbCnvvN8RMnftDjw=s240-c-k-c0x00ffffff-no-rj" alt="Ignis Grimoire【Whicker Butler】" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Ignis Grimoire【Whicker Butler】</div>
-      <div class="channel-card-meta">5 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">5 streams</span></div></div>
     </a>
     <a class="channel-card" href="darlyne-nightbloom-whicker-butler/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/PLC6PXNnTbJVteYQRN0wvPJoHeL3VvMu8zscRsWpvUNMoz8uToa3xV3ao9ShM-52FAG4Ar7YhA=s240-c-k-c0x00ffffff-no-rj" alt="Darlyne Nightbloom【Whicker Butler】" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/PLC6PXNnTbJVteYQRN0wvPJoHeL3VvMu8zscRsWpvUNMoz8uToa3xV3ao9ShM-52FAG4Ar7YhA=s240-c-k-c0x00ffffff-no-rj" alt="Darlyne Nightbloom【Whicker Butler】" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Darlyne Nightbloom【Whicker Butler】</div>
-      <div class="channel-card-meta">4 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">4 streams</span></div></div>
     </a>
     <a class="channel-card" href="thalita-sylvaine-whicker-butler/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/66oGeR8Vv0gvzCk_w9VZ13kI-Nee7wHGulQg_gct26_GXJ1wVG7bs_0w__68fHHTUhxtWCb41w=s240-c-k-c0x00ffffff-no-rj" alt="Thalita Sylvaine【Whicker Butler】" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/66oGeR8Vv0gvzCk_w9VZ13kI-Nee7wHGulQg_gct26_GXJ1wVG7bs_0w__68fHHTUhxtWCb41w=s240-c-k-c0x00ffffff-no-rj" alt="Thalita Sylvaine【Whicker Butler】" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Thalita Sylvaine【Whicker Butler】</div>
-      <div class="channel-card-meta">7 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">7 streams</span></div></div>
     </a>
     <a class="channel-card" href="oriana-solstair-whicker-butler/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/iW61BnKsCT9HOs7A_uFeRM7hiS7WKOoPVKG2Vv9Ys46OYPfs0Ew-MheYxpuQBq1pG7nAiY2RJQ=s240-c-k-c0x00ffffff-no-rj" alt="Oriana Solstair【Whicker Butler】" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/iW61BnKsCT9HOs7A_uFeRM7hiS7WKOoPVKG2Vv9Ys46OYPfs0Ew-MheYxpuQBq1pG7nAiY2RJQ=s240-c-k-c0x00ffffff-no-rj" alt="Oriana Solstair【Whicker Butler】" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Oriana Solstair【Whicker Butler】</div>
-      <div class="channel-card-meta">4 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">4 streams</span></div></div>
     </a>
   </div>
 

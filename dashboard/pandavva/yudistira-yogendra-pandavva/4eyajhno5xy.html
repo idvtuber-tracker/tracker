@@ -139,6 +139,32 @@
     color: var(--white); line-height: 1.25;
   }
   .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
 
   /* stream cards */
   .streams-grid {
@@ -178,32 +204,75 @@
   .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
-  /* stream detail */
-  .embed-wrap {
-    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
-    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+  /* month heading on channel page */
+  .month-heading {
+    font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--muted); margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .month-heading::before {
+    content: ''; display: block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--org-color);
+    box-shadow: 0 0 6px var(--org-color); flex-shrink: 0;
+  }
+
+  /* stream detail: side-by-side hero */
+  .stream-hero {
+    display: grid;
+    grid-template-columns: 37fr 63fr;
+    gap: 1.5rem;
+    margin: 2rem 0 2.5rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) { .stream-hero { grid-template-columns: 1fr; } }
+  .embed-side {
+    min-width: 0;
     border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%;
     background: #000;
   }
   .embed-wrap iframe {
     position: absolute; inset: 0; width: 100%; height: 100%; border: none;
   }
-  .embed-label {
-    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 0.6rem;
+  .stream-thumb-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 0.9rem;
+    background: var(--surface); border-top: 1px solid var(--border);
+    font-size: 0.65rem; color: var(--muted);
   }
-  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
+  .stream-thumb-meta a {
+    color: var(--org-color); text-decoration: none;
+  }
+  .stream-thumb-meta a:hover { text-decoration: underline; }
+  .kpi-side { min-width: 0; }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
   .kpi {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.25rem; position: relative; overflow: hidden;
+    background: var(--surface);
+    padding: 1.1rem 1.25rem;
+    position: relative;
   }
-  .kpi::after {
-    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  .kpi.kpi-wide { grid-column: span 2; }
+  .kpi-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.45rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--org-color); line-height: 1.1; }
+  .kpi-value.kpi-sm { font-size: 1rem; }
+  .kpi-sub   { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
+  .kpi-grid .kpi:nth-child(-n+2)::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: var(--org-color);
   }
-  .kpi-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.5rem; }
-  .kpi-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; color: var(--org-color); }
-  .kpi-sub   { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
   .chart-box {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
@@ -258,24 +327,35 @@
     <p class="eyebrow">PANDAVVA &nbsp;&#183;&nbsp; Yudistira Yogendra 【PANDAVVA】</p>
     <span class="stream-status status-live" style="display:inline-block;margin-bottom:0.75rem;">&#128308; Live</span>
     <h1>NGABERS Yudisini【PANDAVVA】</h1>
-    <p class="page-meta">Video ID: 4EYaJhno5XY &nbsp;&#183;&nbsp; 158 data points</p>
+    <p class="page-meta">Video ID: 4EYaJhno5XY</p>
   </header>
 
-  <p class="embed-label">Watch on YouTube</p>
-  <div class="embed-wrap">
-    <iframe
-      src="https://www.youtube.com/embed/4EYaJhno5XY"
-      title="NGABERS Yudisini【PANDAVVA】"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen>
-    </iframe>
-  </div>
-  <div class="kpi-row">
-    <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">901</div><div class="kpi-sub">concurrent</div></div>
-    <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">1,682</div></div>
-    <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">11</div></div>
-    <div class="kpi"><div class="kpi-label">First Seen</div><div class="kpi-value" style="font-size:1.1rem;">2026-03-01 16:08 WIB</div></div>
-    <div class="kpi"><div class="kpi-label">Last Seen</div><div class="kpi-value" style="font-size:1.1rem;">2026-03-01 19:03 WIB</div></div>
+  <div class="stream-hero">
+    <div class="embed-side">
+      <div class="embed-wrap">
+        <iframe
+          src="https://www.youtube.com/embed/4EYaJhno5XY"
+          title="NGABERS Yudisini【PANDAVVA】"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
+      </div>
+      <div class="stream-thumb-meta">
+        <span>2026-03-01 16:08 WIB &nbsp;&#183;&nbsp; 2h 55m 06s</span>
+        <a href="https://www.youtube.com/watch?v=4EYaJhno5XY" target="_blank" rel="noopener">&#8599; Watch on YouTube</a>
+      </div>
+    </div>
+    <div class="kpi-side">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">901</div><div class="kpi-sub">concurrent</div></div>
+        <div class="kpi"><div class="kpi-label">Avg Viewers</div><div class="kpi-value">793</div><div class="kpi-sub">concurrent</div></div>
+        <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">1,682</div></div>
+        <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">11</div></div>
+        <div class="kpi"><div class="kpi-label">Stream Start</div><div class="kpi-value kpi-sm">2026-03-01 16:08 WIB</div></div>
+        <div class="kpi"><div class="kpi-label">Stream End</div><div class="kpi-value kpi-sm">2026-03-01 19:03 WIB</div></div>
+        <div class="kpi kpi-wide"><div class="kpi-label">Duration</div><div class="kpi-value kpi-sm">2h 55m 06s</div></div>
+      </div>
+    </div>
   </div>
 
   <div class="chart-box">
@@ -288,178 +368,7 @@
     <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>
   </div>
 
-  <p class="section-title">All collected data points</p>
-  <table class="data-table">
-    <thead><tr>
-      <th>Collected At</th><th>Status</th>
-      <th style="text-align:right">Viewers</th>
-      <th style="text-align:right">Likes</th>
-      <th style="text-align:right">Comments</th>
-      <th>Stream Start</th>
-    </tr></thead>
-    <tbody>
-        <tr><td class="ts">2026-03-01 19:03 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">0</td><td class="num">1,682</td><td class="num">11</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 19:02 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">0</td><td class="num">1,679</td><td class="num">3</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 19:01 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">0</td><td class="num">1,677</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 19:00 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">799</td><td class="num">1,664</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:59 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">820</td><td class="num">1,656</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:58 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">813</td><td class="num">1,645</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:57 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">813</td><td class="num">1,632</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:56 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">830</td><td class="num">1,627</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:55 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">821</td><td class="num">1,620</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:54 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">815</td><td class="num">1,611</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:52 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">802</td><td class="num">1,598</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:51 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">810</td><td class="num">1,595</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:50 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">820</td><td class="num">1,590</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:49 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">821</td><td class="num">1,583</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:48 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">828</td><td class="num">1,580</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:47 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">806</td><td class="num">1,577</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:46 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">830</td><td class="num">1,573</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:45 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">803</td><td class="num">1,569</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:44 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">791</td><td class="num">1,561</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:43 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">780</td><td class="num">1,550</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:42 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">759</td><td class="num">1,546</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:41 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">767</td><td class="num">1,542</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:39 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">772</td><td class="num">1,538</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:38 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">784</td><td class="num">1,528</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:37 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">776</td><td class="num">1,522</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:36 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">746</td><td class="num">1,514</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:35 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">771</td><td class="num">1,507</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:34 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">772</td><td class="num">1,496</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:33 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">746</td><td class="num">1,492</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:32 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">763</td><td class="num">1,487</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:31 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">759</td><td class="num">1,481</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:30 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">776</td><td class="num">1,477</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:28 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">737</td><td class="num">1,470</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:27 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">754</td><td class="num">1,462</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:26 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">756</td><td class="num">1,456</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:25 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">772</td><td class="num">1,451</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:24 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">779</td><td class="num">1,446</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:23 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">754</td><td class="num">1,441</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:22 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">730</td><td class="num">1,435</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:20 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">741</td><td class="num">1,433</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:19 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">760</td><td class="num">1,423</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:18 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">777</td><td class="num">1,407</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:17 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">786</td><td class="num">1,399</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:16 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">787</td><td class="num">1,391</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:15 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">774</td><td class="num">1,383</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:14 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">825</td><td class="num">1,376</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:13 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">827</td><td class="num">1,372</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:12 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">838</td><td class="num">1,365</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:10 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">827</td><td class="num">1,359</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:09 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">859</td><td class="num">1,349</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:08 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">892</td><td class="num">1,341</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:07 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">901</td><td class="num">1,329</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:06 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">882</td><td class="num">1,324</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:04 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">852</td><td class="num">1,309</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:03 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">837</td><td class="num">1,292</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:02 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">828</td><td class="num">1,291</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:01 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">838</td><td class="num">1,287</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 18:00 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">847</td><td class="num">1,280</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:59 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">866</td><td class="num">1,274</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:58 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">856</td><td class="num">1,264</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:57 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">856</td><td class="num">1,259</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:56 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">863</td><td class="num">1,248</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:54 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">881</td><td class="num">1,233</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:53 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">879</td><td class="num">1,226</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:52 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">871</td><td class="num">1,221</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:51 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">888</td><td class="num">1,215</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:50 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">883</td><td class="num">1,210</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:49 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">891</td><td class="num">1,202</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:47 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">867</td><td class="num">1,195</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:46 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">876</td><td class="num">1,184</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:45 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">864</td><td class="num">1,169</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:44 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">864</td><td class="num">1,163</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:43 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">879</td><td class="num">1,158</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:42 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">862</td><td class="num">1,151</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:41 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">837</td><td class="num">1,139</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:39 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">838</td><td class="num">1,131</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:38 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">828</td><td class="num">1,118</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:37 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">806</td><td class="num">1,112</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:36 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">828</td><td class="num">1,098</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:35 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">824</td><td class="num">1,093</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:34 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">824</td><td class="num">1,085</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:33 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">814</td><td class="num">1,083</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:32 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">797</td><td class="num">1,075</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:30 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">811</td><td class="num">1,063</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:29 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">836</td><td class="num">1,057</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:28 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">837</td><td class="num">1,051</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:27 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">847</td><td class="num">1,042</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:26 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">846</td><td class="num">1,035</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:25 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">833</td><td class="num">1,022</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:23 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">847</td><td class="num">1,013</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:22 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">844</td><td class="num">996</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:21 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">840</td><td class="num">992</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:20 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">834</td><td class="num">981</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:19 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">851</td><td class="num">972</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:18 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">827</td><td class="num">956</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:17 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">842</td><td class="num">952</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:16 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">871</td><td class="num">947</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:14 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">860</td><td class="num">937</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:13 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">873</td><td class="num">927</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:11 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">875</td><td class="num">919</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:10 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">869</td><td class="num">905</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:09 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">870</td><td class="num">893</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:08 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">854</td><td class="num">879</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:07 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">863</td><td class="num">871</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:06 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">836</td><td class="num">864</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:05 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">851</td><td class="num">855</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:04 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">838</td><td class="num">845</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:03 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">836</td><td class="num">837</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:02 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">805</td><td class="num">830</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 17:01 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">810</td><td class="num">821</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:59 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">815</td><td class="num">815</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:58 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">793</td><td class="num">803</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:57 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">780</td><td class="num">796</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:56 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">784</td><td class="num">790</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:55 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">769</td><td class="num">785</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:54 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">773</td><td class="num">778</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:53 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">761</td><td class="num">774</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:52 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">765</td><td class="num">763</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:51 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">762</td><td class="num">761</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:50 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">763</td><td class="num">756</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:48 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">784</td><td class="num">752</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:47 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">784</td><td class="num">748</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:46 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">783</td><td class="num">743</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:45 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">797</td><td class="num">732</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:44 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">769</td><td class="num">723</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:43 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">784</td><td class="num">711</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:42 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">774</td><td class="num">698</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:41 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">775</td><td class="num">688</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:40 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">772</td><td class="num">683</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:39 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">752</td><td class="num">677</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:37 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">754</td><td class="num">670</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:36 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">733</td><td class="num">661</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:35 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">744</td><td class="num">654</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:34 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">740</td><td class="num">647</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:33 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">740</td><td class="num">640</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:32 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">743</td><td class="num">634</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:31 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">730</td><td class="num">625</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:30 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">729</td><td class="num">620</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:29 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">709</td><td class="num">610</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:28 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">733</td><td class="num">602</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:27 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">734</td><td class="num">592</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:26 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">714</td><td class="num">580</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:25 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">724</td><td class="num">566</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:23 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">702</td><td class="num">553</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:22 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">692</td><td class="num">541</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:21 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">709</td><td class="num">538</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:20 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">692</td><td class="num">525</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:19 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">669</td><td class="num">511</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:18 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">688</td><td class="num">497</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:17 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">676</td><td class="num">481</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:16 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">675</td><td class="num">475</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:15 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">639</td><td class="num">449</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:14 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">627</td><td class="num">439</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:12 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">629</td><td class="num">420</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:11 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">612</td><td class="num">403</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:10 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">585</td><td class="num">379</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:09 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">567</td><td class="num">368</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-        <tr><td class="ts">2026-03-01 16:08 WIB</td><td><span class="pill pill-live">live</span></td><td class="num">550</td><td class="num">352</td><td class="num">0</td><td class="ts">2026-03-01 16:00 WIB</td></tr>
-    </tbody>
-  </table>
-
-  <p class="generated">Generated 2026-03-10 23:32 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+  <p class="generated">Generated 2026-03-10 23:47 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
 
 <script>
 const ts    = ["2026-03-01 16:08 WIB", "2026-03-01 16:09 WIB", "2026-03-01 16:10 WIB", "2026-03-01 16:11 WIB", "2026-03-01 16:12 WIB", "2026-03-01 16:14 WIB", "2026-03-01 16:15 WIB", "2026-03-01 16:16 WIB", "2026-03-01 16:17 WIB", "2026-03-01 16:18 WIB", "2026-03-01 16:19 WIB", "2026-03-01 16:20 WIB", "2026-03-01 16:21 WIB", "2026-03-01 16:22 WIB", "2026-03-01 16:23 WIB", "2026-03-01 16:25 WIB", "2026-03-01 16:26 WIB", "2026-03-01 16:27 WIB", "2026-03-01 16:28 WIB", "2026-03-01 16:29 WIB", "2026-03-01 16:30 WIB", "2026-03-01 16:31 WIB", "2026-03-01 16:32 WIB", "2026-03-01 16:33 WIB", "2026-03-01 16:34 WIB", "2026-03-01 16:35 WIB", "2026-03-01 16:36 WIB", "2026-03-01 16:37 WIB", "2026-03-01 16:39 WIB", "2026-03-01 16:40 WIB", "2026-03-01 16:41 WIB", "2026-03-01 16:42 WIB", "2026-03-01 16:43 WIB", "2026-03-01 16:44 WIB", "2026-03-01 16:45 WIB", "2026-03-01 16:46 WIB", "2026-03-01 16:47 WIB", "2026-03-01 16:48 WIB", "2026-03-01 16:50 WIB", "2026-03-01 16:51 WIB", "2026-03-01 16:52 WIB", "2026-03-01 16:53 WIB", "2026-03-01 16:54 WIB", "2026-03-01 16:55 WIB", "2026-03-01 16:56 WIB", "2026-03-01 16:57 WIB", "2026-03-01 16:58 WIB", "2026-03-01 16:59 WIB", "2026-03-01 17:01 WIB", "2026-03-01 17:02 WIB", "2026-03-01 17:03 WIB", "2026-03-01 17:04 WIB", "2026-03-01 17:05 WIB", "2026-03-01 17:06 WIB", "2026-03-01 17:07 WIB", "2026-03-01 17:08 WIB", "2026-03-01 17:09 WIB", "2026-03-01 17:10 WIB", "2026-03-01 17:11 WIB", "2026-03-01 17:13 WIB", "2026-03-01 17:14 WIB", "2026-03-01 17:16 WIB", "2026-03-01 17:17 WIB", "2026-03-01 17:18 WIB", "2026-03-01 17:19 WIB", "2026-03-01 17:20 WIB", "2026-03-01 17:21 WIB", "2026-03-01 17:22 WIB", "2026-03-01 17:23 WIB", "2026-03-01 17:25 WIB", "2026-03-01 17:26 WIB", "2026-03-01 17:27 WIB", "2026-03-01 17:28 WIB", "2026-03-01 17:29 WIB", "2026-03-01 17:30 WIB", "2026-03-01 17:32 WIB", "2026-03-01 17:33 WIB", "2026-03-01 17:34 WIB", "2026-03-01 17:35 WIB", "2026-03-01 17:36 WIB", "2026-03-01 17:37 WIB", "2026-03-01 17:38 WIB", "2026-03-01 17:39 WIB", "2026-03-01 17:41 WIB", "2026-03-01 17:42 WIB", "2026-03-01 17:43 WIB", "2026-03-01 17:44 WIB", "2026-03-01 17:45 WIB", "2026-03-01 17:46 WIB", "2026-03-01 17:47 WIB", "2026-03-01 17:49 WIB", "2026-03-01 17:50 WIB", "2026-03-01 17:51 WIB", "2026-03-01 17:52 WIB", "2026-03-01 17:53 WIB", "2026-03-01 17:54 WIB", "2026-03-01 17:56 WIB", "2026-03-01 17:57 WIB", "2026-03-01 17:58 WIB", "2026-03-01 17:59 WIB", "2026-03-01 18:00 WIB", "2026-03-01 18:01 WIB", "2026-03-01 18:02 WIB", "2026-03-01 18:03 WIB", "2026-03-01 18:04 WIB", "2026-03-01 18:06 WIB", "2026-03-01 18:07 WIB", "2026-03-01 18:08 WIB", "2026-03-01 18:09 WIB", "2026-03-01 18:10 WIB", "2026-03-01 18:12 WIB", "2026-03-01 18:13 WIB", "2026-03-01 18:14 WIB", "2026-03-01 18:15 WIB", "2026-03-01 18:16 WIB", "2026-03-01 18:17 WIB", "2026-03-01 18:18 WIB", "2026-03-01 18:19 WIB", "2026-03-01 18:20 WIB", "2026-03-01 18:22 WIB", "2026-03-01 18:23 WIB", "2026-03-01 18:24 WIB", "2026-03-01 18:25 WIB", "2026-03-01 18:26 WIB", "2026-03-01 18:27 WIB", "2026-03-01 18:28 WIB", "2026-03-01 18:30 WIB", "2026-03-01 18:31 WIB", "2026-03-01 18:32 WIB", "2026-03-01 18:33 WIB", "2026-03-01 18:34 WIB", "2026-03-01 18:35 WIB", "2026-03-01 18:36 WIB", "2026-03-01 18:37 WIB", "2026-03-01 18:38 WIB", "2026-03-01 18:39 WIB", "2026-03-01 18:41 WIB", "2026-03-01 18:42 WIB", "2026-03-01 18:43 WIB", "2026-03-01 18:44 WIB", "2026-03-01 18:45 WIB", "2026-03-01 18:46 WIB", "2026-03-01 18:47 WIB", "2026-03-01 18:48 WIB", "2026-03-01 18:49 WIB", "2026-03-01 18:50 WIB", "2026-03-01 18:51 WIB", "2026-03-01 18:52 WIB", "2026-03-01 18:54 WIB", "2026-03-01 18:55 WIB", "2026-03-01 18:56 WIB", "2026-03-01 18:57 WIB", "2026-03-01 18:58 WIB", "2026-03-01 18:59 WIB", "2026-03-01 19:00 WIB", "2026-03-01 19:01 WIB", "2026-03-01 19:02 WIB", "2026-03-01 19:03 WIB"];

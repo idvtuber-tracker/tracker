@@ -139,6 +139,32 @@
     color: var(--white); line-height: 1.25;
   }
   .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
 
   /* stream cards */
   .streams-grid {
@@ -178,32 +204,75 @@
   .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
-  /* stream detail */
-  .embed-wrap {
-    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
-    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+  /* month heading on channel page */
+  .month-heading {
+    font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--muted); margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .month-heading::before {
+    content: ''; display: block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--org-color);
+    box-shadow: 0 0 6px var(--org-color); flex-shrink: 0;
+  }
+
+  /* stream detail: side-by-side hero */
+  .stream-hero {
+    display: grid;
+    grid-template-columns: 37fr 63fr;
+    gap: 1.5rem;
+    margin: 2rem 0 2.5rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) { .stream-hero { grid-template-columns: 1fr; } }
+  .embed-side {
+    min-width: 0;
     border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%;
     background: #000;
   }
   .embed-wrap iframe {
     position: absolute; inset: 0; width: 100%; height: 100%; border: none;
   }
-  .embed-label {
-    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 0.6rem;
+  .stream-thumb-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 0.9rem;
+    background: var(--surface); border-top: 1px solid var(--border);
+    font-size: 0.65rem; color: var(--muted);
   }
-  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
+  .stream-thumb-meta a {
+    color: var(--org-color); text-decoration: none;
+  }
+  .stream-thumb-meta a:hover { text-decoration: underline; }
+  .kpi-side { min-width: 0; }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
   .kpi {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.25rem; position: relative; overflow: hidden;
+    background: var(--surface);
+    padding: 1.1rem 1.25rem;
+    position: relative;
   }
-  .kpi::after {
-    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  .kpi.kpi-wide { grid-column: span 2; }
+  .kpi-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.45rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--org-color); line-height: 1.1; }
+  .kpi-value.kpi-sm { font-size: 1rem; }
+  .kpi-sub   { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
+  .kpi-grid .kpi:nth-child(-n+2)::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: var(--org-color);
   }
-  .kpi-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.5rem; }
-  .kpi-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; color: var(--org-color); }
-  .kpi-sub   { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
   .chart-box {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
@@ -259,14 +328,16 @@
     <h1>Silvia Valleria Ch.〔LiviPro〕</h1>
     <p class="page-meta">7 streams recorded &#8212; sorted by date</p>
   </header>
+
+  <div class="month-heading">March 2026</div>
   <div class="streams-grid">
     <a class="stream-card" href="nalpk1yhw7q.html">
       <span class="stream-status status-live">&#128308; Live</span>
       <div class="stream-title">〔SAMBUNG KATA〕sambungin dulu itu apanya itu</div>
       <div class="stream-stats">
         <div><div class="stat-label">Peak Viewers</div><div class="stat-value">560</div></div>
+        <div><div class="stat-label">Avg Viewers</div><div class="stat-value">417</div></div>
         <div><div class="stat-label">Peak Likes</div><div class="stat-value">956</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">3</div></div>
       </div>
       <div class="stream-date">2026-03-08 21:26 WIB</div>
     </a>
@@ -275,8 +346,8 @@
       <div class="stream-title">〔Talkjil S4 EP11〕with @MaysaKz</div>
       <div class="stream-stats">
         <div><div class="stat-label">Peak Viewers</div><div class="stat-value">1,215</div></div>
+        <div><div class="stat-label">Avg Viewers</div><div class="stat-value">1,068</div></div>
         <div><div class="stat-label">Peak Likes</div><div class="stat-value">1,002</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">6</div></div>
       </div>
       <div class="stream-date">2026-03-08 16:15 WIB</div>
     </a>
@@ -285,8 +356,8 @@
       <div class="stream-title">〔VALORANT〕ni gimana sih</div>
       <div class="stream-stats">
         <div><div class="stat-label">Peak Viewers</div><div class="stat-value">794</div></div>
+        <div><div class="stat-label">Avg Viewers</div><div class="stat-value">419</div></div>
         <div><div class="stat-label">Peak Likes</div><div class="stat-value">579</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">0</div></div>
       </div>
       <div class="stream-date">2026-03-06 13:16 WIB</div>
     </a>
@@ -295,8 +366,8 @@
       <div class="stream-title">〔VALORANT〕lah kocakk</div>
       <div class="stream-stats">
         <div><div class="stat-label">Peak Viewers</div><div class="stat-value">2,101</div></div>
+        <div><div class="stat-label">Avg Viewers</div><div class="stat-value">1,809</div></div>
         <div><div class="stat-label">Peak Likes</div><div class="stat-value">1,395</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">24</div></div>
       </div>
       <div class="stream-date">2026-03-05 20:14 WIB</div>
     </a>
@@ -305,8 +376,8 @@
       <div class="stream-title">〔Talkjil S4 EP9〕with @KeyOriesa @GarinBubbles</div>
       <div class="stream-stats">
         <div><div class="stat-label">Peak Viewers</div><div class="stat-value">344</div></div>
+        <div><div class="stat-label">Avg Viewers</div><div class="stat-value">284</div></div>
         <div><div class="stat-label">Peak Likes</div><div class="stat-value">373</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">0</div></div>
       </div>
       <div class="stream-date">2026-03-05 16:13 WIB</div>
     </a>
@@ -315,8 +386,8 @@
       <div class="stream-title">aquarium</div>
       <div class="stream-stats">
         <div><div class="stat-label">Peak Viewers</div><div class="stat-value">1,324</div></div>
+        <div><div class="stat-label">Avg Viewers</div><div class="stat-value">806</div></div>
         <div><div class="stat-label">Peak Likes</div><div class="stat-value">1,432</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">5</div></div>
       </div>
       <div class="stream-date">2026-03-04 20:50 WIB</div>
     </a>
@@ -325,8 +396,8 @@
       <div class="stream-title">〔VALORANT〕</div>
       <div class="stream-stats">
         <div><div class="stat-label">Peak Viewers</div><div class="stat-value">187</div></div>
+        <div><div class="stat-label">Avg Viewers</div><div class="stat-value">154</div></div>
         <div><div class="stat-label">Peak Likes</div><div class="stat-value">264</div></div>
-        <div><div class="stat-label">Comments</div><div class="stat-value">0</div></div>
       </div>
       <div class="stream-date">2026-03-03 06:51 WIB</div>
     </a>

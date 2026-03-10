@@ -139,6 +139,32 @@
     color: var(--white); line-height: 1.25;
   }
   .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
 
   /* stream cards */
   .streams-grid {
@@ -178,32 +204,75 @@
   .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
-  /* stream detail */
-  .embed-wrap {
-    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
-    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+  /* month heading on channel page */
+  .month-heading {
+    font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--muted); margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .month-heading::before {
+    content: ''; display: block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--org-color);
+    box-shadow: 0 0 6px var(--org-color); flex-shrink: 0;
+  }
+
+  /* stream detail: side-by-side hero */
+  .stream-hero {
+    display: grid;
+    grid-template-columns: 37fr 63fr;
+    gap: 1.5rem;
+    margin: 2rem 0 2.5rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) { .stream-hero { grid-template-columns: 1fr; } }
+  .embed-side {
+    min-width: 0;
     border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%;
     background: #000;
   }
   .embed-wrap iframe {
     position: absolute; inset: 0; width: 100%; height: 100%; border: none;
   }
-  .embed-label {
-    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 0.6rem;
+  .stream-thumb-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 0.9rem;
+    background: var(--surface); border-top: 1px solid var(--border);
+    font-size: 0.65rem; color: var(--muted);
   }
-  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
+  .stream-thumb-meta a {
+    color: var(--org-color); text-decoration: none;
+  }
+  .stream-thumb-meta a:hover { text-decoration: underline; }
+  .kpi-side { min-width: 0; }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
   .kpi {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.25rem; position: relative; overflow: hidden;
+    background: var(--surface);
+    padding: 1.1rem 1.25rem;
+    position: relative;
   }
-  .kpi::after {
-    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  .kpi.kpi-wide { grid-column: span 2; }
+  .kpi-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.45rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--org-color); line-height: 1.1; }
+  .kpi-value.kpi-sm { font-size: 1rem; }
+  .kpi-sub   { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
+  .kpi-grid .kpi:nth-child(-n+2)::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: var(--org-color);
   }
-  .kpi-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.5rem; }
-  .kpi-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; color: var(--org-color); }
-  .kpi-sub   { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
   .chart-box {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
@@ -261,52 +330,52 @@
   </header>
   <div class="channels-grid">
     <a class="channel-card" href="project-livium/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/eDzLtSqZQpOYalrlAo2cIkeCIhTYS34IgVHCfIjbFmMV2G5PU31na-yNVRMpcWPz8InhMB9LGw=s240-c-k-c0x00ffffff-no-rj" alt="Project:LIVIUM" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/eDzLtSqZQpOYalrlAo2cIkeCIhTYS34IgVHCfIjbFmMV2G5PU31na-yNVRMpcWPz8InhMB9LGw=s240-c-k-c0x00ffffff-no-rj" alt="Project:LIVIUM" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">ORG CH</span>
       <div class="channel-card-name">Project:LIVIUM</div>
-      <div class="channel-card-meta">1 stream</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">1 stream</span></div></div>
     </a>
     <a class="channel-card" href="indira-naylarissa-ch-livipro/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/9exnLIOSxTfKe-wUCmpqfgLw8OWtTmARJAqiqgYWgfmcrmZvgRaEuFPips7SCcMwWK_TOzBEcg=s240-c-k-c0x00ffffff-no-rj" alt="Indira Naylarissa Ch.〔LiviPro〕" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/9exnLIOSxTfKe-wUCmpqfgLw8OWtTmARJAqiqgYWgfmcrmZvgRaEuFPips7SCcMwWK_TOzBEcg=s240-c-k-c0x00ffffff-no-rj" alt="Indira Naylarissa Ch.〔LiviPro〕" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Indira Naylarissa Ch.〔LiviPro〕</div>
-      <div class="channel-card-meta">13 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">13 streams</span></div></div>
     </a>
     <a class="channel-card" href="silvia-valleria-ch-livipro/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/4Gi6lfrUGVKBvdn5-XbE9CQQ4DuDVDbq6o_OFE4l6QEjJ_8vkIZpixstlrRlX0N9muMKWuoROQ=s240-c-k-c0x00ffffff-no-rj" alt="Silvia Valleria Ch.〔LiviPro〕" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/4Gi6lfrUGVKBvdn5-XbE9CQQ4DuDVDbq6o_OFE4l6QEjJ_8vkIZpixstlrRlX0N9muMKWuoROQ=s240-c-k-c0x00ffffff-no-rj" alt="Silvia Valleria Ch.〔LiviPro〕" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Silvia Valleria Ch.〔LiviPro〕</div>
-      <div class="channel-card-meta">7 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">7 streams</span></div></div>
     </a>
     <a class="channel-card" href="yuura-yozakura-ch-livipro/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/ofNIxeR1QLHxSQE_Y-xpECQwDBDrp-nhYWoU_OblcboNkIV5YUdlIFJv9cYKWA7kn-jLF7tI=s240-c-k-c0x00ffffff-no-rj" alt="Yuura Yozakura Ch.〔LiviPro〕" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/ofNIxeR1QLHxSQE_Y-xpECQwDBDrp-nhYWoU_OblcboNkIV5YUdlIFJv9cYKWA7kn-jLF7tI=s240-c-k-c0x00ffffff-no-rj" alt="Yuura Yozakura Ch.〔LiviPro〕" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Yuura Yozakura Ch.〔LiviPro〕</div>
-      <div class="channel-card-meta">14 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">14 streams</span></div></div>
     </a>
     <a class="channel-card" href="ymelia-meiru-ch-livipro/index.html">
       <div class="channel-avatar-placeholder">Y</div>
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Ymelia Meiru Ch.〔LiviPro〕</div>
-      <div class="channel-card-meta">0 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">0 streams</span></div></div>
     </a>
     <a class="channel-card" href="fareye-closhartt-ch-livipro/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/q9cKhz5CADmRrjqWG9Pkzfw7__06WgYhWNdE4FQ7aENOmDxcB_TbiRZkWVxShXPfnTV0PnNdVg=s240-c-k-c0x00ffffff-no-rj" alt="Fareye Closhartt Ch.〔LiviPro〕" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/q9cKhz5CADmRrjqWG9Pkzfw7__06WgYhWNdE4FQ7aENOmDxcB_TbiRZkWVxShXPfnTV0PnNdVg=s240-c-k-c0x00ffffff-no-rj" alt="Fareye Closhartt Ch.〔LiviPro〕" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Fareye Closhartt Ch.〔LiviPro〕</div>
-      <div class="channel-card-meta">6 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">6 streams</span></div></div>
     </a>
     <a class="channel-card" href="yuela-guigui-ch-livipro/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/iztppHgkmelscK2_7GksLfg093-lcIBwaVbWKKM4cT3WJkP_AGYzYMSMJ3M4VpkYocZFOTNl=s240-c-k-c0x00ffffff-no-rj" alt="Yuela GuiGui Ch.〔LiviPro〕" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/iztppHgkmelscK2_7GksLfg093-lcIBwaVbWKKM4cT3WJkP_AGYzYMSMJ3M4VpkYocZFOTNl=s240-c-k-c0x00ffffff-no-rj" alt="Yuela GuiGui Ch.〔LiviPro〕" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Yuela GuiGui Ch.〔LiviPro〕</div>
-      <div class="channel-card-meta">10 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">10 streams</span></div></div>
     </a>
     <a class="channel-card" href="lillis-infernallies-ch-livipro/index.html">
-      <img class="channel-avatar" src="https://yt3.ggpht.com/e2LZxVzGLzKl8QCAT4Aps1b704Dv0SvRiwdK26Vi-gfKezUwIyTiPX81d-9s6EPtvJ0FGyyXrA=s240-c-k-c0x00ffffff-no-rj" alt="Lillis Infernallies Ch.〔LiviPro〕" loading="lazy">
+      <img class="channel-avatar" src="https://yt3.ggpht.com/e2LZxVzGLzKl8QCAT4Aps1b704Dv0SvRiwdK26Vi-gfKezUwIyTiPX81d-9s6EPtvJ0FGyyXrA=s240-c-k-c0x00ffffff-no-rj" alt="Lillis Infernallies Ch.〔LiviPro〕" referrerpolicy="no-referrer" loading="lazy">
       <span class="channel-badge">TALENT</span>
       <div class="channel-card-name">Lillis Infernallies Ch.〔LiviPro〕</div>
-      <div class="channel-card-meta">5 streams</div>
+      <div class="channel-card-stats"><div class="stat-row"><span class="stat-label">Subscribers</span><span class="stat-value highlight">—</span></div><div class="stat-row"><span class="stat-label">Streams</span><span class="stat-value">5 streams</span></div></div>
     </a>
   </div>
 
