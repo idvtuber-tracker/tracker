@@ -59,12 +59,14 @@ ORG_MAP = {
         "color":   "#e8ff47",
         "desc":    "An Indonesian VTuber organization with a rich mythological theme inspired by the Mahabharata.",
         "channels": [
-            ("PANDAVVA Official",             "org"),
-            ("Yudistira Yogendra 【PANDAVVA】", "talent"),
-            ("Bima Bayusena【PANDAVVA】",       "talent"), 
-            ("Arjuna Arkana【PANDAVVA】",     "talent"),   
-            ("Nakula Nalendra【PANDAVVA】",     "talent"),
-            ("Sadewa Sagara【PANDAVVA】",      "talent"),
+            # (channel_name, type, youtube_channel_id)
+            # channel_id enables logo + subscriber fetch even before DB entry exists
+            ("PANDAVVA Official",             "org",    "UCxhBc3OUK0PdnjD-Pjj5-ZA"),
+            ("Yudistira Yogendra 【PANDAVVA】", "talent", "UCdVRAGFhvkSIhMYxPdVBDzA"),
+            ("Bima Bayusena【PANDAVVA】",       "talent", "UCJTNnAFxljZnKGMb5B8XKIA"),
+            ("Arjuna Arkana【PANDAVVA】",       "talent", "UCmpT2MkZjPYkqLMrEHv6k0w"),
+            ("Nakula Narenda【PANDAVVA】",      "talent", "UCtGgHePeV6ePoTtlEspXJbQ"),  # not yet in DB
+            ("Sadewa Sagara【PANDAVVA】",       "talent", "UCaQwGFUjKGFz0kqxJrP6etA"),
         ],
     },
     "project-livium": {
@@ -72,14 +74,14 @@ ORG_MAP = {
         "color":   "#47ffb2",
         "desc":    "A dynamic VTuber project featuring seven unique talents spanning a wide range of creative personalities.",
         "channels": [
-            ("Project:LIVIUM",                             "org"),
-            ("Indira Naylarissa Ch.〔LiviPro〕",    "talent"),
-            ("Silvia Valleria Ch.〔LiviPro〕",      "talent"),
-            ("Yuura Yozakura Ch.〔LiviPro〕",       "talent"),
-            ("Ymelia Meiru Ch.〔LiviPro〕",         "talent"), # not yet in DB
-            ("Fareye Closhartt Ch.〔LiviPro〕",     "talent"),
-            ("Yuela GuiGui Ch.〔LiviPro〕",         "talent"),
-            ("Lillis Infernallies Ch.〔LiviPro〕",  "talent"),
+            ("Project:LIVIUM",                            "org",    "UC0ZYul2i5OcyKbdKB2v1O2w"),  # not yet in DB
+            ("Indira Naylarissa Ch.〔LiviPro〕",   "talent", "UC0bqAp0JfFpJvgEp2U5LJHQ"),
+            ("Silvia Valleria Ch.〔LiviPro〕",     "talent", "UCXRm3Aqtk5ilju1InZALcgA"),  # not yet in DB
+            ("Yuura Yozakura Ch.〔LiviPro〕",      "talent", "UCnQAkbWmWkfOvRYoAza5cbA"),
+            ("Ymelia Meiru Ch.〔LiviPro〕",        "talent", "UClv13dr4Q3eptzrH-Ul4e7Q"),  # not yet in DB
+            ("Fareye Closhartt Ch.〔LiviPro〕",    "talent", "UCrC4jCRi3ZM-GxgLJSvmkfQ"),
+            ("Yuela GuiGui Ch.〔LiviPro〕",        "talent", "UCnQAkbWmWkfOvRYoAza5cbB"),
+            ("Lillis Infernallies Ch.〔LiviPro〕", "talent", "UCnQAkbWmWkfOvRYoAza5cbC"),
         ],
     },
     "whicker-butler": {
@@ -87,12 +89,12 @@ ORG_MAP = {
         "color":   "#b47fff",
         "desc":    "A boutique VTuber agency known for its refined aesthetic and five distinctive talents with global appeal.",
         "channels": [
-            ("Whicker Butler",                             "org"),    # not yet in DB
-            ("Valthea Nankila 【 Whicker Butler 】",   "talent"),
-            ("Ignis Grimoire【Whicker Butler】",        "talent"),
-            ("Darlyne Nightbloom【Whicker Butler】",    "talent"),
-            ("Thalita Sylvaine【Whicker Butler】",      "talent"),
-            ("Oriana Solstair【Whicker Butler】",       "talent"),
+            ("Whicker Butler",                           "org",    "UCc04w_tCWOiTkszx5DGqSag"),  # not yet in DB
+            ("Valthea Nankila 【 Whicker Butler 】",  "talent", "UCY1GUw8wBb_PSOzg7AoghvQ"),
+            ("Ignis Grimoire【Whicker Butler】",       "talent", "UCJbrzGrVtSC0KbtkEzD50cw"),
+            ("Darlyne Nightbloom【Whicker Butler】",   "talent", "UCtiNMw_89OUjPThykjwIsAA"),
+            ("Thalita Sylvaine【Whicker Butler】",     "talent", "UCHNwyrNLObSZaHYAvvrGhCA"),
+            ("Oriana Solstair【Whicker Butler】",      "talent", "UCvxEBCJlF0m81ffDtJ7YE2w"),
         ],
     },
 }
@@ -160,13 +162,16 @@ def get_all_rows(conn, table: str, video_id: str) -> list[dict]:
 _LOGO_CACHE_FILE = "channel_logos_cache.json"
 
 
-def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
+def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, int]]:
     """
-    Fetch channel thumbnail URLs from YouTube API.
-    Results are cached to disk for the remainder of the UTC day so that
-    repeated dashboard regenerations (every 30s during live streams) only
-    cost 1 API unit per day instead of 1 per regeneration.
-    Falls back gracefully if the API key is missing or the call fails.
+    Fetch channel thumbnail URLs and subscriber counts from YouTube API.
+    Both are returned from the same channels.list call (snippet + statistics)
+    so there is no extra API cost over fetching logos alone.
+    Results are cached to disk for the remainder of the local day.
+
+    Returns:
+        logos       — {channel_id: thumbnail_url}
+        subscribers — {channel_id: subscriber_count}
     """
     today = _now_local().strftime("%Y-%m-%d")
 
@@ -176,35 +181,37 @@ def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
             with open(_LOGO_CACHE_FILE, encoding="utf-8") as f:
                 cache = json.load(f)
             if cache.get("date") == today:
-                log.info("Using cached channel logos (%d entries).", len(cache.get("logos", {})))
-                return cache["logos"]
+                log.info("Using cached channel data (%d entries).", len(cache.get("logos", {})))
+                return cache["logos"], cache.get("subscribers", {})
         except Exception as e:
             log.warning("Logo cache unreadable (%s) — will re-fetch.", e)
 
     # ── fetch from API ─────────────────────────────────────────────────────────
     api_key = os.environ.get("YOUTUBE_API_KEYS") or os.environ.get("YOUTUBE_API_KEY", "")
     if api_key:
-        api_key = api_key.split(",")[0].strip()  # use first key only
+        api_key = api_key.split(",")[0].strip()
 
     if not _YT_AVAILABLE:
-        log.warning("Logo fetch skipped: google-api-python-client not installed.")
-        return {}
+        log.warning("Channel data fetch skipped: google-api-python-client not installed.")
+        return {}, {}
     if not api_key:
-        log.warning("Logo fetch skipped: no YOUTUBE_API_KEYS or YOUTUBE_API_KEY in environment.")
-        return {}
+        log.warning("Channel data fetch skipped: no YOUTUBE_API_KEYS or YOUTUBE_API_KEY in environment.")
+        return {}, {}
     if not channel_ids:
-        log.warning("Logo fetch skipped: channel_ids list is empty.")
-        return {}
+        log.warning("Channel data fetch skipped: channel_ids list is empty.")
+        return {}, {}
 
-    log.info("Fetching logos for %d channel IDs using key ...%s", len(channel_ids), api_key[-6:])
+    log.info("Fetching channel data for %d IDs using key ...%s", len(channel_ids), api_key[-6:])
 
-    logos: dict[str, str] = {}
+    logos:       dict[str, str] = {}
+    subscribers: dict[str, int] = {}
+
     for i in range(0, len(channel_ids), 50):
         batch = channel_ids[i:i + 50]
         try:
             yt = yt_build("youtube", "v3", developerKey=api_key)
             resp = yt.channels().list(
-                part="snippet",
+                part="snippet,statistics",
                 id=",".join(batch),
                 maxResults=50,
             ).execute()
@@ -220,17 +227,27 @@ def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
                     logos[cid] = url
                 else:
                     log.warning("No thumbnail URL found for channel ID: %s", cid)
+                sub_count = item.get("statistics", {}).get("subscriberCount")
+                if sub_count is not None:
+                    subscribers[cid] = int(sub_count)
         except Exception as e:
             log.error("channels.list API call failed: %s", e, exc_info=True)
 
     # ── persist cache ──────────────────────────────────────────────────────────
     try:
         with open(_LOGO_CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump({"date": today, "logos": logos}, f)
-        log.info("Channel logos fetched and cached (%d entries).", len(logos))
+            json.dump({"date": today, "logos": logos, "subscribers": subscribers}, f)
+        log.info("Channel data fetched and cached (%d logos, %d subscriber counts).",
+                 len(logos), len(subscribers))
     except Exception as e:
-        log.warning("Could not save logo cache: %s", e)
+        log.warning("Could not save channel data cache: %s", e)
 
+    return logos, subscribers
+
+
+def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
+    """Backwards-compatible alias — returns logos only."""
+    logos, _ = get_channel_data(channel_ids)
     return logos
 
 
@@ -246,6 +263,21 @@ def fmt(n) -> str:
         return f"{int(n):,}"
     except (ValueError, TypeError):
         return str(n)
+
+
+def fmt_subs(n) -> str:
+    """Format subscriber count compactly: 1234567 → 1.2M, 12345 → 12.3K."""
+    if n is None:
+        return "—"
+    try:
+        n = int(n)
+        if n >= 1_000_000:
+            return f"{n / 1_000_000:.1f}M"
+        if n >= 1_000:
+            return f"{n / 1_000:.1f}K"
+        return str(n)
+    except (ValueError, TypeError):
+        return "—"
 
 
 def fmt_dt(dt) -> str:
@@ -415,6 +447,32 @@ _BASE_CSS = """
     color: var(--white); line-height: 1.25;
   }
   .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
 
   /* stream cards */
   .streams-grid {
@@ -454,32 +512,75 @@ _BASE_CSS = """
   .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
-  /* stream detail */
-  .embed-wrap {
-    position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */
-    margin: 2rem 0; border-radius: 6px; overflow: hidden;
+  /* month heading on channel page */
+  .month-heading {
+    font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--muted); margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .month-heading::before {
+    content: ''; display: block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--org-color);
+    box-shadow: 0 0 6px var(--org-color); flex-shrink: 0;
+  }
+
+  /* stream detail: side-by-side hero */
+  .stream-hero {
+    display: grid;
+    grid-template-columns: 37fr 63fr;
+    gap: 1.5rem;
+    margin: 2rem 0 2.5rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) { .stream-hero { grid-template-columns: 1fr; } }
+  .embed-side {
+    min-width: 0;
     border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%;
     background: #000;
   }
   .embed-wrap iframe {
     position: absolute; inset: 0; width: 100%; height: 100%; border: none;
   }
-  .embed-label {
-    font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 0.6rem;
+  .stream-thumb-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 0.9rem;
+    background: var(--surface); border-top: 1px solid var(--border);
+    font-size: 0.65rem; color: var(--muted);
   }
-  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 2.5rem; margin-bottom: 2.5rem; }
+  .stream-thumb-meta a {
+    color: var(--org-color); text-decoration: none;
+  }
+  .stream-thumb-meta a:hover { text-decoration: underline; }
+  .kpi-side { min-width: 0; }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
   .kpi {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.25rem; position: relative; overflow: hidden;
+    background: var(--surface);
+    padding: 1.1rem 1.25rem;
+    position: relative;
   }
-  .kpi::after {
-    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  .kpi.kpi-wide { grid-column: span 2; }
+  .kpi-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.45rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--org-color); line-height: 1.1; }
+  .kpi-value.kpi-sm { font-size: 1rem; }
+  .kpi-sub   { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
+  .kpi-grid .kpi:nth-child(-n+2)::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: var(--org-color);
   }
-  .kpi-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.5rem; }
-  .kpi-value { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; color: var(--org-color); }
-  .kpi-sub   { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
   .chart-box {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
@@ -608,36 +709,56 @@ def write_index(total_streams: int, total_channels: int, generated_at: str) -> N
 
 def write_org_page(org_slug: str, org: dict, stream_counts: dict,
                    logos: dict[str, str] | None = None,
-                   channel_ids_map: dict[str, str] | None = None) -> None:
+                   channel_ids_map: dict[str, str] | None = None,
+                   subscribers: dict[str, int] | None = None) -> None:
     """
-    logos: {channel_id: thumbnail_url}
+    logos:           {channel_id: thumbnail_url}
     channel_ids_map: {channel_name: channel_id}
+    subscribers:     {channel_id: subscriber_count}
     """
     org_dir = OUTPUT_DIR / org_slug
     org_dir.mkdir(exist_ok=True)
-    logos          = logos or {}
+    logos           = logos or {}
     channel_ids_map = channel_ids_map or {}
+    subscribers     = subscribers or {}
 
     cards = ""
-    for ch_name, ch_type in org["channels"]:
+    for entry in org["channels"]:
+        ch_name = entry[0]
+        ch_type = entry[1]
         ch_slug  = slugify(ch_name)
         badge    = "ORG CH" if ch_type == "org" else "TALENT"
         n_str    = stream_counts.get(ch_name, 0)
         ch_id    = channel_ids_map.get(ch_name, "")
         logo_url = logos.get(ch_id, "")
+        sub_count = subscribers.get(ch_id)
 
         if logo_url:
-            avatar_html = f'<img class="channel-avatar" src="{logo_url}" alt="{esc(ch_name)}" loading="lazy">'
+            avatar_html = f'<img class="channel-avatar" src="{logo_url}" alt="{esc(ch_name)}" referrerpolicy="no-referrer" loading="lazy">'
         else:
             initial = ch_name[0].upper()
             avatar_html = f'<div class="channel-avatar-placeholder">{initial}</div>'
+
+        sub_html = fmt_subs(sub_count)
+        stats_html = (
+            f'<div class="channel-card-stats">'
+            f'<div class="stat-row">'
+            f'<span class="stat-label">Subscribers</span>'
+            f'<span class="stat-value highlight">{sub_html}</span>'
+            f'</div>'
+            f'<div class="stat-row">'
+            f'<span class="stat-label">Streams</span>'
+            f'<span class="stat-value">{n_str} stream{"s" if n_str != 1 else ""}</span>'
+            f'</div>'
+            f'</div>'
+        )
 
         cards += (
             f'\n    <a class="channel-card" href="{ch_slug}/index.html">\n'
             f'      {avatar_html}\n'
             f'      <span class="channel-badge">{badge}</span>\n'
             f'      <div class="channel-card-name">{esc(ch_name)}</div>\n'
-            f'      <div class="channel-card-meta">{n_str} stream{"s" if n_str != 1 else ""}</div>\n'
+            f'      {stats_html}\n'
             f'    </a>'
         )
 
@@ -663,36 +784,60 @@ def write_channel_page(org_slug: str, org: dict,
     ch_dir  = OUTPUT_DIR / org_slug / ch_slug
     ch_dir.mkdir(parents=True, exist_ok=True)
 
-    cards = ""
+    # Group streams by month (already sorted DESC by first_seen from DB)
+    from collections import OrderedDict
+    months: OrderedDict = OrderedDict()
     for stream in streams:
-        vid    = stream["video_id"]
-        v_slug = slugify(vid)
-        status = stream.get("stream_status", "vod") or "vod"
-        if status == "live":
-            s_cls, s_lbl = "status-live",     "&#128308; Live"
-        elif status == "upcoming":
-            s_cls, s_lbl = "status-upcoming", "Upcoming"
+        first_seen = stream["first_seen"]
+        if first_seen is None:
+            month_key = "Unknown"
         else:
-            s_cls, s_lbl = "status-vod",      "VOD"
+            if isinstance(first_seen, str):
+                from datetime import datetime as _dt
+                try:
+                    first_seen = _dt.fromisoformat(first_seen.replace("Z", "+00:00"))
+                except ValueError:
+                    first_seen = None
+            if first_seen:
+                local_dt  = first_seen.astimezone(_LOCAL_TZ) if first_seen.tzinfo else first_seen
+                month_key = local_dt.strftime("%B %Y")
+            else:
+                month_key = "Unknown"
+        months.setdefault(month_key, []).append(stream)
 
-        title = esc((stream["video_title"] or vid)[:80])
-        cards += (
-            f'\n    <a class="stream-card" href="{v_slug}.html">\n'
-            f'      <span class="stream-status {s_cls}">{s_lbl}</span>\n'
-            f'      <div class="stream-title">{title}</div>\n'
-            f'      <div class="stream-stats">\n'
-            f'        <div><div class="stat-label">Peak Viewers</div>'
-            f'<div class="stat-value">{fmt(stream["peak_viewers"])}</div></div>\n'
-            f'        <div><div class="stat-label">Peak Likes</div>'
-            f'<div class="stat-value">{fmt(stream["peak_likes"])}</div></div>\n'
-            f'        <div><div class="stat-label">Comments</div>'
-            f'<div class="stat-value">{fmt(stream["peak_comments"])}</div></div>\n'
-            f'      </div>\n'
-            f'      <div class="stream-date">{fmt_dt(stream["first_seen"])}</div>\n'
-            f'    </a>'
-        )
+    cards = ""
+    for month_label, month_streams in months.items():
+        cards += f'\n  <div class="month-heading">{month_label}</div>\n  <div class="streams-grid">'
+        for stream in month_streams:
+            vid    = stream["video_id"]
+            v_slug = slugify(vid)
+            status = stream.get("stream_status", "vod") or "vod"
+            if status == "live":
+                s_cls, s_lbl = "status-live",     "&#128308; Live"
+            elif status == "upcoming":
+                s_cls, s_lbl = "status-upcoming", "Upcoming"
+            else:
+                s_cls, s_lbl = "status-vod",      "VOD"
 
-    if not cards:
+            title = esc((stream["video_title"] or vid)[:80])
+            cards += (
+                f'\n    <a class="stream-card" href="{v_slug}.html">\n'
+                f'      <span class="stream-status {s_cls}">{s_lbl}</span>\n'
+                f'      <div class="stream-title">{title}</div>\n'
+                f'      <div class="stream-stats">\n'
+                f'        <div><div class="stat-label">Peak Viewers</div>'
+                f'<div class="stat-value">{fmt(stream["peak_viewers"])}</div></div>\n'
+                f'        <div><div class="stat-label">Avg Viewers</div>'
+                f'<div class="stat-value">{fmt(stream["avg_viewers"])}</div></div>\n'
+                f'        <div><div class="stat-label">Peak Likes</div>'
+                f'<div class="stat-value">{fmt(stream["peak_likes"])}</div></div>\n'
+                f'      </div>\n'
+                f'      <div class="stream-date">{fmt_dt(stream["first_seen"])}</div>\n'
+                f'    </a>'
+            )
+        cards += '\n  </div>'
+
+    if not months:
         cards = '\n    <p class="empty">No streams recorded yet.</p>'
 
     bc = _breadcrumb([
@@ -707,7 +852,7 @@ def write_channel_page(org_slug: str, org: dict,
         f'    <h1>{esc(ch_name)}</h1>\n'
         f'    <p class="page-meta">{len(streams)} streams recorded &#8212; sorted by date</p>\n'
         f'  </header>\n'
-        f'  <div class="streams-grid">{cards}\n  </div>\n'
+        + cards + '\n'
     )
 
     html = _html_head(ch_name, 2, org["color"]) + body + _html_foot(2)
@@ -768,17 +913,20 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         '</script>'
     )
 
-    embed_html = (
-        f'  <p class="embed-label">Watch on YouTube</p>\n'
-        f'  <div class="embed-wrap">\n'
-        f'    <iframe\n'
-        f'      src="https://www.youtube.com/embed/{esc(vid)}"\n'
-        f'      title="{esc(title_text)}"\n'
-        f'      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n'
-        f'      allowfullscreen>\n'
-        f'    </iframe>\n'
-        f'  </div>\n'
-    )
+    # compute stream duration from first_seen → last_seen
+    def _fmt_duration(first, last) -> str:
+        if not first or not last:
+            return "—"
+        try:
+            delta = last - first
+            total = int(delta.total_seconds())
+            h, rem = divmod(total, 3600)
+            m, s   = divmod(rem, 60)
+            return f"{h}h {m:02d}m {s:02d}s" if h else f"{m}m {s:02d}s"
+        except Exception:
+            return "—"
+
+    duration_str = _fmt_duration(stream["first_seen"], stream["last_seen"])
 
     body = (
         bc
@@ -786,15 +934,34 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'    <p class="eyebrow">{esc(org["label"])} &nbsp;&#183;&nbsp; {esc(ch_name)}</p>\n'
         f'    <span class="stream-status {s_cls}" style="display:inline-block;margin-bottom:0.75rem;">{s_lbl}</span>\n'
         f'    <h1>{esc(title_text)}</h1>\n'
-        f'    <p class="page-meta">Video ID: {esc(vid)} &nbsp;&#183;&nbsp; {fmt(stream["data_points"])} data points</p>\n'
+        f'    <p class="page-meta">Video ID: {esc(vid)}</p>\n'
         f'  </header>\n\n'
-        + embed_html
-        + f'  <div class="kpi-row">\n'
-        f'    <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">{fmt(stream["peak_viewers"])}</div><div class="kpi-sub">concurrent</div></div>\n'
-        f'    <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">{fmt(stream["peak_likes"])}</div></div>\n'
-        f'    <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">{fmt(stream["peak_comments"])}</div></div>\n'
-        f'    <div class="kpi"><div class="kpi-label">First Seen</div><div class="kpi-value" style="font-size:1.1rem;">{fmt_dt(stream["first_seen"])}</div></div>\n'
-        f'    <div class="kpi"><div class="kpi-label">Last Seen</div><div class="kpi-value" style="font-size:1.1rem;">{fmt_dt(stream["last_seen"])}</div></div>\n'
+        f'  <div class="stream-hero">\n'
+        f'    <div class="embed-side">\n'
+        f'      <div class="embed-wrap">\n'
+        f'        <iframe\n'
+        f'          src="https://www.youtube.com/embed/{esc(vid)}"\n'
+        f'          title="{esc(title_text)}"\n'
+        f'          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n'
+        f'          allowfullscreen>\n'
+        f'        </iframe>\n'
+        f'      </div>\n'
+        f'      <div class="stream-thumb-meta">\n'
+        f'        <span>{fmt_dt(stream["first_seen"])} &nbsp;&#183;&nbsp; {duration_str}</span>\n'
+        f'        <a href="https://www.youtube.com/watch?v={esc(vid)}" target="_blank" rel="noopener">&#8599; Watch on YouTube</a>\n'
+        f'      </div>\n'
+        f'    </div>\n'
+        f'    <div class="kpi-side">\n'
+        f'      <div class="kpi-grid">\n'
+        f'        <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">{fmt(stream["peak_viewers"])}</div><div class="kpi-sub">concurrent</div></div>\n'
+        f'        <div class="kpi"><div class="kpi-label">Avg Viewers</div><div class="kpi-value">{fmt(stream["avg_viewers"])}</div><div class="kpi-sub">concurrent</div></div>\n'
+        f'        <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">{fmt(stream["peak_likes"])}</div></div>\n'
+        f'        <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">{fmt(stream["peak_comments"])}</div></div>\n'
+        f'        <div class="kpi"><div class="kpi-label">Stream Start</div><div class="kpi-value kpi-sm">{fmt_dt(stream["first_seen"])}</div></div>\n'
+        f'        <div class="kpi"><div class="kpi-label">Stream End</div><div class="kpi-value kpi-sm">{fmt_dt(stream["last_seen"])}</div></div>\n'
+        f'        <div class="kpi kpi-wide"><div class="kpi-label">Duration</div><div class="kpi-value kpi-sm">{duration_str}</div></div>\n'
+        f'      </div>\n'
+        f'    </div>\n'
         f'  </div>\n\n'
         f'  <div class="chart-box">\n'
         f'    <div class="chart-title">Concurrent Viewers over Time</div>\n'
@@ -804,17 +971,6 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'    <div class="chart-title">Likes &amp; Comments over Time</div>\n'
         f'    <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>\n'
         f'  </div>\n\n'
-        f'  <p class="section-title">All collected data points</p>\n'
-        f'  <table class="data-table">\n'
-        f'    <thead><tr>\n'
-        f'      <th>Collected At</th><th>Status</th>\n'
-        f'      <th style="text-align:right">Viewers</th>\n'
-        f'      <th style="text-align:right">Likes</th>\n'
-        f'      <th style="text-align:right">Comments</th>\n'
-        f'      <th>Stream Start</th>\n'
-        f'    </tr></thead>\n'
-        f'    <tbody>{table_rows_html}\n    </tbody>\n'
-        f'  </table>\n\n'
         f'  <p class="generated">Generated {_now_local().strftime("%Y-%m-%d %H:%M WIB")}'
         f' &nbsp;&#183;&nbsp; yt-livestream-tracker</p>\n\n'
         f'<script>\n'
@@ -882,14 +1038,26 @@ def build_dashboard() -> None:
     db_channels  = get_channel_rows(conn)
     db_by_name   = {ch["channel_name"]: ch for ch in db_channels}
 
-    # build channel_id → name and name → channel_id maps
-    channel_ids_map: dict[str, str] = {ch["channel_name"]: ch["channel_id"] for ch in db_channels}
-    all_channel_ids = [ch["channel_id"] for ch in db_channels]
+    # build name → channel_id map, seeding from ORG_MAP first so channels
+    # not yet in the DB still get their IDs for logo + subscriber lookup
+    channel_ids_map: dict[str, str] = {}
+    for org in ORG_MAP.values():
+        for entry in org["channels"]:
+            ch_name = entry[0]
+            ch_id   = entry[2] if len(entry) > 2 else ""
+            if ch_id:
+                channel_ids_map[ch_name] = ch_id
+    # DB rows take precedence (they are the authoritative source)
+    for ch in db_channels:
+        channel_ids_map[ch["channel_name"]] = ch["channel_id"]
 
-    # fetch channel logos from YouTube API once for all channels
-    log.info("Fetching channel logos from YouTube API…")
-    logos = get_channel_logos(all_channel_ids)
-    log.info("Fetched %d logo(s) for %d channel(s).", len(logos), len(all_channel_ids))
+    all_channel_ids = list(dict.fromkeys(channel_ids_map.values()))  # deduped, order preserved
+
+    # fetch channel logos + subscriber counts from YouTube API once for all channels
+    log.info("Fetching channel data from YouTube API…")
+    logos, subscribers = get_channel_data(all_channel_ids)
+    log.info("Fetched %d logo(s) and %d subscriber count(s) for %d channel(s).",
+             len(logos), len(subscribers), len(all_channel_ids))
 
     total_streams  = 0
     total_channels = 0
@@ -900,7 +1068,8 @@ def build_dashboard() -> None:
         log.info("── Org: %s", org["label"])
         (OUTPUT_DIR / org_slug).mkdir(exist_ok=True)
 
-        for ch_name, _ch_type in org["channels"]:
+        for entry in org["channels"]:
+            ch_name = entry[0]
             db_row = db_by_name.get(ch_name)
             if not db_row:
                 log.warning("  Channel '%s' not found in DB — skipping", ch_name)
@@ -922,7 +1091,8 @@ def build_dashboard() -> None:
             write_channel_page(org_slug, org, ch_name, streams)
 
         write_org_page(org_slug, org, stream_counts,
-                       logos=logos, channel_ids_map=channel_ids_map)
+                       logos=logos, channel_ids_map=channel_ids_map,
+                       subscribers=subscribers)
 
     write_index(total_streams, total_channels, generated_at)
 
