@@ -828,7 +828,7 @@ def write_channel_page(org_slug: str, org: dict,
                 f'        <div><div class="stat-label">Peak Viewers</div>'
                 f'<div class="stat-value">{fmt(stream["peak_viewers"])}</div></div>\n'
                 f'        <div><div class="stat-label">Avg Viewers</div>'
-                f'<div class="stat-value">{fmt(stream["avg_viewers"])}</div></div>\n'
+                f'<div class="stat-value">{fmt(stream.get("avg_viewers"))}</div></div>\n'
                 f'        <div><div class="stat-label">Peak Likes</div>'
                 f'<div class="stat-value">{fmt(stream["peak_likes"])}</div></div>\n'
                 f'      </div>\n'
@@ -954,7 +954,7 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'    <div class="kpi-side">\n'
         f'      <div class="kpi-grid">\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">{fmt(stream["peak_viewers"])}</div><div class="kpi-sub">concurrent</div></div>\n'
-        f'        <div class="kpi"><div class="kpi-label">Avg Viewers</div><div class="kpi-value">{fmt(stream["avg_viewers"])}</div><div class="kpi-sub">concurrent</div></div>\n'
+        f'        <div class="kpi"><div class="kpi-label">Avg Viewers</div><div class="kpi-value">{fmt(stream.get("avg_viewers"))}</div><div class="kpi-sub">concurrent</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">{fmt(stream["peak_likes"])}</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">{fmt(stream["peak_comments"])}</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Stream Start</div><div class="kpi-value kpi-sm">{fmt_dt(stream["first_seen"])}</div></div>\n'
@@ -1077,15 +1077,21 @@ def build_dashboard() -> None:
                 continue
 
             table   = db_row["table_name"]
-            streams = get_streams_for_channel(conn, table)
-            stream_counts[ch_name] = len(streams)
+            raw_streams = get_streams_for_channel(conn, table)
+            stream_counts[ch_name] = len(raw_streams)
             total_channels += 1
-            total_streams  += len(streams)
-            log.info("  Channel: %s — %d streams", ch_name, len(streams))
+            total_streams  += len(raw_streams)
+            log.info("  Channel: %s — %d streams", ch_name, len(raw_streams))
 
-            for stream in streams:
+            streams = []  # enriched with avg_viewers
+            for stream in raw_streams:
                 ts       = get_stream_timeseries(conn, table, stream["video_id"])
                 all_rows = get_all_rows(conn, table, stream["video_id"])
+                # compute avg_viewers from timeseries (no SQL change needed)
+                viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
+                stream = dict(stream)  # make mutable copy of RealDictRow
+                stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
+                streams.append(stream)
                 write_stream_page(org_slug, org, ch_name, stream, all_rows, ts)
 
             write_channel_page(org_slug, org, ch_name, streams)
