@@ -1,0 +1,68 @@
+name: Archive Historical Streams
+
+on:
+  schedule:
+    # Runs daily at 20:00 UTC (03:00 WIB) — well outside peak streaming hours
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from GitHub Actions UI for testing or catch-up runs
+    inputs:
+      threshold_days:
+        description: 'Archive streams older than N days (default: 25)'
+        required: false
+        default: '25'
+
+concurrency:
+  group: archiver
+  cancel-in-progress: false  # never cancel a running archival — data safety first
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tracker repo
+        uses: actions/checkout@v4
+        with:
+          path: tracker
+
+      - name: Checkout history repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/idvt-history
+          token: ${{ secrets.HISTORY_REPO_PAT }}
+          path: idvt-history
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install psycopg2-binary
+
+      - name: Run archiver
+        working-directory: tracker
+        env:
+          AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+          HISTORY_DB_PATH: ${{ github.workspace }}/idvt-history/history.db
+          ARCHIVE_THRESHOLD_DAYS: ${{ github.event.inputs.threshold_days || '25' }}
+        run: |
+          python archiver.py
+
+      - name: Commit and push history.db
+        working-directory: idvt-history
+        run: |
+          git config user.name  "IDVTuber Archiver"
+          git config user.email "archiver@idvtuber-tracker"
+          git add history.db
+          # Only commit if there are actual changes
+          if git diff --cached --quiet; then
+            echo "No new streams archived — nothing to commit."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "archive: ${TIMESTAMP}"
+            git push
+            echo "history.db pushed successfully."
+          fi
