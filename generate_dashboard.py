@@ -15,6 +15,7 @@ import os
 import re
 import json
 import shutil
+import sqlite3
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -47,6 +48,7 @@ log = logging.getLogger(__name__)
 # ── config ────────────────────────────────────────────────────────────────────
 AIVEN_DATABASE_URL = os.environ.get("AIVEN_DATABASE_URL", "")
 OUTPUT_DIR         = Path(os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard"))
+HISTORY_DB_PATH    = os.environ.get("HISTORY_DB_PATH", "../idvt-history/history.db")
 
 # ── org definitions ───────────────────────────────────────────────────────────
 # Keys must match channel_name values in the `channels` DB table exactly.
@@ -158,6 +160,86 @@ def get_all_rows(conn, table: str, video_id: str) -> list[dict]:
             ORDER BY collected_at DESC
         """, (video_id,))
         return cur.fetchall()
+
+
+
+
+def get_history_conn():
+    """
+    Open history.db (SQLite) if it exists.
+    Returns None gracefully if the file is absent — dashboard still works
+    with live data only.
+    """
+    path = HISTORY_DB_PATH
+    if not os.path.exists(path):
+        log.info("history.db not found at %s — archived streams will not be shown.", path)
+        return None
+    try:
+        import sqlite3 as _sq3
+        conn = _sq3.connect(path)
+        conn.row_factory = _sq3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        return conn
+    except Exception as e:
+        log.warning("Could not open history.db: %s", e)
+        return None
+
+
+def get_archived_streams_for_channel(hist, channel_name: str,
+                                     exclude_video_ids: set) -> list:
+    """
+    Returns archived streams for a channel not already in the live DB.
+    Normalised to match the live DB dict structure.
+    """
+    rows = hist.execute("""
+        SELECT
+            video_id, video_title, stream_status,
+            stream_start  AS first_seen,
+            stream_end    AS last_seen,
+            peak_viewers, avg_viewers, view_count,
+            peak_likes, peak_comments, data_points
+        FROM streams
+        WHERE channel_name = ?
+        ORDER BY stream_start DESC
+    """, (channel_name,)).fetchall()
+
+    result = []
+    for r in rows:
+        if r["video_id"] in exclude_video_ids:
+            continue
+        d = dict(r)
+        for key in ("first_seen", "last_seen"):
+            val = d.get(key)
+            if isinstance(val, str):
+                try:
+                    d[key] = datetime.fromisoformat(val)
+                except ValueError:
+                    pass
+        d["_source"] = "history"
+        result.append(d)
+    return result
+
+
+def get_archived_timeseries(hist, video_id: str) -> list:
+    """Returns timeseries rows from history.db, normalised to match live DB format."""
+    rows = hist.execute("""
+        SELECT collected_at, concurrent_viewers, like_count, comment_count
+        FROM timeseries
+        WHERE video_id = ?
+        ORDER BY collected_at
+    """, (video_id,)).fetchall()
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        if isinstance(d.get("collected_at"), str):
+            try:
+                d["collected_at"] = datetime.fromisoformat(d["collected_at"])
+            except ValueError:
+                pass
+        result.append(d)
+    return result
+
 
 
 _LOGO_CACHE_FILE = "channel_logos_cache.json"
@@ -956,12 +1038,12 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'      <div class="kpi-grid">\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">{fmt(stream["peak_viewers"])}</div><div class="kpi-sub">concurrent</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Avg Viewers</div><div class="kpi-value">{fmt(stream.get("avg_viewers"))}</div><div class="kpi-sub">concurrent</div></div>\n'
+        f'        <div class="kpi"><div class="kpi-label">View Count</div><div class="kpi-value">{fmt(stream.get("view_count"))}</div><div class="kpi-sub">total plays</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">{fmt(stream["peak_likes"])}</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">{fmt(stream["peak_comments"])}</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Stream Start</div><div class="kpi-value kpi-sm">{fmt_dt(stream["first_seen"])}</div></div>\n'
         f'        <div class="kpi"><div class="kpi-label">Stream End</div><div class="kpi-value kpi-sm">{fmt_dt(stream["last_seen"])}</div></div>\n'
-        f'        <div class="kpi"><div class="kpi-label">Duration</div><div class="kpi-value kpi-sm">{duration_str}</div></div>\n'
-        f'        <div class="kpi"><div class="kpi-label">View Count</div><div class="kpi-value kpi-sm">{fmt(stream.get("view_count"))}</div><div class="kpi-sub">total plays</div></div>\n'
+        f'        <div class="kpi kpi-wide"><div class="kpi-label">Duration</div><div class="kpi-value kpi-sm">{duration_str}</div></div>\n'
         f'      </div>\n'
         f'    </div>\n'
         f'  </div>\n\n'
@@ -1024,6 +1106,7 @@ def build_dashboard() -> None:
         raise SystemExit(1)
 
     conn = get_conn()
+    hist = get_history_conn()  # None if history.db absent — graceful degradation
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # copy static legal pages from repo root into output
@@ -1078,21 +1161,42 @@ def build_dashboard() -> None:
                 stream_counts[ch_name] = 0
                 continue
 
-            table   = db_row["table_name"]
+            table       = db_row["table_name"]
             raw_streams = get_streams_for_channel(conn, table)
-            stream_counts[ch_name] = len(raw_streams)
+
+            # merge archived streams not present in live DB
+            live_ids = {s["video_id"] for s in raw_streams}
+            archived_streams = (
+                get_archived_streams_for_channel(hist, ch_name, live_ids)
+                if hist else []
+            )
+            all_raw = list(raw_streams) + archived_streams
+
+            stream_counts[ch_name] = len(all_raw)
             total_channels += 1
-            total_streams  += len(raw_streams)
-            log.info("  Channel: %s — %d streams", ch_name, len(raw_streams))
+            total_streams  += len(all_raw)
+            log.info("  Channel: %s — %d live stream(s), %d archived",
+                     ch_name, len(raw_streams), len(archived_streams))
 
             streams = []  # enriched with avg_viewers
-            for stream in raw_streams:
-                ts       = get_stream_timeseries(conn, table, stream["video_id"])
-                all_rows = get_all_rows(conn, table, stream["video_id"])
-                # compute avg_viewers from timeseries (no SQL change needed)
-                viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
-                stream = dict(stream)  # make mutable copy of RealDictRow
-                stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
+            for stream in all_raw:
+                is_archived = stream.get("_source") == "history"
+
+                if is_archived:
+                    # timeseries and avg_viewers come from history.db
+                    ts = get_archived_timeseries(hist, stream["video_id"])
+                    all_rows = []  # raw rows not stored — not needed for display
+                    # avg_viewers already stored in history.db
+                    if stream.get("avg_viewers") is None:
+                        viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
+                        stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
+                else:
+                    ts       = get_stream_timeseries(conn, table, stream["video_id"])
+                    all_rows = get_all_rows(conn, table, stream["video_id"])
+                    viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
+                    stream = dict(stream)
+                    stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
+
                 streams.append(stream)
                 write_stream_page(org_slug, org, ch_name, stream, all_rows, ts)
 
@@ -1105,6 +1209,8 @@ def build_dashboard() -> None:
     write_index(total_streams, total_channels, generated_at)
 
     conn.close()
+    if hist:
+        hist.close()
     log.info("Dashboard complete — %d streams across %d channels.", total_streams, total_channels)
 
 
