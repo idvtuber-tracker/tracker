@@ -63,11 +63,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout history repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/idvt-history
-          token: ${{ secrets.HISTORY_REPO_PAT }}
-          path: idvt-history
+        env:
+          HISTORY_REPO_PAT: ${{ secrets.HISTORY_REPO_PAT }}
+        run: |
+          REPO_URL="https://x-access-token:${HISTORY_REPO_PAT}@github.com/${{ github.repository_owner }}/idvt-history.git"
+          if git clone --depth=1 "$REPO_URL" idvt-history 2>/dev/null; then
+            echo "history repo cloned successfully."
+          else
+            echo "history repo is empty or unreachable — creating empty directory."
+            mkdir -p idvt-history
+          fi
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
