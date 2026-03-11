@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LynShuu 【AFTERAIN】 — IDVTuber Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+
+<style>
+
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #13131a;
+    --surface2:  #1a1a26;
+    --border:    #1e1e2e;
+    --muted:     #5a5a7a;
+    --text:      #e2e2f0;
+    --white:     #ffffff;
+    --red:       #ff4f6d;
+    --blue:      #4fc3f7;
+    --org-color: #e8ff47;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px; line-height: 1.7; min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    opacity: 0.5;
+  }
+  .page { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 2rem 6rem; }
+
+  /* breadcrumb */
+  .breadcrumb {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem;
+    padding: 1.5rem 0; font-size: 0.68rem;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--border); margin-bottom: 3rem;
+  }
+  .breadcrumb a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  .breadcrumb a:hover { color: var(--org-color); }
+  .breadcrumb .sep { color: var(--border); }
+  .breadcrumb .current { color: var(--org-color); }
+
+  /* headings */
+  .eyebrow {
+    font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--org-color); margin-bottom: 0.6rem;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2rem, 5vw, 4.5rem);
+    font-weight: 700; line-height: 1.0; color: var(--white); margin-bottom: 0.5rem;
+  }
+  h1 em { font-style: italic; color: var(--org-color); }
+  .page-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.75rem; }
+
+  /* org cards */
+  .orgs-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem; margin-top: 3rem;
+  }
+  .org-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 2rem;
+    text-decoration: none; color: inherit; display: block;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .org-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.35s;
+  }
+  .org-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
+  .org-card:hover::after { transform: scaleX(1); }
+  .org-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--org-color); margin-bottom: 1.25rem;
+    box-shadow: 0 0 12px var(--org-color);
+  }
+  .org-title { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--white); margin-bottom: 0.5rem; }
+  .org-desc { font-size: 0.78rem; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.6; }
+  .org-stat { font-size: 0.72rem; color: var(--muted); }
+  .org-stat strong { color: var(--org-color); }
+
+  /* channel card grid */
+  .channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.25rem; margin-top: 2.5rem;
+  }
+  .channel-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.5rem 1.25rem;
+    text-decoration: none; color: inherit; display: flex;
+    flex-direction: column; align-items: center; text-align: center;
+    gap: 0.9rem;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .channel-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.35s;
+  }
+  .channel-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
+  .channel-card:hover::after { transform: scaleX(1); }
+  .channel-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+    transition: border-color 0.2s;
+    background: var(--surface2);
+  }
+  .channel-card:hover .channel-avatar { border-color: var(--org-color); }
+  .channel-avatar-placeholder {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700;
+    color: var(--org-color); flex-shrink: 0;
+    transition: border-color 0.2s;
+  }
+  .channel-card:hover .channel-avatar-placeholder { border-color: var(--org-color); }
+  .channel-badge {
+    font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 0.18rem 0.45rem; border-radius: 2px;
+    border: 1px solid var(--org-color); color: var(--org-color);
+    background: rgba(0,0,0,0.3); flex-shrink: 0;
+  }
+  .channel-card-name {
+    font-family: 'Fraunces', serif; font-size: 0.95rem; font-weight: 700;
+    color: var(--white); line-height: 1.25;
+  }
+  .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
+  .channel-card-stats {
+    display: flex; flex-direction: column;
+    gap: 0.3rem; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem; margin-top: 0.1rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.63rem;
+  }
+  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-row .stat-value { color: var(--text); }
+  .stat-row .stat-value.highlight { color: var(--org-color); }
+
+  /* stream cards */
+  .streams-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 1rem; margin-top: 2.5rem;
+  }
+  .stream-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.25rem;
+    text-decoration: none; color: inherit; display: block;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .stream-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color); transform: scaleX(0);
+    transform-origin: left; transition: transform 0.3s;
+  }
+  .stream-card:hover { border-color: var(--org-color); transform: translateY(-2px); }
+  .stream-card:hover::before { transform: scaleX(1); }
+  .stream-status {
+    display: inline-block; font-size: 0.6rem; letter-spacing: 0.15em;
+    text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2px;
+    margin-bottom: 0.75rem;
+  }
+  .status-live     { background: rgba(255,79,109,0.15); color: var(--red);   border: 1px solid var(--red); }
+  .status-upcoming { background: rgba(79,195,247,0.10); color: var(--blue);  border: 1px solid var(--blue); }
+  .status-vod      { background: rgba(90,90,122,0.20);  color: var(--muted); border: 1px solid var(--muted); }
+  .stream-title {
+    font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 700;
+    color: var(--white); margin-bottom: 1rem; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .stream-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+  .stat-label { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-value { font-size: 0.9rem; color: var(--org-color); font-weight: 500; }
+  .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
+  .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
+
+  /* month heading on channel page */
+  .month-heading {
+    font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--muted); margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .month-heading::before {
+    content: ''; display: block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--org-color);
+    box-shadow: 0 0 6px var(--org-color); flex-shrink: 0;
+  }
+
+  /* stream detail: side-by-side hero */
+  .stream-hero {
+    display: grid;
+    grid-template-columns: 37fr 63fr;
+    gap: 1.5rem;
+    margin: 2rem 0 2.5rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) { .stream-hero { grid-template-columns: 1fr; } }
+  .embed-side {
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .embed-wrap {
+    position: relative; width: 100%; padding-bottom: 56.25%;
+    background: #000;
+  }
+  .embed-wrap iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+  }
+  .stream-thumb-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 0.9rem;
+    background: var(--surface); border-top: 1px solid var(--border);
+    font-size: 0.65rem; color: var(--muted);
+  }
+  .stream-thumb-meta a {
+    color: var(--org-color); text-decoration: none;
+  }
+  .stream-thumb-meta a:hover { text-decoration: underline; }
+  .kpi-side { min-width: 0; }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .kpi {
+    background: var(--surface);
+    padding: 1.1rem 1.25rem;
+    position: relative;
+  }
+  .kpi.kpi-wide { grid-column: span 2; }
+  .kpi-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.45rem; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--org-color); line-height: 1.1; }
+  .kpi-value.kpi-sm { font-size: 1rem; }
+  .kpi-sub   { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
+  .kpi-grid .kpi:nth-child(-n+2)::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--org-color);
+  }
+  .chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
+  }
+  .chart-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 1.25rem; }
+  .chart-wrap  { position: relative; height: 280px; }
+  .section-title {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-bottom: 3rem; }
+  .data-table th {
+    text-align: left; padding: 0.5rem 0.75rem; color: var(--muted);
+    font-weight: 500; font-size: 0.65rem; text-transform: uppercase;
+    letter-spacing: 0.1em; border-bottom: 1px solid var(--border);
+  }
+  .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(30,30,46,0.5); color: var(--text); }
+  .data-table tr:hover td { background: var(--surface); }
+  .data-table .num { text-align: right; color: var(--org-color); font-weight: 500; }
+  .data-table .ts  { color: var(--muted); }
+  .pill { display: inline-block; font-size: 0.6rem; padding: 0.15rem 0.4rem; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .pill-live     { background: rgba(255,79,109,0.15); color: var(--red);  border: 1px solid var(--red); }
+  .pill-upcoming { background: rgba(79,195,247,0.10); color: var(--blue); border: 1px solid var(--blue); }
+  .generated { text-align: center; color: var(--muted); font-size: 0.7rem; margin-top: 3rem; }
+
+  /* footer */
+  footer {
+    margin-top: 5rem; padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; justify-content: space-between;
+    gap: 1rem; font-size: 0.7rem; color: var(--muted);
+  }
+  footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  footer a:hover { color: var(--org-color); }
+
+  /* animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  header { animation: fadeUp 0.5s ease both; }
+  .orgs-grid, .channels-list, .streams-grid, .kpi-row { animation: fadeUp 0.5s 0.1s ease both; }
+
+  :root { --org-color: #60a5fa; }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="breadcrumb"><a href="../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../index.html">AfteRain</a> <span class="sep">&#8250;</span> <span class="current">LynShuu 【AFTERAIN】</span></nav>
+  <header>
+    <p class="eyebrow">AfteRain</p>
+    <h1>LynShuu 【AFTERAIN】</h1>
+    <p class="page-meta">0 streams recorded &#8212; sorted by date</p>
+  </header>
+
+    <p class="empty">No streams recorded yet.</p>
+
+  <footer>
+    <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>
+    <span>
+      <a href="../../index.html">Home</a>
+      &nbsp;&middot;&nbsp;
+      <a href="../../privacy.html">Privacy Policy</a>
+      &nbsp;&middot;&nbsp;
+      <a href="../../terms.html">Terms of Use</a>
+    </span>
+  </footer>
+</div>
+</body>
+</html>
