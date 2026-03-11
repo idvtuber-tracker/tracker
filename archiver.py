@@ -80,9 +80,8 @@ def get_archivable_streams(conn, table: str, threshold_days: int) -> list[dict]:
                 MAX(comment_count)      AS peak_comments,
                 COUNT(*)                AS data_points
             FROM {table}
-            WHERE stream_status = 'vod'
-              AND collected_at < %s
             GROUP BY video_id
+            HAVING MAX(collected_at) < %s
             ORDER BY MIN(collected_at) DESC
         """, (cutoff,))
         return cur.fetchall()
