@@ -125,7 +125,7 @@ ORG_MAP = {
         "color":   "#c084fc",
         "desc":    "An Indonesian VTuber agency focused on characterisation, storytelling, and roleplaying.",
         "channels": [
-            ("Prism:NOVA", "org", "UCaa5SNuvfNH8ZpQAJgrL28A"),
+            ("Prism:NOVA", "org", "UCpaiXLRcHzx5XpHysrO9JQA"),
             ("Oxa Lydea 【Prism:NOVA】", "talent", "UCV2KRUSE92ZyAPed1770Dww"),
             ("Serika Cosmica 【Prism:NOVA】", "talent", "UCjIlQoGYrKRyykHTJdJ9fdA"),
             ("Thalia Symphonia 【Prism:NOVA】", "talent", "UCBGkli-RvhJozIcXVVKg2iA"),
@@ -149,10 +149,10 @@ ORG_MAP = {
         "color":   "#f87171",
         "desc":    "An Indonesian VTuber agency with male talents that specializes in various contents and singing.",
         "channels": [
-            ("Dexter Official", "org", "UC4_hHPcj6BTsn1-gn9oeCDg"),
+            ("Dexter Official", "org", "UCVitBVX8nnvP0gfe1s5VRGA"),
             ("Richard Ravindra【DEXTER】", "talent", "UCeEXULUk2S16jjLSv7ar51Q"),
             ("Rex Arcadia【DEXTER】", "talent", "UCCv6ctVKeh2U3LAH1RNejmQ"),
-            ("Lucentia【DEXTER】", "talent", "UCKmNURaTulGUE-XE2WVKAoQ"),
+            ("Lucentia【DEXTER】", "talent", "UC1J_JlLEIzkXwkDdkEhE2dg"),
             ("Noa Florastra【DEXTER】", "talent", "UC19WbhRSDkExpUE6XAqDANg"),
         ],
     },
