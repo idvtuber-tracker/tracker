@@ -99,6 +99,96 @@ ORG_MAP = {
             ("Oriana Solstair【Whicker Butler】",      "talent", "UCvxEBCJlF0m81ffDtJ7YE2w"),
         ],
     },
+    "yorukaze": {
+        "label":   "Yorukaze Production",
+        "color":   "#7ec8e3",
+        "desc":    "An Indonesian VTuber organization serving as a bridge and support platform for virtual content creators.",
+        "channels": [
+            ("Yorukaze Production", "org", "UCXn1p9luEl8oUKL-dbtMd9g"),
+            ("Hessa Elainore Ch.【Yorukaze】", "talent", "UCL61Tr4KMxiv6o9u_WXxDCg"),
+            ("Tsukiyo Miho Ch.【Yorukaze】", "talent", "UC9VZtHQN1GGs5V7vZgvTQ4A"),
+            ("Mihiro Kamigawa【Yorukaze】", "talent", "UCUx_NfLnJma2dHzG90_I5HA"),
+            ("Vincent Cerbero【Yorukaze】", "talent", "UC2maoIIbLUrbPApf11GLR6A"),
+            ("Utahime Yukari Ch.【Yorukaze】", "talent", "UC4HgZAlD5MUFIe2nHYhPhJw"),
+            ("Nanaka Poi Ch. 【Yorukaze】", "talent", "UCFjaorskBcTDdDIQ5BP2ucg"),
+            ("Amare Michiya【Yorukaze】", "talent", "UC04yaXbxeiG_sN47idcdimg"),
+            ("Hoshikawa Rui【Yorukaze】", "talent", "UCnh6AfYwFB9Elsdtkl73cuQ"),
+            ("Yuzumi_Ch【Yorukaze】", "talent", "UCCZ4ZY1kaSkZC6OiA-2916Q"),
+            ("Ellise Youka【Yorukaze】", "talent", "UCE5Mvtoy8GiPtsv5sLUKlgg"),
+            ("WanTaps Ch.【Yorukaze】", "talent", "UC7CpE_gbbvNBkUFMHWeUMpA"),
+            ("Wintergea Ch. ゲア 【Yorukaze】", "talent", "UCv9P--tuUkAxpZaTowy7h9Q"),
+        ],
+    },
+
+    "prism-nova": {
+        "label":   "Prism:NOVA",
+        "color":   "#c084fc",
+        "desc":    "An Indonesian VTuber agency focused on characterisation, storytelling, and roleplaying.",
+        "channels": [
+            ("Prism:NOVA", "org", "UCaa5SNuvfNH8ZpQAJgrL28A"),
+            ("Oxa Lydea 【Prism:NOVA】", "talent", "UCV2KRUSE92ZyAPed1770Dww"),
+            ("Serika Cosmica 【Prism:NOVA】", "talent", "UCjIlQoGYrKRyykHTJdJ9fdA"),
+            ("Thalia Symphonia 【Prism:NOVA】", "talent", "UCBGkli-RvhJozIcXVVKg2iA"),
+        ],
+    },
+
+    "vcosmix": {
+        "label":   "VCosmix",
+        "color":   "#f472b6",
+        "desc":    "An Indonesian VTuber group which provides girls fun experience.",
+        "channels": [
+            ("Vcosmix", "org", "UCxdS5pTt5WfbTD6WUY8z2EQ"),
+            ("Lea Lestari Ch.", "talent", "UCmlIjSXna6pZLeM7HK8Vewg"),
+            ("Miichan Chu Ch.", "talent", "UCx-WXnxhiZwUsr_bagtUxwQ"),
+            ("Li Mingshu Ch.", "talent", "UCJL18InOQxSBXswn4sfD_fQ"),
+        ],
+    },
+
+    "dexter": {
+        "label":   "DEXTER",
+        "color":   "#f87171",
+        "desc":    "An Indonesian VTuber agency with male talents that specializes in various contents and singing.",
+        "channels": [
+            ("Dexter Official", "org", "UC4_hHPcj6BTsn1-gn9oeCDg"),
+            ("Richard Ravindra【DEXTER】", "talent", "UCeEXULUk2S16jjLSv7ar51Q"),
+            ("Rex Arcadia【DEXTER】", "talent", "UCCv6ctVKeh2U3LAH1RNejmQ"),
+            ("Lucentia【DEXTER】", "talent", "UCKmNURaTulGUE-XE2WVKAoQ"),
+            ("Noa Florastra【DEXTER】", "talent", "UC19WbhRSDkExpUE6XAqDANg"),
+        ],
+    },
+
+    "cozycazt": {
+        "label":   "CozyCazt",
+        "color":   "#fb923c",
+        "desc":    "An Indonesian VTuber agency which projects comfortable and friendly aura.",
+        "channels": [
+            ("Cozy Cazt", "org", "UCFCfSe5tJrnQt3cuT9g59Lw"),
+            ("Rannia Taiga 【CozyCazt】", "talent", "UCjPBlVNDtHHYwrvpxBCiY5g"),
+            ("Lyta Luciana Ch.【CozyCazt】", "talent", "UCca5aOYzqyO6GdeNLB8QDNg"),
+            ("Arphina Stellaria【CozyCazt】", "talent", "UCDxHKSgQD7tcTr36F2GnvDg"),
+            ("Vianna Risendria 【CozyCazt】", "talent", "UCuGlDdzoTyM55cQrJO_kEZw"),
+            ("Fuyo Mafuyu【CozyCazt】", "talent", "UCMtHNyhNeLZEPw6S2-1556A"),
+            ("Silveryshore Ch.【CozyCazt】", "talent", "UCQpD-UhHdhFL1DTJxhJpuyA"),
+        ],
+    },
+
+    "afterain": {
+        "label":   "AfteRain",
+        "color":   "#60a5fa",
+        "desc":    "An Indonesian VTuber agency with various talents background and specialties.",
+        "channels": [
+            ("AFTERAIN PROJECT", "org", "UCOJwb4RalSz3_3EHIM5pVfw"),
+            ("LynShuu 【AFTERAIN】", "talent", "UCzsHESRY504seJawYVRSs7Q"),
+            ("Nezufu Senshirou【AFTERAIN】", "talent", "UCGR-Fzxnm0TQs2uAIWn8IlQ"),
+            ("Lvna Tylthia【AFTERAIN】", "talent", "UCgZoh0CWVTg_o_wHy1F5QBQ"),
+            ("Poffie Hunni【AFTERAIN】", "talent", "UCFgLJQqhovnBBf4CIsC0OCA"),
+            ("Flein Ryst【AFTERAIN】", "talent", "UCY-fhXM0BzpBtBk1czoY5fA"),
+            ("Avy Inkaiserin 【AFTERAIN】", "talent", "UCvHWaiG9YSPgmLhNuLmqMUA"),
+            ("Kana Chizu 【AFTERAIN】", "talent", "UCh5wq5bs4VG1ah3THbW156g"),
+            ("Ririna Ruu【AFTERAIN】", "talent", "UC_vnL6pH3Mm3XrnuQ38LWtQ"),
+        ],
+    },
+  
 }
 
 
