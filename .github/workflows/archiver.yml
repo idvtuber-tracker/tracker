@@ -27,11 +27,20 @@ jobs:
           path: tracker
 
       - name: Checkout history repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/idvt-history
-          token: ${{ secrets.HISTORY_REPO_PAT }}
-          path: idvt-history
+        env:
+          HISTORY_REPO_PAT: ${{ secrets.HISTORY_REPO_PAT }}
+        run: |
+          REPO_URL="https://x-access-token:${HISTORY_REPO_PAT}@github.com/${{ github.repository_owner }}/idvt-history.git"
+          if git clone --depth=1 "$REPO_URL" idvt-history 2>/dev/null; then
+            echo "history repo cloned successfully."
+          else
+            echo "history repo is empty or unreachable — initialising fresh repo."
+            mkdir -p idvt-history
+            cd idvt-history
+            git init
+            git remote add origin "$REPO_URL"
+            git checkout -b main
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -53,16 +62,19 @@ jobs:
 
       - name: Commit and push history.db
         working-directory: idvt-history
+        env:
+          HISTORY_REPO_PAT: ${{ secrets.HISTORY_REPO_PAT }}
         run: |
+          REPO_URL="https://x-access-token:${HISTORY_REPO_PAT}@github.com/${{ github.repository_owner }}/idvt-history.git"
+          git remote set-url origin "$REPO_URL"
           git config user.name  "IDVTuber Archiver"
           git config user.email "archiver@idvtuber-tracker"
           git add history.db
-          # Only commit if there are actual changes
           if git diff --cached --quiet; then
             echo "No new streams archived — nothing to commit."
           else
             TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
             git commit -m "archive: ${TIMESTAMP}"
-            git push
+            git push --set-upstream origin main
             echo "history.db pushed successfully."
           fi
