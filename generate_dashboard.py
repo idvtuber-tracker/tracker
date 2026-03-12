@@ -135,7 +135,7 @@ ORG_MAP = {
     "vcosmix": {
         "label":   "VCosmix",
         "color":   "#f472b6",
-        "desc":    "An Indonesian VTuber group which provides girls fun experience.",
+        "desc":    "An Indonesian VTuber group who provides girls fun experience.",
         "channels": [
             ("Vcosmix", "org", "UCxdS5pTt5WfbTD6WUY8z2EQ"),
             ("Lea Lestari Ch.", "talent", "UCmlIjSXna6pZLeM7HK8Vewg"),
@@ -925,7 +925,7 @@ def write_index(total_streams: int, total_channels: int, generated_at: str) -> N
         f'Generated: {generated_at} &nbsp;&#183;&nbsp; '
         f'{total_streams} streams &nbsp;&#183;&nbsp; '
         f'{total_channels} channels &nbsp;&#183;&nbsp; '
-        f'3 organisations</p>\n'
+        f'9 organisations</p>\n'
         f'  </header>\n'
         f'  <div class="orgs-grid">{org_cards}\n  </div>\n'
     )
