@@ -332,7 +332,40 @@ def get_archived_timeseries(hist, video_id: str) -> list:
 
 
 
-_LOGO_CACHE_FILE = "channel_logos_cache.json"
+_LOGO_CACHE_FILE     = "channel_logos_cache.json"
+_LOGO_FALLBACK_FILE  = "channel_logos_fallback.json"
+
+
+def _load_fallback() -> tuple[dict[str, str], dict[str, int]]:
+    """Load the last known good logos + subscribers from the persistent fallback file."""
+    if os.path.exists(_LOGO_FALLBACK_FILE):
+        try:
+            with open(_LOGO_FALLBACK_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            logos       = data.get("logos", {})
+            subscribers = data.get("subscribers", {})
+            saved_at    = data.get("saved_at", "unknown date")
+            log.info("Loaded fallback channel data from %s (%d logos, %d subscriber counts).",
+                     saved_at, len(logos), len(subscribers))
+            return logos, subscribers
+        except Exception as e:
+            log.warning("Fallback cache unreadable: %s", e)
+    return {}, {}
+
+
+def _save_fallback(logos: dict[str, str], subscribers: dict[str, int]) -> None:
+    """Persist a successful fetch as the new fallback."""
+    try:
+        with open(_LOGO_FALLBACK_FILE, "w", encoding="utf-8") as f:
+            json.dump({
+                "saved_at":    _now_local().strftime("%Y-%m-%d %H:%M WIB"),
+                "logos":       logos,
+                "subscribers": subscribers,
+            }, f)
+        log.info("Fallback channel data updated (%d logos, %d subscriber counts).",
+                 len(logos), len(subscribers))
+    except Exception as e:
+        log.warning("Could not save fallback channel data: %s", e)
 
 
 def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, int]]:
@@ -342,13 +375,17 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
     so there is no extra API cost over fetching logos alone.
     Results are cached to disk for the remainder of the local day.
 
+    On any API failure (including 403), falls back to the last successful
+    fetch stored in channel_logos_fallback.json so org pages always render
+    with the most recently known logos and subscriber counts.
+
     Returns:
         logos       — {channel_id: thumbnail_url}
         subscribers — {channel_id: subscriber_count}
     """
     today = _now_local().strftime("%Y-%m-%d")
 
-    # ── return from cache if still valid ──────────────────────────────────────
+    # ── return from today's cache if still valid ───────────────────────────────
     if os.path.exists(_LOGO_CACHE_FILE):
         try:
             with open(_LOGO_CACHE_FILE, encoding="utf-8") as f:
@@ -366,18 +403,19 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
 
     if not _YT_AVAILABLE:
         log.warning("Channel data fetch skipped: google-api-python-client not installed.")
-        return {}, {}
+        return _load_fallback()
     if not api_key:
         log.warning("Channel data fetch skipped: no YOUTUBE_API_KEYS or YOUTUBE_API_KEY in environment.")
-        return {}, {}
+        return _load_fallback()
     if not channel_ids:
         log.warning("Channel data fetch skipped: channel_ids list is empty.")
-        return {}, {}
+        return _load_fallback()
 
     log.info("Fetching channel data for %d IDs using key ...%s", len(channel_ids), api_key[-6:])
 
     logos:       dict[str, str] = {}
     subscribers: dict[str, int] = {}
+    api_failed = False
 
     for i in range(0, len(channel_ids), 50):
         batch = channel_ids[i:i + 50]
@@ -405,8 +443,23 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
                     subscribers[cid] = int(sub_count)
         except Exception as e:
             log.error("channels.list API call failed: %s", e, exc_info=True)
+            api_failed = True
 
-    # ── persist cache ──────────────────────────────────────────────────────────
+    # ── on complete API failure, return fallback without overwriting cache ──────
+    if api_failed and not logos and not subscribers:
+        log.warning("API fetch produced no data — falling back to last known good channel data.")
+        return _load_fallback()
+
+    # ── partial failure: merge fresh results on top of fallback ───────────────
+    if api_failed and (logos or subscribers):
+        log.warning("API fetch partially failed — merging fresh results with fallback data.")
+        fallback_logos, fallback_subs = _load_fallback()
+        # fallback fills in any channel missing from the partial fetch
+        merged_logos = {**fallback_logos, **logos}
+        merged_subs  = {**fallback_subs,  **subscribers}
+        logos, subscribers = merged_logos, merged_subs
+
+    # ── persist today's cache and update fallback ──────────────────────────────
     try:
         with open(_LOGO_CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump({"date": today, "logos": logos, "subscribers": subscribers}, f)
@@ -414,6 +467,8 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
                  len(logos), len(subscribers))
     except Exception as e:
         log.warning("Could not save channel data cache: %s", e)
+
+    _save_fallback(logos, subscribers)
 
     return logos, subscribers
 
