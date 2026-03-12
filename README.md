@@ -139,30 +139,6 @@ ORDER BY collected_at;
 
 ---
 
-## Console output example
-
-```
-╭─────────────────────────────────────────────────────────╮
-│ Event Trigger                                           │
-│ 🔔 NEW STREAM DETECTED!                                 │
-│ Channel : My Favourite Channel                          │
-│ Title   : Sunday Livestream #42                         │
-│ Status  : live                                          │
-╰─────────────────────────────────────────────────────────╯
-
-╭─ 📡 Live Streams ──────────────────────────────────────╮
-│ Channel          Title               Status  Viewers    │
-│ My Fav Channel   Sunday Livestream   🔴 LIVE  12,453    │
-╰────────────────────────────────────────────────────────╯
-
- Viewers — My Fav Channel (last 12 samples)
- 14000 ┤                          ╭──╮
- 12000 ┤              ╭──╮    ╭───╯  ╰
- 10000 ┤    ╭──╮  ╭───╯  ╰────╯
-  8000 ┤────╯  ╰──╯
-```
-
----
 
 ## Limitations & tips
 
