@@ -48,7 +48,10 @@ log = logging.getLogger(__name__)
 # ── config ────────────────────────────────────────────────────────────────────
 AIVEN_DATABASE_URL = os.environ.get("AIVEN_DATABASE_URL", "")
 OUTPUT_DIR         = Path(os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard"))
-HISTORY_DB_PATH    = os.environ.get("HISTORY_DB_PATH", "../idvt-history/history.db")
+HISTORY_DB_PATH    = os.environ.get(
+    "HISTORY_DB_PATH",
+    str(Path(__file__).parent.parent / "idvt-history" / "history.db")
+)
 
 # ── org definitions ───────────────────────────────────────────────────────────
 # Keys must match channel_name values in the `channels` DB table exactly.
@@ -210,7 +213,38 @@ def get_channel_rows(conn) -> list[dict]:
         return cur.fetchall()
 
 
+def _table_exists(conn, table: str) -> bool:
+    """Return True if the table exists in the public schema."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name   = %s
+        """, (table,))
+        return cur.fetchone() is not None
+
+
+def _has_view_count(conn, table: str) -> bool:
+    """Return True if the table has a view_count column (new tables may not yet)."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name   = %s
+              AND column_name  = 'view_count'
+        """, (table,))
+        return cur.fetchone() is not None
+
+
 def get_streams_for_channel(conn, table: str) -> list[dict]:
+    if not _table_exists(conn, table):
+        log.warning("Table '%s' does not exist yet — skipping (no streams yet).", table)
+        return []
+    view_count_expr = (
+        "MAX(view_count) AS view_count"
+        if _has_view_count(conn, table)
+        else "NULL::BIGINT AS view_count"
+    )
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(f"""
             SELECT
@@ -220,7 +254,7 @@ def get_streams_for_channel(conn, table: str) -> list[dict]:
                 MIN(collected_at)       AS first_seen,
                 MAX(collected_at)       AS last_seen,
                 MAX(concurrent_viewers) AS peak_viewers,
-                MAX(view_count)         AS view_count,
+                {view_count_expr},
                 MAX(like_count)         AS peak_likes,
                 MAX(comment_count)      AS peak_comments,
                 COUNT(*)                AS data_points
