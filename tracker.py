@@ -300,6 +300,10 @@ def init_channel_table(channel_id: str, channel_name: str) -> Optional[str]:
                     actual_start       TIMESTAMPTZ
                 )
             """)
+            # migrate existing tables that predate the view_count column
+            cur.execute(f"""
+                ALTER TABLE {table} ADD COLUMN IF NOT EXISTS view_count BIGINT
+            """)
             cur.execute(f"""
                 CREATE INDEX IF NOT EXISTS idx_{table}_video_id
                     ON {table}(video_id)
