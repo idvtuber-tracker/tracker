@@ -48,10 +48,7 @@ log = logging.getLogger(__name__)
 # ── config ────────────────────────────────────────────────────────────────────
 AIVEN_DATABASE_URL = os.environ.get("AIVEN_DATABASE_URL", "")
 OUTPUT_DIR         = Path(os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard"))
-HISTORY_DB_PATH    = os.environ.get(
-    "HISTORY_DB_PATH",
-    str(Path(__file__).parent.parent / "idvt-history" / "history.db")
-)
+HISTORY_DB_PATH    = os.environ.get("HISTORY_DB_PATH", "../idvt-history/history.db")
 
 # ── org definitions ───────────────────────────────────────────────────────────
 # Keys must match channel_name values in the `channels` DB table exactly.
@@ -224,25 +221,25 @@ def _table_exists(conn, table: str) -> bool:
         return cur.fetchone() is not None
 
 
-def _has_view_count(conn, table: str) -> bool:
-    """Return True if the table has a view_count column (new tables may not yet)."""
+def _has_column(conn, table: str, column: str) -> bool:
+    """Return True if the given column exists on the table."""
     with conn.cursor() as cur:
         cur.execute("""
             SELECT 1 FROM information_schema.columns
             WHERE table_schema = 'public'
               AND table_name   = %s
-              AND column_name  = 'view_count'
-        """, (table,))
+              AND column_name  = %s
+        """, (table, column))
         return cur.fetchone() is not None
 
 
 def get_streams_for_channel(conn, table: str) -> list[dict]:
     if not _table_exists(conn, table):
-        log.warning("Table '%s' does not exist yet — skipping (no streams yet).", table)
+        log.warning("Table '%s' does not exist yet — skipping.", table)
         return []
     view_count_expr = (
         "MAX(view_count) AS view_count"
-        if _has_view_count(conn, table)
+        if _has_column(conn, table, "view_count")
         else "NULL::BIGINT AS view_count"
     )
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
