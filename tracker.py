@@ -292,6 +292,7 @@ def init_channel_table(channel_id: str, channel_name: str) -> Optional[str]:
                     video_id           TEXT NOT NULL,
                     video_title        TEXT,
                     concurrent_viewers BIGINT,
+                    view_count         BIGINT,
                     like_count         BIGINT,
                     comment_count      BIGINT,
                     stream_status      TEXT,
@@ -327,11 +328,11 @@ def save_to_db(row: dict, table: str) -> None:
         sql = f"""
             INSERT INTO {table}
                 (collected_at, channel_id, channel_name, video_id, video_title,
-                 concurrent_viewers, like_count, comment_count, stream_status,
+                 concurrent_viewers, view_count, like_count, comment_count, stream_status,
                  scheduled_start, actual_start)
             VALUES
                 (%(collected_at)s, %(channel_id)s, %(channel_name)s, %(video_id)s, %(video_title)s,
-                 %(concurrent_viewers)s, %(like_count)s, %(comment_count)s, %(stream_status)s,
+                 %(concurrent_viewers)s, %(view_count)s, %(like_count)s, %(comment_count)s, %(stream_status)s,
                  %(scheduled_start)s, %(actual_start)s)
         """
         with conn.cursor() as cur:
