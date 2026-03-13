@@ -300,7 +300,6 @@ def init_channel_table(channel_id: str, channel_name: str) -> Optional[str]:
                     actual_start       TIMESTAMPTZ
                 )
             """)
-            # migrate existing tables that predate the view_count column
             cur.execute(f"""
                 ALTER TABLE {table} ADD COLUMN IF NOT EXISTS view_count BIGINT
             """)
@@ -561,6 +560,7 @@ def get_video_analytics(video_id: str) -> Optional[dict]:
             live  = item.get("liveStreamingDetails", {})
             return {
                 "concurrent_viewers": int(live.get("concurrentViewers", 0) or 0),
+                "view_count":         int(stats.get("viewCount", 0) or 0),
                 "like_count":         int(stats.get("likeCount", 0) or 0),
                 "comment_count":      int(stats.get("commentCount", 0) or 0),
                 "scheduled_start":    live.get("scheduledStartTime"),
