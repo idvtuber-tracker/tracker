@@ -363,12 +363,14 @@ def get_archived_timeseries(hist, video_id: str) -> list:
 
 
 
-_LOGO_CACHE_FILE     = "channel_logos_cache.json"
-_LOGO_FALLBACK_FILE  = "channel_logos_fallback.json"
+_CACHE_DIR           = Path(__file__).parent / "cache"
+_LOGO_CACHE_FILE     = str(_CACHE_DIR / "channel_logos_cache.json")
+_LOGO_FALLBACK_FILE  = str(_CACHE_DIR / "channel_logos_fallback.json")
 
 
 def _load_fallback() -> tuple[dict[str, str], dict[str, int]]:
     """Load the last known good logos + subscribers from the persistent fallback file."""
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     if os.path.exists(_LOGO_FALLBACK_FILE):
         try:
             with open(_LOGO_FALLBACK_FILE, encoding="utf-8") as f:
@@ -386,6 +388,7 @@ def _load_fallback() -> tuple[dict[str, str], dict[str, int]]:
 
 def _save_fallback(logos: dict[str, str], subscribers: dict[str, int]) -> None:
     """Persist a successful fetch as the new fallback."""
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     try:
         with open(_LOGO_FALLBACK_FILE, "w", encoding="utf-8") as f:
             json.dump({
