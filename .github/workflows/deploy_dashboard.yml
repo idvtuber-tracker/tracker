@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages:    write
   id-token: write
 
@@ -61,6 +61,8 @@ jobs:
     
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
 
       - name: Checkout history repo
         env:
@@ -96,3 +98,16 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Commit cache back to repo
+        run: |
+          git config user.name  "IDVTuber Dashboard"
+          git config user.email "dashboard@idvtuber-tracker"
+          git add cache/
+          if git diff --cached --quiet; then
+            echo "Cache unchanged — nothing to commit."
+          else
+            git commit -m "cache: update channel logos fallback [skip ci]"
+            git push
+            echo "Cache committed and pushed."
+          fi
