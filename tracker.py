@@ -386,18 +386,12 @@ def deploy_dashboard() -> None:
         subprocess.run(["git", "config", "user.name", "Stream Tracker Bot"],
                        cwd=repo_dir, check=True, capture_output=True)
 
-        # Pull latest remote state before staging anything, so our push is
-        # always a fast-forward even if another workflow committed in between.
-        pull = subprocess.run(
-            ["git", "pull", "--rebase", "origin", "HEAD"],
-            cwd=repo_dir, capture_output=True, text=True
-        )
-        if pull.returncode != 0:
-            log.warning("git pull --rebase failed (will still attempt push): %s", pull.stderr.strip())
-
+        # Stage dashboard files first so the working tree is clean,
+        # allowing git pull --rebase to proceed without "unstaged changes" error.
         subprocess.run(["git", "add", dashboard_dir],
                        cwd=repo_dir, check=True, capture_output=True)
 
+        # Check if there is anything staged — if not, nothing to do.
         result = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
             cwd=repo_dir, capture_output=True
@@ -405,6 +399,23 @@ def deploy_dashboard() -> None:
         if result.returncode == 0:
             log.info("Dashboard unchanged — skipping deploy commit.")
             return
+
+        # Pull remote changes (e.g. cache commit from deploy workflow)
+        # with --rebase so our staged commit lands on top cleanly.
+        pull = subprocess.run(
+            ["git", "pull", "--rebase", "origin", "HEAD"],
+            cwd=repo_dir, capture_output=True, text=True
+        )
+        if pull.returncode != 0:
+            log.warning("git pull --rebase failed (will still attempt push): %s", pull.stderr.strip())
+            # Abort any in-progress rebase to leave repo in clean state
+            subprocess.run(
+                ["git", "rebase", "--abort"],
+                cwd=repo_dir, capture_output=True
+            )
+            # Re-stage after abort since rebase may have cleared the index
+            subprocess.run(["git", "add", dashboard_dir],
+                           cwd=repo_dir, capture_output=True)
 
         ts = _now_local().strftime("%Y-%m-%d %H:%M:%S WIB")
         subprocess.run(
