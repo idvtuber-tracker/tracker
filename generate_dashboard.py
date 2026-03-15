@@ -247,25 +247,65 @@ def get_channel_rows(conn) -> list[dict]:
         return cur.fetchall()
 
 
+_schema_cache: dict[str, dict] = {}  # table_name → {exists, has_view_count}
+
+
+def _load_schema_cache(conn, tables: list[str]) -> None:
+    """
+    Bulk-load table existence and view_count column presence for all tables
+    in a single query. Results are stored in _schema_cache for the lifetime
+    of the process — schema never changes mid-run.
+    """
+    global _schema_cache
+    if not tables:
+        return
+    placeholders = ",".join(["%s"] * len(tables))
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(f"""
+            SELECT
+                t.table_name,
+                bool_or(c.column_name = 'view_count') AS has_view_count
+            FROM information_schema.tables t
+            LEFT JOIN information_schema.columns c
+                ON  c.table_schema = t.table_schema
+                AND c.table_name   = t.table_name
+            WHERE t.table_schema = 'public'
+              AND t.table_name IN ({placeholders})
+            GROUP BY t.table_name
+        """, tables)
+        for row in cur.fetchall():
+            _schema_cache[row["table_name"]] = {
+                "exists":         True,
+                "has_view_count": bool(row["has_view_count"]),
+            }
+    # tables not returned by the query simply don't exist
+    for t in tables:
+        if t not in _schema_cache:
+            _schema_cache[t] = {"exists": False, "has_view_count": False}
+    log.info("Schema cache loaded for %d tables (%d exist).",
+             len(tables), sum(1 for v in _schema_cache.values() if v["exists"]))
+
+
 def _table_exists(conn, table: str) -> bool:
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT 1 FROM information_schema.tables
-            WHERE table_schema = 'public'
-              AND table_name   = %s
-        """, (table,))
-        return cur.fetchone() is not None
+    if table not in _schema_cache:
+        _load_schema_cache(conn, [table])
+    return _schema_cache[table]["exists"]
 
 
 def _has_column(conn, table: str, column: str) -> bool:
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name   = %s
-              AND column_name  = %s
-        """, (table, column))
-        return cur.fetchone() is not None
+    if column != "view_count":
+        # only view_count is cached; fall back to direct query for anything else
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name   = %s
+                  AND column_name  = %s
+            """, (table, column))
+            return cur.fetchone() is not None
+    if table not in _schema_cache:
+        _load_schema_cache(conn, [table])
+    return _schema_cache[table]["has_view_count"]
 
 
 def get_streams_for_channel(conn, table: str) -> list[dict]:
@@ -1170,8 +1210,7 @@ def write_channel_page(org_slug: str, org: dict,
 
 
 def write_stream_page(org_slug: str, org: dict, ch_name: str,
-                      stream: dict, rows: list[dict],
-                      timeseries: list[dict]) -> None:
+                      stream: dict, timeseries: list[dict]) -> None:
     vid     = stream["video_id"]
     v_slug  = slugify(vid)
     ch_slug = slugify(ch_name)
@@ -1190,21 +1229,6 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
     viewers  = [int(r["concurrent_viewers"] or 0) for r in timeseries]
     likes    = [int(r["like_count"]         or 0) for r in timeseries]
     comments = [int(r["comment_count"]      or 0) for r in timeseries]
-
-    table_rows_html = ""
-    for r in rows:
-        r_status   = r.get("stream_status", "")
-        pill_class = "pill-live" if r_status == "live" else "pill-upcoming"
-        table_rows_html += (
-            f'\n        <tr>'
-            f'<td class="ts">{fmt_dt(r["collected_at"])}</td>'
-            f'<td><span class="pill {pill_class}">{esc(r_status)}</span></td>'
-            f'<td class="num">{fmt(r["concurrent_viewers"])}</td>'
-            f'<td class="num">{fmt(r["like_count"])}</td>'
-            f'<td class="num">{fmt(r["comment_count"])}</td>'
-            f'<td class="ts">{fmt_dt(r.get("actual_start") or r.get("scheduled_start"))}</td>'
-            f'</tr>'
-        )
 
     title_text  = stream["video_title"] or vid
     short_title = (title_text[:40] + "…") if len(title_text) > 40 else title_text
@@ -1323,25 +1347,24 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
 
 def _enrich_stream(stream: dict, conn, table: str, hist) -> tuple[dict, list, list]:
     """
-    Given a stream summary row, fetch its timeseries + all_rows and
-    compute avg_viewers. Returns (enriched_stream, all_rows, timeseries).
+    Fetch timeseries and compute avg_viewers for a stream.
+    Returns (enriched_stream, timeseries).
+    all_rows is no longer fetched — the raw data table was removed from the stream page.
     """
     is_archived = stream.get("_source") == "history"
 
     if is_archived:
-        ts       = get_archived_timeseries(hist, stream["video_id"])
-        all_rows = []
+        ts = get_archived_timeseries(hist, stream["video_id"])
         if stream.get("avg_viewers") is None:
             viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
             stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
     else:
-        ts       = get_stream_timeseries(conn, table, stream["video_id"])
-        all_rows = get_all_rows(conn, table, stream["video_id"])
+        ts = get_stream_timeseries(conn, table, stream["video_id"])
         viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
         stream = dict(stream)
         stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
 
-    return stream, all_rows, ts
+    return stream, ts
 
 
 def build_dashboard() -> None:
@@ -1380,6 +1403,10 @@ def build_dashboard() -> None:
     log.info("Fetching channel data from YouTube API…")
     logos, subscribers = get_channel_data(all_channel_ids)
     log.info("Fetched %d logo(s) and %d subscriber count(s).", len(logos), len(subscribers))
+
+    # ── bulk-load schema cache (single query for all 62 tables) ──────────────
+    all_table_names = [ch["table_name"] for ch in db_channels]
+    _load_schema_cache(conn, all_table_names)
 
     # ── load manifest ─────────────────────────────────────────────────────────
     manifest = load_manifest()
@@ -1459,8 +1486,8 @@ def build_dashboard() -> None:
                 if vid not in dirty_video_ids:
                     continue
 
-                stream, all_rows, ts = _enrich_stream(stream, conn, table, hist)
-                write_stream_page(org_slug, org, ch_name, stream, all_rows, ts)
+                stream, ts = _enrich_stream(stream, conn, table, hist)
+                write_stream_page(org_slug, org, ch_name, stream, ts)
 
                 # update manifest entry
                 manifest[vid] = {
