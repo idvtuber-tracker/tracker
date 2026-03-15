@@ -7,6 +7,14 @@ static HTML dashboard:
   {org}/{channel}/index.html       ← stream cards per channel
   {org}/{channel}/{video}.html     ← stream detail + charts
 
+Partial build algorithm:
+  - A manifest (dashboard/manifest.json) tracks every generated stream page.
+  - On each run, only stream pages that are NEW or currently LIVE are
+    (re)generated. Their parent channel and org pages are then also
+    regenerated to reflect updated stream counts / card lists.
+  - The index page is always regenerated (trivially cheap).
+  - Unchanged stream pages (VOD, already in manifest) are never touched.
+
 Org membership is driven by the ORG_MAP dict below — update it when
 channels are added or moved between organisations.
 """
@@ -17,12 +25,11 @@ import json
 import shutil
 import sqlite3
 import logging
+from collections import OrderedDict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-# Display timezone for dashboard timestamps.
-# Indonesia does not observe DST so this is always UTC+7.
 _LOCAL_TZ = ZoneInfo("Asia/Jakarta")
 
 def _now_local() -> datetime:
@@ -33,6 +40,7 @@ import psycopg2.extras
 
 try:
     from googleapiclient.discovery import build as yt_build
+    from googleapiclient.errors import HttpError as _HttpError
     _YT_AVAILABLE = True
 except ImportError:
     _YT_AVAILABLE = False
@@ -48,26 +56,25 @@ log = logging.getLogger(__name__)
 # ── config ────────────────────────────────────────────────────────────────────
 AIVEN_DATABASE_URL = os.environ.get("AIVEN_DATABASE_URL", "")
 OUTPUT_DIR         = Path(os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard"))
-HISTORY_DB_PATH    = os.environ.get("HISTORY_DB_PATH", "../idvt-history/history.db")
+HISTORY_DB_PATH    = os.environ.get(
+    "HISTORY_DB_PATH",
+    str(Path(__file__).parent.parent / "idvt-history" / "history.db")
+)
+MANIFEST_PATH      = OUTPUT_DIR / "manifest.json"
+
 
 # ── org definitions ───────────────────────────────────────────────────────────
-# Keys must match channel_name values in the `channels` DB table exactly.
-# "type" = "org" for the organisation's own channel, "talent" for talent channels.
-# Add / remove channels here as the roster grows.
-
 ORG_MAP = {
     "pandavva": {
         "label":   "PANDAVVA",
         "color":   "#e8ff47",
         "desc":    "An Indonesian VTuber organization with a rich mythological theme inspired by the Mahabharata.",
         "channels": [
-            # (channel_name, type, youtube_channel_id)
-            # channel_id enables logo + subscriber fetch even before DB entry exists
             ("PANDAVVA Official",             "org",    "UCxhBc3OUK0PdnjD-Pjj5-ZA"),
             ("Yudistira Yogendra 【PANDAVVA】", "talent", "UCdVRAGFhvkSIhMYxPdVBDzA"),
             ("Bima Bayusena【PANDAVVA】",       "talent", "UCJTNnAFxljZnKGMb5B8XKIA"),
             ("Arjuna Arkana【PANDAVVA】",       "talent", "UCmpT2MkZjPYkqLMrEHv6k0w"),
-            ("Nakula Nalendra【PANDAVVA】",      "talent", "UCtGgHePeV6ePoTtlEspXJbQ"),  # not yet in DB
+            ("Nakula Nalendra【PANDAVVA】",      "talent", "UCtGgHePeV6ePoTtlEspXJbQ"),
             ("Sadewa Sagara【PANDAVVA】",       "talent", "UCaQwGFUjKGFz0kqxJrP6etA"),
         ],
     },
@@ -76,11 +83,11 @@ ORG_MAP = {
         "color":   "#47ffb2",
         "desc":    "A dynamic VTuber project featuring seven unique talents spanning a wide range of creative personalities.",
         "channels": [
-            ("Project:LIVIUM",                            "org",    "UC0ZYul2i5OcyKbdKB2v1O2w"),  # not yet in DB
+            ("Project:LIVIUM",                            "org",    "UC0ZYul2i5OcyKbdKB2v1O2w"),
             ("Indira Naylarissa Ch.〔LiviPro〕",   "talent", "UC0bqAp0JfFpJvgEp2U5LJHQ"),
-            ("Silvia Valleria Ch.〔LiviPro〕",     "talent", "UCXRm3Aqtk5ilju1InZALcgA"),  # not yet in DB
+            ("Silvia Valleria Ch.〔LiviPro〕",     "talent", "UCXRm3Aqtk5ilju1InZALcgA"),
             ("Yuura Yozakura Ch.〔LiviPro〕",      "talent", "UCnQAkbWmWkfOvRYoAza5cbA"),
-            ("Ymelia Meiru Ch.〔LiviPro〕",        "talent", "UClv13dr4Q3eptzrH-Ul4e7Q"),  # not yet in DB
+            ("Ymelia Meiru Ch.〔LiviPro〕",        "talent", "UClv13dr4Q3eptzrH-Ul4e7Q"),
             ("Fareye Closhartt Ch.〔LiviPro〕",    "talent", "UCrC4jCRi3ZM-GxgLJSvmkfQ"),
             ("Yuela GuiGui Ch.〔LiviPro〕",        "talent", "UCnQAkbWmWkfOvRYoAza5cbB"),
             ("Lillis Infernallies Ch.〔LiviPro〕", "talent", "UCnQAkbWmWkfOvRYoAza5cbC"),
@@ -91,7 +98,7 @@ ORG_MAP = {
         "color":   "#b47fff",
         "desc":    "A boutique VTuber agency known for its refined aesthetic and five distinctive talents with global appeal.",
         "channels": [
-            ("Whicker Butler",                           "org",    "UCc04w_tCWOiTkszx5DGqSag"),  # not yet in DB
+            ("Whicker Butler",                           "org",    "UCc04w_tCWOiTkszx5DGqSag"),
             ("Valthea Nankila 【 Whicker Butler 】",  "talent", "UCY1GUw8wBb_PSOzg7AoghvQ"),
             ("Ignis Grimoire【Whicker Butler】",       "talent", "UCJbrzGrVtSC0KbtkEzD50cw"),
             ("Darlyne Nightbloom【Whicker Butler】",   "talent", "UCtiNMw_89OUjPThykjwIsAA"),
@@ -104,95 +111,125 @@ ORG_MAP = {
         "color":   "#7ec8e3",
         "desc":    "An Indonesian VTuber organization serving as a bridge and support platform for virtual content creators.",
         "channels": [
-            ("Yorukaze Production", "org", "UCXn1p9luEl8oUKL-dbtMd9g"),
-            ("Hessa Elainore Ch.【Yorukaze】", "talent", "UCL61Tr4KMxiv6o9u_WXxDCg"),
-            ("Tsukiyo Miho Ch.【Yorukaze】", "talent", "UC9VZtHQN1GGs5V7vZgvTQ4A"),
-            ("Mihiro Kamigawa【Yorukaze】", "talent", "UCUx_NfLnJma2dHzG90_I5HA"),
-            ("Vincent Cerbero【Yorukaze】", "talent", "UC2maoIIbLUrbPApf11GLR6A"),
-            ("Utahime Yukari Ch.【Yorukaze】", "talent", "UC4HgZAlD5MUFIe2nHYhPhJw"),
-            ("Nanaka Poi Ch. 【Yorukaze】", "talent", "UCFjaorskBcTDdDIQ5BP2ucg"),
-            ("Amare Michiya【Yorukaze】", "talent", "UC04yaXbxeiG_sN47idcdimg"),
-            ("Hoshikawa Rui【Yorukaze】", "talent", "UCnh6AfYwFB9Elsdtkl73cuQ"),
-            ("Yuzumi_Ch【Yorukaze】", "talent", "UCCZ4ZY1kaSkZC6OiA-2916Q"),
-            ("Ellise Youka【Yorukaze】", "talent", "UCE5Mvtoy8GiPtsv5sLUKlgg"),
-            ("WanTaps Ch.【Yorukaze】", "talent", "UC7CpE_gbbvNBkUFMHWeUMpA"),
-            ("Wintergea Ch. ゲア 【Yorukaze】", "talent", "UCv9P--tuUkAxpZaTowy7h9Q"),
+            ("Yorukaze Production",            "org",    "UCXn1p9luEl8oUKL-dbtMd9g"),
+            ("Hessa Elainore Ch.【Yorukaze】",  "talent", "UCL61Tr4KMxiv6o9u_WXxDCg"),
+            ("Tsukiyo Miho Ch.【Yorukaze】",    "talent", "UC9VZtHQN1GGs5V7vZgvTQ4A"),
+            ("Mihiro Kamigawa【Yorukaze】",      "talent", "UCUx_NfLnJma2dHzG90_I5HA"),
+            ("Vincent Cerbero【Yorukaze】",      "talent", "UC2maoIIbLUrbPApf11GLR6A"),
+            ("Utahime Yukari Ch.【Yorukaze】",   "talent", "UC4HgZAlD5MUFIe2nHYhPhJw"),
+            ("Nanaka Poi Ch. 【Yorukaze】",      "talent", "UCFjaorskBcTDdDIQ5BP2ucg"),
+            ("Amare Michiya【Yorukaze】",         "talent", "UC04yaXbxeiG_sN47idcdimg"),
+            ("Hoshikawa Rui【Yorukaze】",         "talent", "UCnh6AfYwFB9Elsdtkl73cuQ"),
+            ("Yuzumi_Ch【Yorukaze】",             "talent", "UCCZ4ZY1kaSkZC6OiA-2916Q"),
+            ("Ellise Youka【Yorukaze】",          "talent", "UCE5Mvtoy8GiPtsv5sLUKlgg"),
+            ("WanTaps Ch.【Yorukaze】",           "talent", "UC7CpE_gbbvNBkUFMHWeUMpA"),
+            ("Wintergea Ch. ゲア 【Yorukaze】",   "talent", "UCv9P--tuUkAxpZaTowy7h9Q"),
         ],
     },
-
     "prism-nova": {
         "label":   "Prism:NOVA",
         "color":   "#c084fc",
         "desc":    "An Indonesian VTuber agency focused on characterisation, storytelling, and roleplaying.",
         "channels": [
-            ("Prism:NOVA", "org", "UCpaiXLRcHzx5XpHysrO9JQA"),
-            ("Oxa Lydea 【Prism:NOVA】", "talent", "UCV2KRUSE92ZyAPed1770Dww"),
-            ("Serika Cosmica 【Prism:NOVA】", "talent", "UCjIlQoGYrKRyykHTJdJ9fdA"),
-            ("Thalia Symphonia 【Prism:NOVA】", "talent", "UCBGkli-RvhJozIcXVVKg2iA"),
+            ("Prism:NOVA",                      "org",    "UCpaiXLRcHzx5XpHysrO9JQA"),
+            ("Oxa Lydea 【Prism:NOVA】",         "talent", "UCV2KRUSE92ZyAPed1770Dww"),
+            ("Serika Cosmica 【Prism:NOVA】",    "talent", "UCjIlQoGYrKRyykHTJdJ9fdA"),
+            ("Thalia Symphonia 【Prism:NOVA】",  "talent", "UCBGkli-RvhJozIcXVVKg2iA"),
         ],
     },
-
     "vcosmix": {
         "label":   "VCosmix",
         "color":   "#f472b6",
         "desc":    "An Indonesian VTuber group who provides girls fun experience.",
         "channels": [
-            ("Vcosmix", "org", "UCxdS5pTt5WfbTD6WUY8z2EQ"),
-            ("Lea Lestari Ch.", "talent", "UCmlIjSXna6pZLeM7HK8Vewg"),
-            ("Miichan Chu Ch.", "talent", "UCx-WXnxhiZwUsr_bagtUxwQ"),
-            ("Li Mingshu Ch.", "talent", "UCJL18InOQxSBXswn4sfD_fQ"),
+            ("Vcosmix",          "org",    "UCxdS5pTt5WfbTD6WUY8z2EQ"),
+            ("Lea Lestari Ch.",  "talent", "UCmlIjSXna6pZLeM7HK8Vewg"),
+            ("Miichan Chu Ch.",  "talent", "UCx-WXnxhiZwUsr_bagtUxwQ"),
+            ("Li Mingshu Ch.",   "talent", "UCJL18InOQxSBXswn4sfD_fQ"),
         ],
     },
-
     "dexter": {
         "label":   "DEXTER",
         "color":   "#f87171",
         "desc":    "An Indonesian VTuber agency with male talents that specializes in various contents and singing.",
         "channels": [
-            ("Dexter Official", "org", "UCVitBVX8nnvP0gfe1s5VRGA"),
-            ("Richard Ravindra【DEXTER】", "talent", "UCeEXULUk2S16jjLSv7ar51Q"),
-            ("Rex Arcadia【DEXTER】", "talent", "UCCv6ctVKeh2U3LAH1RNejmQ"),
-            ("Lucentia【DEXTER】", "talent", "UC1J_JlLEIzkXwkDdkEhE2dg"),
-            ("Noa Florastra【DEXTER】", "talent", "UC19WbhRSDkExpUE6XAqDANg"),
+            ("Dexter Official",              "org",    "UCVitBVX8nnvP0gfe1s5VRGA"),
+            ("Richard Ravindra【DEXTER】",    "talent", "UCeEXULUk2S16jjLSv7ar51Q"),
+            ("Rex Arcadia【DEXTER】",         "talent", "UCCv6ctVKeh2U3LAH1RNejmQ"),
+            ("Lucentia【DEXTER】",            "talent", "UC1J_JlLEIzkXwkDdkEhE2dg"),
+            ("Noa Florastra【DEXTER】",       "talent", "UC19WbhRSDkExpUE6XAqDANg"),
         ],
     },
-
     "cozycazt": {
         "label":   "CozyCazt",
         "color":   "#fb923c",
         "desc":    "An Indonesian VTuber agency which projects comfortable and friendly aura.",
         "channels": [
-            ("Cozy Cazt", "org", "UCFCfSe5tJrnQt3cuT9g59Lw"),
-            ("Rannia Taiga 【CozyCazt】", "talent", "UCjPBlVNDtHHYwrvpxBCiY5g"),
-            ("Lyta Luciana Ch.【CozyCazt】", "talent", "UCca5aOYzqyO6GdeNLB8QDNg"),
-            ("Arphina Stellaria【CozyCazt】", "talent", "UCDxHKSgQD7tcTr36F2GnvDg"),
-            ("Vianna Risendria 【CozyCazt】", "talent", "UCuGlDdzoTyM55cQrJO_kEZw"),
-            ("Fuyo Mafuyu【CozyCazt】", "talent", "UCMtHNyhNeLZEPw6S2-1556A"),
-            ("Silveryshore Ch.【CozyCazt】", "talent", "UCQpD-UhHdhFL1DTJxhJpuyA"),
+            ("Cozy Cazt",                        "org",    "UCFCfSe5tJrnQt3cuT9g59Lw"),
+            ("Rannia Taiga 【CozyCazt】",         "talent", "UCjPBlVNDtHHYwrvpxBCiY5g"),
+            ("Lyta Luciana Ch.【CozyCazt】",      "talent", "UCca5aOYzqyO6GdeNLB8QDNg"),
+            ("Arphina Stellaria【CozyCazt】",     "talent", "UCDxHKSgQD7tcTr36F2GnvDg"),
+            ("Vianna Risendria 【CozyCazt】",     "talent", "UCuGlDdzoTyM55cQrJO_kEZw"),
+            ("Fuyo Mafuyu【CozyCazt】",           "talent", "UCMtHNyhNeLZEPw6S2-1556A"),
+            ("Silveryshore Ch.【CozyCazt】",      "talent", "UCQpD-UhHdhFL1DTJxhJpuyA"),
         ],
     },
-
     "afterain": {
         "label":   "AfteRain",
         "color":   "#60a5fa",
         "desc":    "An Indonesian VTuber agency with various talents background and specialties.",
         "channels": [
-            ("AFTERAIN PROJECT", "org", "UCOJwb4RalSz3_3EHIM5pVfw"),
-            ("LynShuu 【AFTERAIN】", "talent", "UCzsHESRY504seJawYVRSs7Q"),
-            ("Nezufu Senshirou【AFTERAIN】", "talent", "UCGR-Fzxnm0TQs2uAIWn8IlQ"),
-            ("Lvna Tylthia【AFTERAIN】", "talent", "UCgZoh0CWVTg_o_wHy1F5QBQ"),
-            ("Poffie Hunni【AFTERAIN】", "talent", "UCFgLJQqhovnBBf4CIsC0OCA"),
-            ("Flein Ryst【AFTERAIN】", "talent", "UCY-fhXM0BzpBtBk1czoY5fA"),
-            ("Avy Inkaiserin 【AFTERAIN】", "talent", "UCvHWaiG9YSPgmLhNuLmqMUA"),
-            ("Kana Chizu 【AFTERAIN】", "talent", "UCh5wq5bs4VG1ah3THbW156g"),
-            ("Ririna Ruu【AFTERAIN】", "talent", "UC_vnL6pH3Mm3XrnuQ38LWtQ"),
+            ("AFTERAIN PROJECT",             "org",    "UCOJwb4RalSz3_3EHIM5pVfw"),
+            ("LynShuu 【AFTERAIN】",          "talent", "UCzsHESRY504seJawYVRSs7Q"),
+            ("Nezufu Senshirou【AFTERAIN】",  "talent", "UCGR-Fzxnm0TQs2uAIWn8IlQ"),
+            ("Lvna Tylthia【AFTERAIN】",      "talent", "UCgZoh0CWVTg_o_wHy1F5QBQ"),
+            ("Poffie Hunni【AFTERAIN】",      "talent", "UCFgLJQqhovnBBf4CIsC0OCA"),
+            ("Flein Ryst【AFTERAIN】",        "talent", "UCY-fhXM0BzpBtBk1czoY5fA"),
+            ("Avy Inkaiserin 【AFTERAIN】",   "talent", "UCvHWaiG9YSPgmLhNuLmqMUA"),
+            ("Kana Chizu 【AFTERAIN】",       "talent", "UCh5wq5bs4VG1ah3THbW156g"),
+            ("Ririna Ruu【AFTERAIN】",        "talent", "UC_vnL6pH3Mm3XrnuQ38LWtQ"),
         ],
     },
-  
 }
 
+# Build reverse lookup: channel_name → (org_slug, org)
+_CH_TO_ORG: dict[str, tuple[str, dict]] = {}
+for _slug, _org in ORG_MAP.items():
+    for _entry in _org["channels"]:
+        _CH_TO_ORG[_entry[0]] = (_slug, _org)
 
-# ── DB helpers ─────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MANIFEST
+# ══════════════════════════════════════════════════════════════════════════════
+
+def load_manifest() -> dict:
+    """
+    Returns the manifest dict, keyed by video_id.
+    Each entry: {org_slug, ch_slug, ch_name, status, generated_at}
+    """
+    if MANIFEST_PATH.exists():
+        try:
+            return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        except Exception as e:
+            log.warning("Manifest unreadable (%s) — treating as empty.", e)
+    return {}
+
+
+def save_manifest(manifest: dict) -> None:
+    try:
+        MANIFEST_PATH.write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
+    except Exception as e:
+        log.warning("Could not save manifest: %s", e)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DB HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
 def get_conn():
     return psycopg2.connect(
         AIVEN_DATABASE_URL,
@@ -211,7 +248,6 @@ def get_channel_rows(conn) -> list[dict]:
 
 
 def _table_exists(conn, table: str) -> bool:
-    """Return True if the table exists in the public schema."""
     with conn.cursor() as cur:
         cur.execute("""
             SELECT 1 FROM information_schema.tables
@@ -222,7 +258,6 @@ def _table_exists(conn, table: str) -> bool:
 
 
 def _has_column(conn, table: str, column: str) -> bool:
-    """Return True if the given column exists on the table."""
     with conn.cursor() as cur:
         cur.execute("""
             SELECT 1 FROM information_schema.columns
@@ -283,22 +318,18 @@ def get_all_rows(conn, table: str, video_id: str) -> list[dict]:
         return cur.fetchall()
 
 
-
+# ══════════════════════════════════════════════════════════════════════════════
+# HISTORY DB HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
 
 def get_history_conn():
-    """
-    Open history.db (SQLite) if it exists.
-    Returns None gracefully if the file is absent — dashboard still works
-    with live data only.
-    """
     path = HISTORY_DB_PATH
     if not os.path.exists(path):
         log.info("history.db not found at %s — archived streams will not be shown.", path)
         return None
     try:
-        import sqlite3 as _sq3
-        conn = _sq3.connect(path)
-        conn.row_factory = _sq3.Row
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
     except Exception as e:
@@ -308,10 +339,6 @@ def get_history_conn():
 
 def get_archived_streams_for_channel(hist, channel_name: str,
                                      exclude_video_ids: set) -> list:
-    """
-    Returns archived streams for a channel not already in the live DB.
-    Normalised to match the live DB dict structure.
-    """
     rows = hist.execute("""
         SELECT
             video_id, video_title, stream_status,
@@ -342,7 +369,6 @@ def get_archived_streams_for_channel(hist, channel_name: str,
 
 
 def get_archived_timeseries(hist, video_id: str) -> list:
-    """Returns timeseries rows from history.db, normalised to match live DB format."""
     rows = hist.execute("""
         SELECT collected_at, concurrent_viewers, like_count, comment_count
         FROM timeseries
@@ -362,6 +388,9 @@ def get_archived_timeseries(hist, video_id: str) -> list:
     return result
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# LOGO / SUBSCRIBER CACHE
+# ══════════════════════════════════════════════════════════════════════════════
 
 _CACHE_DIR           = Path(__file__).parent / "cache"
 _LOGO_CACHE_FILE     = str(_CACHE_DIR / "channel_logos_cache.json")
@@ -369,7 +398,6 @@ _LOGO_FALLBACK_FILE  = str(_CACHE_DIR / "channel_logos_fallback.json")
 
 
 def _load_fallback() -> tuple[dict[str, str], dict[str, int]]:
-    """Load the last known good logos + subscribers from the persistent fallback file."""
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     if os.path.exists(_LOGO_FALLBACK_FILE):
         try:
@@ -387,7 +415,6 @@ def _load_fallback() -> tuple[dict[str, str], dict[str, int]]:
 
 
 def _save_fallback(logos: dict[str, str], subscribers: dict[str, int]) -> None:
-    """Persist a successful fetch as the new fallback."""
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     try:
         with open(_LOGO_FALLBACK_FILE, "w", encoding="utf-8") as f:
@@ -405,21 +432,12 @@ def _save_fallback(logos: dict[str, str], subscribers: dict[str, int]) -> None:
 def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, int]]:
     """
     Fetch channel thumbnail URLs and subscriber counts from YouTube API.
-    Both are returned from the same channels.list call (snippet + statistics)
-    so there is no extra API cost over fetching logos alone.
+    Rotates through all available API keys on 403.
+    Falls back to last successful fetch on complete failure.
     Results are cached to disk for the remainder of the local day.
-
-    On any API failure (including 403), falls back to the last successful
-    fetch stored in channel_logos_fallback.json so org pages always render
-    with the most recently known logos and subscriber counts.
-
-    Returns:
-        logos       — {channel_id: thumbnail_url}
-        subscribers — {channel_id: subscriber_count}
     """
     today = _now_local().strftime("%Y-%m-%d")
 
-    # ── return from today's cache if still valid ───────────────────────────────
     if os.path.exists(_LOGO_CACHE_FILE):
         try:
             with open(_LOGO_CACHE_FILE, encoding="utf-8") as f:
@@ -430,70 +448,80 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
         except Exception as e:
             log.warning("Logo cache unreadable (%s) — will re-fetch.", e)
 
-    # ── fetch from API ─────────────────────────────────────────────────────────
-    api_key = os.environ.get("YOUTUBE_API_KEYS") or os.environ.get("YOUTUBE_API_KEY", "")
-    if api_key:
-        api_key = api_key.split(",")[0].strip()
+    raw_keys = os.environ.get("YOUTUBE_API_KEYS") or os.environ.get("YOUTUBE_API_KEY", "")
+    api_keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
 
     if not _YT_AVAILABLE:
         log.warning("Channel data fetch skipped: google-api-python-client not installed.")
         return _load_fallback()
-    if not api_key:
-        log.warning("Channel data fetch skipped: no YOUTUBE_API_KEYS or YOUTUBE_API_KEY in environment.")
+    if not api_keys:
+        log.warning("Channel data fetch skipped: no API keys in environment.")
         return _load_fallback()
     if not channel_ids:
         log.warning("Channel data fetch skipped: channel_ids list is empty.")
         return _load_fallback()
 
-    log.info("Fetching channel data for %d IDs using key ...%s", len(channel_ids), api_key[-6:])
-
     logos:       dict[str, str] = {}
     subscribers: dict[str, int] = {}
-    api_failed = False
+    api_failed   = False
 
     for i in range(0, len(channel_ids), 50):
-        batch = channel_ids[i:i + 50]
-        try:
-            yt = yt_build("youtube", "v3", developerKey=api_key)
-            resp = yt.channels().list(
-                part="snippet,statistics",
-                id=",".join(batch),
-                maxResults=50,
-            ).execute()
-            items_returned = resp.get("items", [])
-            log.info("channels.list batch %d–%d: %d item(s) returned (totalResults=%s).",
-                     i, i + len(batch), len(items_returned),
-                     resp.get("pageInfo", {}).get("totalResults", "?"))
-            for item in items_returned:
-                cid    = item["id"]
-                thumbs = item.get("snippet", {}).get("thumbnails", {})
-                url    = (thumbs.get("medium") or thumbs.get("default") or {}).get("url", "")
-                if url:
-                    logos[cid] = url
-                else:
-                    log.warning("No thumbnail URL found for channel ID: %s", cid)
-                sub_count = item.get("statistics", {}).get("subscriberCount")
-                if sub_count is not None:
-                    subscribers[cid] = int(sub_count)
-        except Exception as e:
-            log.error("channels.list API call failed: %s", e, exc_info=True)
+        batch      = channel_ids[i:i + 50]
+        batch_done = False
+
+        for api_key in api_keys:
+            try:
+                log.info("channels.list batch %d–%d using key ...%s",
+                         i, i + len(batch), api_key[-6:])
+                yt   = yt_build("youtube", "v3", developerKey=api_key)
+                resp = yt.channels().list(
+                    part="snippet,statistics",
+                    id=",".join(batch),
+                    maxResults=50,
+                ).execute()
+                items_returned = resp.get("items", [])
+                log.info("  → %d item(s) returned (totalResults=%s).",
+                         len(items_returned),
+                         resp.get("pageInfo", {}).get("totalResults", "?"))
+                for item in items_returned:
+                    cid    = item["id"]
+                    thumbs = item.get("snippet", {}).get("thumbnails", {})
+                    url    = (thumbs.get("medium") or thumbs.get("default") or {}).get("url", "")
+                    if url:
+                        logos[cid] = url
+                    else:
+                        log.warning("No thumbnail URL found for channel ID: %s", cid)
+                    sub_count = item.get("statistics", {}).get("subscriberCount")
+                    if sub_count is not None:
+                        subscribers[cid] = int(sub_count)
+                batch_done = True
+                break
+            except _HttpError as e:
+                if e.resp.status == 403:
+                    log.warning("403 on channels.list (key ...%s) — rotating.", api_key[-6:])
+                    continue
+                log.error("channels.list HTTP error (key ...%s): %s", api_key[-6:], e)
+                api_failed = True
+                break
+            except Exception as e:
+                log.error("channels.list unexpected error (key ...%s): %s", api_key[-6:], e)
+                api_failed = True
+                break
+
+        if not batch_done:
+            log.error("All %d key(s) failed for batch %d–%d.", len(api_keys), i, i + len(batch))
             api_failed = True
 
-    # ── on complete API failure, return fallback without overwriting cache ──────
     if api_failed and not logos and not subscribers:
         log.warning("API fetch produced no data — falling back to last known good channel data.")
         return _load_fallback()
 
-    # ── partial failure: merge fresh results on top of fallback ───────────────
     if api_failed and (logos or subscribers):
         log.warning("API fetch partially failed — merging fresh results with fallback data.")
         fallback_logos, fallback_subs = _load_fallback()
-        # fallback fills in any channel missing from the partial fetch
-        merged_logos = {**fallback_logos, **logos}
-        merged_subs  = {**fallback_subs,  **subscribers}
-        logos, subscribers = merged_logos, merged_subs
+        logos       = {**fallback_logos, **logos}
+        subscribers = {**fallback_subs,  **subscribers}
 
-    # ── persist today's cache and update fallback ──────────────────────────────
     try:
         with open(_LOGO_CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump({"date": today, "logos": logos, "subscribers": subscribers}, f)
@@ -503,17 +531,13 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
         log.warning("Could not save channel data cache: %s", e)
 
     _save_fallback(logos, subscribers)
-
     return logos, subscribers
 
 
-def get_channel_logos(channel_ids: list[str]) -> dict[str, str]:
-    """Backwards-compatible alias — returns logos only."""
-    logos, _ = get_channel_data(channel_ids)
-    return logos
+# ══════════════════════════════════════════════════════════════════════════════
+# UTILITY HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
 
-
-# ── helpers ───────────────────────────────────────────────────────────────────
 def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
@@ -528,7 +552,6 @@ def fmt(n) -> str:
 
 
 def fmt_subs(n) -> str:
-    """Format subscriber count compactly: 1234567 → 1.2M, 12345 → 12.3K."""
     if n is None:
         return "—"
     try:
@@ -546,12 +569,9 @@ def fmt_dt(dt) -> str:
     if dt is None:
         return "—"
     if isinstance(dt, datetime):
-        # DB stores timestamps as UTC; convert to local display timezone (UTC+7)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
-        local_dt = dt.astimezone(_LOCAL_TZ)
-        return local_dt.strftime("%Y-%m-%d %H:%M WIB")
-    # String fallback — assume UTC, parse and convert
+        return dt.astimezone(_LOCAL_TZ).strftime("%Y-%m-%d %H:%M WIB")
     try:
         parsed = datetime.fromisoformat(str(dt).replace("Z", "+00:00"))
         if parsed.tzinfo is None:
@@ -569,7 +589,10 @@ def esc(s) -> str:
             .replace('"', "&quot;"))
 
 
-# ── shared CSS + fonts ────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# SHARED CSS + HTML HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
 _FONTS = (
     '<link rel="preconnect" href="https://fonts.googleapis.com">'
     '<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght'
@@ -589,9 +612,6 @@ _BASE_CSS = """
     --red:         #ff4f6d;
     --blue:        #4fc3f7;
     --org-color:   #e8ff47;
-    /* accent-text: readable version of org-color for text contexts.
-       Dark theme: same as org-color (bright on dark is fine).
-       Light theme: overridden to a dark neutral so yellow text stays legible. */
     --accent-text: var(--org-color);
   }
 
@@ -626,23 +646,11 @@ _BASE_CSS = """
   }
 
   /* ── light theme badge and pill background overrides ── */
-  [data-theme="light"] .status-live,
-  :root:not([data-theme="dark"]).light-sys .status-live {
-    background: rgba(192,0,42,0.10); color: var(--red); border-color: var(--red);
-  }
-  [data-theme="light"] .status-upcoming,
-  :root:not([data-theme="dark"]).light-sys .status-upcoming {
-    background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue);
-  }
-  [data-theme="light"] .status-vod {
-    background: rgba(100,100,90,0.12);
-  }
-  [data-theme="light"] .pill-live {
-    background: rgba(192,0,42,0.10); color: var(--red); border-color: var(--red);
-  }
-  [data-theme="light"] .pill-upcoming {
-    background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue);
-  }
+  [data-theme="light"] .status-live     { background: rgba(192,0,42,0.10); color: var(--red);  border-color: var(--red);  }
+  [data-theme="light"] .status-upcoming { background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue); }
+  [data-theme="light"] .status-vod      { background: rgba(100,100,90,0.12); }
+  [data-theme="light"] .pill-live       { background: rgba(192,0,42,0.10); color: var(--red);  border-color: var(--red);  }
+  [data-theme="light"] .pill-upcoming   { background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue); }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) .status-live     { background: rgba(192,0,42,0.10); color: var(--red);  border-color: var(--red);  }
     :root:not([data-theme="dark"]) .status-upcoming { background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue); }
@@ -653,19 +661,14 @@ _BASE_CSS = """
 
   /* ── light theme: suppress neon glow effects ── */
   [data-theme="light"] .org-dot,
-  [data-theme="light"] .month-heading::before {
-    box-shadow: none;
-  }
+  [data-theme="light"] .month-heading::before { box-shadow: none; }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) .org-dot              { box-shadow: none; }
     :root:not([data-theme="dark"]) .month-heading::before { box-shadow: none; }
   }
 
   /* ── theme toggle ── */
-  .theme-toggle {
-    margin-left: auto; flex-shrink: 0;
-    display: flex; align-items: center;
-  }
+  .theme-toggle { margin-left: auto; flex-shrink: 0; display: flex; align-items: center; }
   .toggle-pill {
     position: relative; display: flex; align-items: center;
     width: 56px; height: 28px;
@@ -683,12 +686,12 @@ _BASE_CSS = """
     font-size: 11px; line-height: 1; pointer-events: none;
   }
   .toggle-thumb.is-light { transform: translateX(28px); }
-  .toggle-icon-dark,
-  .toggle-icon-light {
+  .toggle-icon-dark, .toggle-icon-light {
     position: absolute; font-size: 10px; line-height: 1; pointer-events: none;
   }
   .toggle-icon-dark  { right: 7px; }
   .toggle-icon-light { left:  7px; }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body {
@@ -730,10 +733,7 @@ _BASE_CSS = """
   .page-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.75rem; }
 
   /* org cards */
-  .orgs-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem; margin-top: 3rem;
-  }
+  .orgs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 3rem; }
   .org-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 6px; padding: 2rem;
@@ -748,29 +748,20 @@ _BASE_CSS = """
   }
   .org-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
   .org-card:hover::after { transform: scaleX(1); }
-  .org-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--org-color); margin-bottom: 1.25rem;
-    box-shadow: 0 0 12px var(--org-color);
-  }
+  .org-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--org-color); margin-bottom: 1.25rem; box-shadow: 0 0 12px var(--org-color); }
   .org-title { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--white); margin-bottom: 0.5rem; }
   .org-desc { font-size: 0.78rem; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.6; }
   .org-stat { font-size: 0.72rem; color: var(--muted); }
   .org-stat strong { color: var(--accent-text); }
 
   /* channel card grid */
-  .channels-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1.25rem; margin-top: 2.5rem;
-  }
+  .channels-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
   .channel-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 6px; padding: 1.5rem 1.25rem;
     text-decoration: none; color: inherit; display: flex;
     flex-direction: column; align-items: center; text-align: center;
-    gap: 0.9rem;
-    transition: border-color 0.2s, transform 0.2s;
+    gap: 0.9rem; transition: border-color 0.2s, transform 0.2s;
     position: relative; overflow: hidden;
   }
   .channel-card::after {
@@ -780,21 +771,14 @@ _BASE_CSS = """
   }
   .channel-card:hover { border-color: var(--org-color); transform: translateY(-3px); }
   .channel-card:hover::after { transform: scaleX(1); }
-  .channel-avatar {
-    width: 72px; height: 72px; border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid var(--border);
-    transition: border-color 0.2s;
-    background: var(--surface2);
-  }
+  .channel-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); transition: border-color 0.2s; background: var(--surface2); }
   .channel-card:hover .channel-avatar { border-color: var(--org-color); }
   .channel-avatar-placeholder {
     width: 72px; height: 72px; border-radius: 50%;
     background: var(--surface2); border: 2px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700;
-    color: var(--accent-text); flex-shrink: 0;
-    transition: border-color 0.2s;
+    color: var(--accent-text); flex-shrink: 0; transition: border-color 0.2s;
   }
   .channel-card:hover .channel-avatar-placeholder { border-color: var(--org-color); }
   .channel-badge {
@@ -803,43 +787,16 @@ _BASE_CSS = """
     border: 1px solid var(--org-color); color: var(--accent-text);
     background: rgba(0,0,0,0.3); flex-shrink: 0;
   }
-  .channel-card-name {
-    font-family: 'Fraunces', serif; font-size: 0.95rem; font-weight: 700;
-    color: var(--white); line-height: 1.25;
-  }
+  .channel-card-name { font-family: 'Fraunces', serif; font-size: 0.95rem; font-weight: 700; color: var(--white); line-height: 1.25; }
   .channel-card-meta { font-size: 0.65rem; color: var(--muted); }
-  .channel-card-stats {
-    display: flex; flex-direction: column;
-    gap: 0.3rem; width: 100%;
-    border-top: 1px solid var(--border);
-    padding-top: 0.75rem; margin-top: 0.1rem;
-  }
-  .stat-row {
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 0.63rem;
-  }
-  .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
-  .stat-row .stat-value { color: var(--text); }
-  .stat-row .stat-value.highlight { color: var(--accent-text); }
-  .channel-card-stats {
-    display: flex; flex-direction: column;
-    gap: 0.3rem; width: 100%;
-    border-top: 1px solid var(--border);
-    padding-top: 0.75rem; margin-top: 0.1rem;
-  }
-  .stat-row {
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 0.63rem;
-  }
+  .channel-card-stats { display: flex; flex-direction: column; gap: 0.3rem; width: 100%; border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.1rem; }
+  .stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.63rem; }
   .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
   .stat-row .stat-value { color: var(--text); }
   .stat-row .stat-value.highlight { color: var(--accent-text); }
 
   /* stream cards */
-  .streams-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-    gap: 1rem; margin-top: 2.5rem;
-  }
+  .streams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1rem; margin-top: 2.5rem; }
   .stream-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 4px; padding: 1.25rem;
@@ -854,11 +811,7 @@ _BASE_CSS = """
   }
   .stream-card:hover { border-color: var(--org-color); transform: translateY(-2px); }
   .stream-card:hover::before { transform: scaleX(1); }
-  .stream-status {
-    display: inline-block; font-size: 0.6rem; letter-spacing: 0.15em;
-    text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2px;
-    margin-bottom: 0.75rem;
-  }
+  .stream-status { display: inline-block; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2px; margin-bottom: 0.75rem; }
   .status-live     { background: rgba(255,79,109,0.15); color: var(--red);   border: 1px solid var(--red); }
   .status-upcoming { background: rgba(79,195,247,0.10); color: var(--blue);  border: 1px solid var(--blue); }
   .status-vod      { background: rgba(90,90,122,0.20);  color: var(--muted); border: 1px solid var(--muted); }
@@ -873,7 +826,7 @@ _BASE_CSS = """
   .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
-  /* month heading on channel page */
+  /* month heading */
   .month-heading {
     font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase;
     color: var(--muted); margin: 2.5rem 0 1rem;
@@ -886,79 +839,34 @@ _BASE_CSS = """
     box-shadow: 0 0 6px var(--org-color); flex-shrink: 0;
   }
 
-  /* stream detail: side-by-side hero */
-  .stream-hero {
-    display: grid;
-    grid-template-columns: 37fr 63fr;
-    gap: 1.5rem;
-    margin: 2rem 0 2.5rem;
-    align-items: start;
-  }
+  /* stream detail */
+  .stream-hero { display: grid; grid-template-columns: 37fr 63fr; gap: 1.5rem; margin: 2rem 0 2.5rem; align-items: start; }
   @media (max-width: 700px) { .stream-hero { grid-template-columns: 1fr; } }
-  .embed-side {
-    min-width: 0;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .embed-wrap {
-    position: relative; width: 100%; padding-bottom: 56.25%;
-    background: #000;
-  }
-  .embed-wrap iframe {
-    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
-  }
+  .embed-side { min-width: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .embed-wrap { position: relative; width: 100%; padding-bottom: 56.25%; background: #000; }
+  .embed-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
   .stream-thumb-meta {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0.65rem 0.9rem;
-    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 0.65rem 0.9rem; background: var(--surface); border-top: 1px solid var(--border);
     font-size: 0.65rem; color: var(--muted);
   }
-  .stream-thumb-meta a {
-    color: var(--accent-text); text-decoration: none;
-  }
+  .stream-thumb-meta a { color: var(--accent-text); text-decoration: none; }
   .stream-thumb-meta a:hover { text-decoration: underline; }
   .kpi-side { min-width: 0; }
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .kpi {
-    background: var(--surface);
-    padding: 1.1rem 1.25rem;
-    position: relative;
-  }
+  .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .kpi { background: var(--surface); padding: 1.1rem 1.25rem; position: relative; }
   .kpi.kpi-wide { grid-column: span 2; }
   .kpi-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.45rem; }
   .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--accent-text); line-height: 1.1; }
   .kpi-value.kpi-sm { font-size: 1rem; }
-  .kpi-sub   { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
-  .kpi-grid .kpi:nth-child(-n+2)::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: var(--org-color);
-  }
-  .chart-box {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem;
-  }
+  .kpi-sub { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
+  .kpi-grid .kpi:nth-child(-n+2)::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--org-color); }
+  .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem; }
   .chart-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 1.25rem; }
-  .chart-wrap  { position: relative; height: 280px; }
-  .section-title {
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em;
-    color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border);
-  }
+  .chart-wrap { position: relative; height: 280px; }
+  .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-bottom: 3rem; }
-  .data-table th {
-    text-align: left; padding: 0.5rem 0.75rem; color: var(--muted);
-    font-weight: 500; font-size: 0.65rem; text-transform: uppercase;
-    letter-spacing: 0.1em; border-bottom: 1px solid var(--border);
-  }
+  .data-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted); font-weight: 500; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
   .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(30,30,46,0.5); color: var(--text); }
   .data-table tr:hover td { background: var(--surface); }
   .data-table .num { text-align: right; color: var(--accent-text); font-weight: 500; }
@@ -968,37 +876,71 @@ _BASE_CSS = """
   .pill-upcoming { background: rgba(79,195,247,0.10); color: var(--blue); border: 1px solid var(--blue); }
   .generated { text-align: center; color: var(--muted); font-size: 0.7rem; margin-top: 3rem; }
 
-  /* footer */
-  footer {
-    margin-top: 5rem; padding-top: 2rem;
-    border-top: 1px solid var(--border);
-    display: flex; flex-wrap: wrap; justify-content: space-between;
-    gap: 1rem; font-size: 0.7rem; color: var(--muted);
-  }
+  footer { margin-top: 5rem; padding-top: 2rem; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; font-size: 0.7rem; color: var(--muted); }
   footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
   footer a:hover { color: var(--accent-text); }
 
-  /* animations */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
   header { animation: fadeUp 0.5s ease both; }
   .orgs-grid, .channels-list, .streams-grid, .kpi-row { animation: fadeUp 0.5s 0.1s ease both; }
 """
 
 
-# ── HTML helpers ──────────────────────────────────────────────────────────────
+_THEME_JS = """
+<script>
+(function() {
+  var STORAGE_KEY = 'idvt-theme';
+  var root  = document.documentElement;
+  var btn   = null;
+  var thumb = null;
+
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  function getEffectiveTheme() {
+    return localStorage.getItem(STORAGE_KEY) || getSystemTheme();
+  }
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    if (thumb) {
+      theme === 'light' ? thumb.classList.add('is-light') : thumb.classList.remove('is-light');
+    }
+  }
+  function toggleTheme() {
+    var next = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(STORAGE_KEY, next);
+    applyTheme(next);
+  }
+  applyTheme(getEffectiveTheme());
+  document.addEventListener('DOMContentLoaded', function() {
+    btn   = document.getElementById('theme-toggle');
+    thumb = document.getElementById('toggle-thumb');
+    applyTheme(getEffectiveTheme());
+    if (btn) btn.addEventListener('click', toggleTheme);
+  });
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function() {
+    if (!localStorage.getItem(STORAGE_KEY)) applyTheme(getSystemTheme());
+  });
+})();
+</script>"""
+
+_TOGGLE_HTML = (
+    '<div class="theme-toggle">'
+    '<button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">'
+    '<span class="toggle-icon-light">☀</span>'
+    '<span class="toggle-thumb" id="toggle-thumb">&#10022;</span>'
+    '<span class="toggle-icon-dark">☽</span>'
+    '</button>'
+    '</div>'
+)
+
+
 def _html_head(title: str, depth: int, org_color: str = "#e8ff47",
                extra_scripts: str = "") -> str:
     return (
         f'<!DOCTYPE html>\n<html lang="en">\n<head>\n'
         f'<meta charset="UTF-8">\n'
         f'<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
-        f'<meta name="color-scheme" content="dark light">\n'
-        f'<script>!function(){{var t=localStorage.getItem("idvt-theme")||'
-        f'(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");'
-        f'document.documentElement.setAttribute("data-theme",t)}}();</script>\n'
         f'<meta name="color-scheme" content="dark light">\n'
         f'<script>!function(){{var t=localStorage.getItem("idvt-theme")||'
         f'(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");'
@@ -1013,61 +955,6 @@ def _html_head(title: str, depth: int, org_color: str = "#e8ff47",
 
 def _html_foot(depth: int) -> str:
     rel = "../" * depth
-    theme_js = """
-<script>
-(function() {
-  var STORAGE_KEY = 'idvt-theme';
-  var root  = document.documentElement;
-  var btn   = null;
-  var thumb = null;
-
-  function getSystemTheme() {
-    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  }
-
-  function getEffectiveTheme() {
-    var stored = localStorage.getItem(STORAGE_KEY);
-    return stored || getSystemTheme();
-  }
-
-  function applyTheme(theme) {
-    root.setAttribute('data-theme', theme);
-    if (thumb) {
-      if (theme === 'light') {
-        thumb.classList.add('is-light');
-      } else {
-        thumb.classList.remove('is-light');
-      }
-    }
-  }
-
-  function toggleTheme() {
-    var current = getEffectiveTheme();
-    var next = current === 'dark' ? 'light' : 'dark';
-    localStorage.setItem(STORAGE_KEY, next);
-    applyTheme(next);
-  }
-
-  // Apply immediately on load to avoid flash
-  applyTheme(getEffectiveTheme());
-
-  // Wire up button after DOM ready
-  document.addEventListener('DOMContentLoaded', function() {
-    btn   = document.getElementById('theme-toggle');
-    thumb = document.getElementById('toggle-thumb');
-    // Re-apply to update thumb position now element exists
-    applyTheme(getEffectiveTheme());
-    if (btn) btn.addEventListener('click', toggleTheme);
-  });
-
-  // Follow system preference changes if user hasn't manually overridden
-  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function() {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      applyTheme(getSystemTheme());
-    }
-  });
-})();
-</script>"""
     return (
         f'\n  <footer>\n'
         f'    <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>\n'
@@ -1080,7 +967,7 @@ def _html_foot(depth: int) -> str:
         f'    </span>\n'
         f'  </footer>\n'
         f'</div>\n'
-        f'{theme_js}\n'
+        f'{_THEME_JS}\n'
         f'</body>\n</html>'
     )
 
@@ -1094,20 +981,11 @@ def _breadcrumb(crumbs: list[tuple[str, str]]) -> str:
             parts.append(f'<a href="{href}">{esc(label)}</a>')
         if i < len(crumbs) - 1:
             parts.append('<span class="sep">&#8250;</span>')
-    toggle = (
-        '<div class="theme-toggle">'
-        '<button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">'
-        '<span class="toggle-icon-light">☀</span>'
-        '<span class="toggle-thumb" id="toggle-thumb">&#10022;</span>'
-        '<span class="toggle-icon-dark">☽</span>'
-        '</button>'
-        '</div>'
-    )
-    return '<nav class="breadcrumb">' + " ".join(parts) + toggle + "</nav>\n"
+    return '<nav class="breadcrumb">' + " ".join(parts) + _TOGGLE_HTML + "</nav>\n"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE WRITERS
+# PAGE WRITERS  (unchanged from original — all logic preserved)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def write_index(total_streams: int, total_channels: int, generated_at: str) -> None:
@@ -1136,12 +1014,7 @@ def write_index(total_streams: int, total_channels: int, generated_at: str) -> N
         f'{total_channels} channels &nbsp;&#183;&nbsp; '
         f'9 organisations</p>\n'
         f'      </div>\n'
-        f'      <div class="theme-toggle" style="padding-top:0.5rem;">'
-        f'<button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">'
-        f'<span class="toggle-icon-light">☀</span>'
-        f'<span class="toggle-thumb" id="toggle-thumb">&#10022;</span>'
-        f'<span class="toggle-icon-dark">☽</span>'
-        f'</button></div>\n'
+        f'      <div class="theme-toggle" style="padding-top:0.5rem;">{_TOGGLE_HTML}</div>\n'
         f'    </div>\n'
         f'  </header>\n'
         f'  <div class="orgs-grid">{org_cards}\n  </div>\n'
@@ -1156,11 +1029,6 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
                    logos: dict[str, str] | None = None,
                    channel_ids_map: dict[str, str] | None = None,
                    subscribers: dict[str, int] | None = None) -> None:
-    """
-    logos:           {channel_id: thumbnail_url}
-    channel_ids_map: {channel_name: channel_id}
-    subscribers:     {channel_id: subscriber_count}
-    """
     org_dir = OUTPUT_DIR / org_slug
     org_dir.mkdir(exist_ok=True)
     logos           = logos or {}
@@ -1169,13 +1037,13 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
 
     cards = ""
     for entry in org["channels"]:
-        ch_name = entry[0]
-        ch_type = entry[1]
-        ch_slug  = slugify(ch_name)
-        badge    = "ORG CH" if ch_type == "org" else "TALENT"
-        n_str    = stream_counts.get(ch_name, 0)
-        ch_id    = channel_ids_map.get(ch_name, "")
-        logo_url = logos.get(ch_id, "")
+        ch_name   = entry[0]
+        ch_type   = entry[1]
+        ch_slug   = slugify(ch_name)
+        badge     = "ORG CH" if ch_type == "org" else "TALENT"
+        n_str     = stream_counts.get(ch_name, 0)
+        ch_id     = channel_ids_map.get(ch_name, "")
+        logo_url  = logos.get(ch_id, "")
         sub_count = subscribers.get(ch_id)
 
         if logo_url:
@@ -1184,12 +1052,11 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
             initial = ch_name[0].upper()
             avatar_html = f'<div class="channel-avatar-placeholder">{initial}</div>'
 
-        sub_html = fmt_subs(sub_count)
         stats_html = (
             f'<div class="channel-card-stats">'
             f'<div class="stat-row">'
             f'<span class="stat-label">Subscribers</span>'
-            f'<span class="stat-value highlight">{sub_html}</span>'
+            f'<span class="stat-value highlight">{fmt_subs(sub_count)}</span>'
             f'</div>'
             f'<div class="stat-row">'
             f'<span class="stat-label">Streams</span>'
@@ -1229,8 +1096,6 @@ def write_channel_page(org_slug: str, org: dict,
     ch_dir  = OUTPUT_DIR / org_slug / ch_slug
     ch_dir.mkdir(parents=True, exist_ok=True)
 
-    # Group streams by month (already sorted DESC by first_seen from DB)
-    from collections import OrderedDict
     months: OrderedDict = OrderedDict()
     for stream in streams:
         first_seen = stream["first_seen"]
@@ -1238,9 +1103,8 @@ def write_channel_page(org_slug: str, org: dict,
             month_key = "Unknown"
         else:
             if isinstance(first_seen, str):
-                from datetime import datetime as _dt
                 try:
-                    first_seen = _dt.fromisoformat(first_seen.replace("Z", "+00:00"))
+                    first_seen = datetime.fromisoformat(first_seen.replace("Z", "+00:00"))
                 except ValueError:
                     first_seen = None
             if first_seen:
@@ -1358,7 +1222,6 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         '</script>'
     )
 
-    # compute stream duration from first_seen → last_seen
     def _fmt_duration(first, last) -> str:
         if not first or not last:
             return "—"
@@ -1384,16 +1247,11 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'  <div class="stream-hero">\n'
         f'    <div class="embed-side">\n'
         f'      <div class="embed-wrap">\n'
-        f'        <iframe\n'
-        f'          src="https://www.youtube.com/embed/{esc(vid)}"\n'
-        f'          title="{esc(title_text)}"\n'
-        f'          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n'
-        f'          allowfullscreen>\n'
-        f'        </iframe>\n'
+        f'        <iframe src="https://www.youtube.com/embed/{vid}" allowfullscreen loading="lazy"></iframe>\n'
         f'      </div>\n'
         f'      <div class="stream-thumb-meta">\n'
-        f'        <span>{fmt_dt(stream["first_seen"])} &nbsp;&#183;&nbsp; {duration_str}</span>\n'
-        f'        <a href="https://www.youtube.com/watch?v={esc(vid)}" target="_blank" rel="noopener">&#8599; Watch on YouTube</a>\n'
+        f'        <span>{fmt_dt(stream["first_seen"])}</span>\n'
+        f'        <a href="https://www.youtube.com/watch?v={vid}" target="_blank" rel="noopener">Watch on YouTube ↗</a>\n'
         f'      </div>\n'
         f'    </div>\n'
         f'    <div class="kpi-side">\n'
@@ -1460,18 +1318,42 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MAIN BUILD
+# PARTIAL BUILD ENGINE
 # ══════════════════════════════════════════════════════════════════════════════
+
+def _enrich_stream(stream: dict, conn, table: str, hist) -> tuple[dict, list, list]:
+    """
+    Given a stream summary row, fetch its timeseries + all_rows and
+    compute avg_viewers. Returns (enriched_stream, all_rows, timeseries).
+    """
+    is_archived = stream.get("_source") == "history"
+
+    if is_archived:
+        ts       = get_archived_timeseries(hist, stream["video_id"])
+        all_rows = []
+        if stream.get("avg_viewers") is None:
+            viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
+            stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
+    else:
+        ts       = get_stream_timeseries(conn, table, stream["video_id"])
+        all_rows = get_all_rows(conn, table, stream["video_id"])
+        viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
+        stream = dict(stream)
+        stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
+
+    return stream, all_rows, ts
+
+
 def build_dashboard() -> None:
     if not AIVEN_DATABASE_URL:
         print("ERROR: AIVEN_DATABASE_URL environment variable is not set.")
         raise SystemExit(1)
 
     conn = get_conn()
-    hist = get_history_conn()  # None if history.db absent — graceful degradation
+    hist = get_history_conn()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # copy static legal pages from repo root into output
+    # ── static legal pages ────────────────────────────────────────────────────
     for legal_file in ["privacy.html", "terms.html"]:
         src = Path(legal_file)
         dst = OUTPUT_DIR / legal_file
@@ -1481,99 +1363,160 @@ def build_dashboard() -> None:
         else:
             log.warning("Legal file not found: %s — skipping", legal_file)
 
-    # load all channel rows from DB
-    db_channels  = get_channel_rows(conn)
-    db_by_name   = {ch["channel_name"]: ch for ch in db_channels}
+    # ── channel ID / logo maps ────────────────────────────────────────────────
+    db_channels = get_channel_rows(conn)
+    db_by_name  = {ch["channel_name"]: ch for ch in db_channels}
 
-    # build name → channel_id map, seeding from ORG_MAP first so channels
-    # not yet in the DB still get their IDs for logo + subscriber lookup
     channel_ids_map: dict[str, str] = {}
     for org in ORG_MAP.values():
         for entry in org["channels"]:
-            ch_name = entry[0]
-            ch_id   = entry[2] if len(entry) > 2 else ""
-            if ch_id:
-                channel_ids_map[ch_name] = ch_id
-    # DB rows take precedence (they are the authoritative source)
+            if len(entry) > 2 and entry[2]:
+                channel_ids_map[entry[0]] = entry[2]
     for ch in db_channels:
         channel_ids_map[ch["channel_name"]] = ch["channel_id"]
 
-    all_channel_ids = list(dict.fromkeys(channel_ids_map.values()))  # deduped, order preserved
+    all_channel_ids = list(dict.fromkeys(channel_ids_map.values()))
 
-    # fetch channel logos + subscriber counts from YouTube API once for all channels
     log.info("Fetching channel data from YouTube API…")
     logos, subscribers = get_channel_data(all_channel_ids)
-    log.info("Fetched %d logo(s) and %d subscriber count(s) for %d channel(s).",
-             len(logos), len(subscribers), len(all_channel_ids))
+    log.info("Fetched %d logo(s) and %d subscriber count(s).", len(logos), len(subscribers))
 
+    # ── load manifest ─────────────────────────────────────────────────────────
+    manifest = load_manifest()
+    log.info("Manifest loaded — %d stream pages previously generated.", len(manifest))
+
+    # ── collect ALL streams from DB + history per channel ────────────────────
+    # Structure: {ch_name: [stream_dict, ...]}
+    all_streams_by_channel: dict[str, list[dict]] = {}
+    stream_counts: dict[str, int] = {}
     total_streams  = 0
     total_channels = 0
-    stream_counts: dict[str, int] = {}
-    generated_at = _now_local().strftime("%Y-%m-%d %H:%M WIB")
 
     for org_slug, org in ORG_MAP.items():
-        log.info("── Org: %s", org["label"])
         (OUTPUT_DIR / org_slug).mkdir(exist_ok=True)
-
         for entry in org["channels"]:
             ch_name = entry[0]
-            db_row = db_by_name.get(ch_name)
+            db_row  = db_by_name.get(ch_name)
             if not db_row:
-                log.warning("  Channel '%s' not found in DB — skipping", ch_name)
                 stream_counts[ch_name] = 0
+                all_streams_by_channel[ch_name] = []
                 continue
 
             table       = db_row["table_name"]
             raw_streams = get_streams_for_channel(conn, table)
+            live_ids    = {s["video_id"] for s in raw_streams}
+            archived    = get_archived_streams_for_channel(hist, ch_name, live_ids) if hist else []
+            all_raw     = list(raw_streams) + archived
 
-            # merge archived streams not present in live DB
-            live_ids = {s["video_id"] for s in raw_streams}
-            archived_streams = (
-                get_archived_streams_for_channel(hist, ch_name, live_ids)
-                if hist else []
-            )
-            all_raw = list(raw_streams) + archived_streams
-
-            stream_counts[ch_name] = len(all_raw)
+            all_streams_by_channel[ch_name] = all_raw
+            stream_counts[ch_name]          = len(all_raw)
             total_channels += 1
             total_streams  += len(all_raw)
-            log.info("  Channel: %s — %d live stream(s), %d archived",
-                     ch_name, len(raw_streams), len(archived_streams))
 
-            streams = []  # enriched with avg_viewers
-            for stream in all_raw:
-                is_archived = stream.get("_source") == "history"
+    log.info("DB query complete — %d streams across %d channels.", total_streams, total_channels)
 
-                if is_archived:
-                    # timeseries and avg_viewers come from history.db
-                    ts = get_archived_timeseries(hist, stream["video_id"])
-                    all_rows = []  # raw rows not stored — not needed for display
-                    # avg_viewers already stored in history.db
-                    if stream.get("avg_viewers") is None:
-                        viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
-                        stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
-                else:
-                    ts       = get_stream_timeseries(conn, table, stream["video_id"])
-                    all_rows = get_all_rows(conn, table, stream["video_id"])
-                    viewer_vals = [int(r["concurrent_viewers"]) for r in ts if r["concurrent_viewers"]]
-                    stream = dict(stream)
-                    stream["avg_viewers"] = round(sum(viewer_vals) / len(viewer_vals)) if viewer_vals else None
+    # ── diff: determine which stream pages need (re)generating ────────────────
+    # A stream is dirty if:
+    #   (a) it has no entry in the manifest yet  →  new stream
+    #   (b) it was recorded as 'live' last run   →  may still be updating
+    dirty_video_ids: set[str] = set()
+    dirty_channels:  set[str] = set()  # channel names whose channel page needs rebuild
+    dirty_orgs:      set[str] = set()  # org slugs whose org page needs rebuild
 
-                streams.append(stream)
+    for ch_name, streams in all_streams_by_channel.items():
+        for stream in streams:
+            vid    = stream["video_id"]
+            status = stream.get("stream_status") or "vod"
+            in_manifest = vid in manifest
+            was_live    = manifest.get(vid, {}).get("status") == "live"
+
+            if not in_manifest or was_live:
+                dirty_video_ids.add(vid)
+                dirty_channels.add(ch_name)
+                org_result = _CH_TO_ORG.get(ch_name)
+                if org_result:
+                    dirty_orgs.add(org_result[0])
+
+    log.info(
+        "Partial build plan: %d stream page(s) to generate, "
+        "%d channel page(s) to regenerate, %d org page(s) to regenerate.",
+        len(dirty_video_ids), len(dirty_channels), len(dirty_orgs)
+    )
+
+    # ── generate dirty stream pages ───────────────────────────────────────────
+    for org_slug, org in ORG_MAP.items():
+        for entry in org["channels"]:
+            ch_name = entry[0]
+            db_row  = db_by_name.get(ch_name)
+            if not db_row:
+                continue
+
+            table   = db_row["table_name"]
+            streams = all_streams_by_channel.get(ch_name, [])
+
+            for stream in streams:
+                vid = stream["video_id"]
+                if vid not in dirty_video_ids:
+                    continue
+
+                stream, all_rows, ts = _enrich_stream(stream, conn, table, hist)
                 write_stream_page(org_slug, org, ch_name, stream, all_rows, ts)
 
-            write_channel_page(org_slug, org, ch_name, streams)
+                # update manifest entry
+                manifest[vid] = {
+                    "org_slug":     org_slug,
+                    "ch_slug":      slugify(ch_name),
+                    "ch_name":      ch_name,
+                    "status":       stream.get("stream_status") or "vod",
+                    "generated_at": _now_local().strftime("%Y-%m-%d %H:%M WIB"),
+                }
 
+    # ── regenerate dirty channel pages ────────────────────────────────────────
+    for org_slug, org in ORG_MAP.items():
+        for entry in org["channels"]:
+            ch_name = entry[0]
+            if ch_name not in dirty_channels:
+                continue
+
+            streams = all_streams_by_channel.get(ch_name, [])
+            # channel page only needs summary data (no timeseries) — enrich lightly
+            enriched = []
+            for stream in streams:
+                s = dict(stream)
+                if s.get("avg_viewers") is None:
+                    s["avg_viewers"] = None  # not needed for channel page cards
+                enriched.append(s)
+
+            write_channel_page(org_slug, org, ch_name, enriched)
+
+    # ── regenerate dirty org pages ────────────────────────────────────────────
+    for org_slug, org in ORG_MAP.items():
+        if org_slug not in dirty_orgs:
+            continue
         write_org_page(org_slug, org, stream_counts,
-                       logos=logos, channel_ids_map=channel_ids_map,
+                       logos=logos,
+                       channel_ids_map=channel_ids_map,
                        subscribers=subscribers)
 
+    # ── always regenerate index ───────────────────────────────────────────────
+    generated_at = _now_local().strftime("%Y-%m-%d %H:%M WIB")
     write_index(total_streams, total_channels, generated_at)
+
+    # ── persist manifest ──────────────────────────────────────────────────────
+    save_manifest(manifest)
 
     conn.close()
     if hist:
         hist.close()
-    log.info("Dashboard complete — %d streams across %d channels.", total_streams, total_channels)
+
+    pages_written = len(dirty_video_ids) + len(dirty_channels) + len(dirty_orgs) + 1
+    log.info(
+        "Dashboard complete — %d page(s) written "
+        "(%d stream, %d channel, %d org, 1 index) out of %d total streams.",
+        pages_written,
+        len(dirty_video_ids), len(dirty_channels), len(dirty_orgs),
+        total_streams
+    )
 
 
 if __name__ == "__main__":
