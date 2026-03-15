@@ -5,50 +5,94 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark light">
 <script>!function(){var t=localStorage.getItem("idvt-theme")||(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");document.documentElement.setAttribute("data-theme",t)}();</script>
+<meta name="color-scheme" content="dark light">
+<script>!function(){var t=localStorage.getItem("idvt-theme")||(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");document.documentElement.setAttribute("data-theme",t)}();</script>
 <title>【 REVIEW 】MENU KALIAN APA NICH?? — IDVTuber Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 
   :root {
-    --bg:        #0a0a0f;
-    --surface:   #13131a;
-    --surface2:  #1a1a26;
-    --border:    #1e1e2e;
-    --muted:     #5a5a7a;
-    --text:      #e2e2f0;
-    --white:     #ffffff;
-    --red:       #ff4f6d;
-    --blue:      #4fc3f7;
-    --org-color: #e8ff47;
+    --bg:          #0a0a0f;
+    --surface:     #13131a;
+    --surface2:    #1a1a26;
+    --border:      #1e1e2e;
+    --muted:       #5a5a7a;
+    --text:        #e2e2f0;
+    --white:       #ffffff;
+    --red:         #ff4f6d;
+    --blue:        #4fc3f7;
+    --org-color:   #e8ff47;
+    /* accent-text: readable version of org-color for text contexts.
+       Dark theme: same as org-color (bright on dark is fine).
+       Light theme: overridden to a dark neutral so yellow text stays legible. */
+    --accent-text: var(--org-color);
   }
 
   /* ── light theme ── */
   [data-theme="light"] {
-    --bg:       #f5f5f0;
-    --surface:  #ffffff;
-    --surface2: #eaeae5;
-    --border:   #d8d8ce;
-    --muted:    #888880;
-    --text:     #1a1a14;
-    --white:    #1a1a14;
-    --red:      #d63050;
-    --blue:     #0077aa;
+    --bg:          #f5f5f0;
+    --surface:     #ffffff;
+    --surface2:    #eaeae5;
+    --border:      #d8d8ce;
+    --muted:       #767670;
+    --text:        #1a1a14;
+    --white:       #1a1a14;
+    --red:         #c0002a;
+    --blue:        #005f8a;
+    --accent-text: #2a2a20;
   }
 
   /* ── follow system preference by default ── */
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-      --bg:       #f5f5f0;
-      --surface:  #ffffff;
-      --surface2: #eaeae5;
-      --border:   #d8d8ce;
-      --muted:    #888880;
-      --text:     #1a1a14;
-      --white:    #1a1a14;
-      --red:      #d63050;
-      --blue:     #0077aa;
+      --bg:          #f5f5f0;
+      --surface:     #ffffff;
+      --surface2:    #eaeae5;
+      --border:      #d8d8ce;
+      --muted:       #767670;
+      --text:        #1a1a14;
+      --white:       #1a1a14;
+      --red:         #c0002a;
+      --blue:        #005f8a;
+      --accent-text: #2a2a20;
     }
+  }
+
+  /* ── light theme badge and pill background overrides ── */
+  [data-theme="light"] .status-live,
+  :root:not([data-theme="dark"]).light-sys .status-live {
+    background: rgba(192,0,42,0.10); color: var(--red); border-color: var(--red);
+  }
+  [data-theme="light"] .status-upcoming,
+  :root:not([data-theme="dark"]).light-sys .status-upcoming {
+    background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue);
+  }
+  [data-theme="light"] .status-vod {
+    background: rgba(100,100,90,0.12);
+  }
+  [data-theme="light"] .pill-live {
+    background: rgba(192,0,42,0.10); color: var(--red); border-color: var(--red);
+  }
+  [data-theme="light"] .pill-upcoming {
+    background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .status-live     { background: rgba(192,0,42,0.10); color: var(--red);  border-color: var(--red);  }
+    :root:not([data-theme="dark"]) .status-upcoming { background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue); }
+    :root:not([data-theme="dark"]) .status-vod      { background: rgba(100,100,90,0.12); }
+    :root:not([data-theme="dark"]) .pill-live       { background: rgba(192,0,42,0.10); color: var(--red);  border-color: var(--red);  }
+    :root:not([data-theme="dark"]) .pill-upcoming   { background: rgba(0,95,138,0.10); color: var(--blue); border-color: var(--blue); }
+  }
+
+  /* ── light theme: suppress neon glow effects ── */
+  [data-theme="light"] .org-dot,
+  [data-theme="light"] .month-heading::before {
+    box-shadow: none;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .org-dot              { box-shadow: none; }
+    :root:not([data-theme="dark"]) .month-heading::before { box-shadow: none; }
   }
 
   /* ── theme toggle ── */
@@ -102,21 +146,21 @@
     border-bottom: 1px solid var(--border); margin-bottom: 3rem;
   }
   .breadcrumb a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
-  .breadcrumb a:hover { color: var(--org-color); }
+  .breadcrumb a:hover { color: var(--accent-text); }
   .breadcrumb .sep { color: var(--border); }
-  .breadcrumb .current { color: var(--org-color); }
+  .breadcrumb .current { color: var(--accent-text); }
 
   /* headings */
   .eyebrow {
     font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase;
-    color: var(--org-color); margin-bottom: 0.6rem;
+    color: var(--accent-text); margin-bottom: 0.6rem;
   }
   h1 {
     font-family: 'Fraunces', serif;
     font-size: clamp(2rem, 5vw, 4.5rem);
     font-weight: 700; line-height: 1.0; color: var(--white); margin-bottom: 0.5rem;
   }
-  h1 em { font-style: italic; color: var(--org-color); }
+  h1 em { font-style: italic; color: var(--accent-text); }
   .page-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.75rem; }
 
   /* org cards */
@@ -146,7 +190,7 @@
   .org-title { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--white); margin-bottom: 0.5rem; }
   .org-desc { font-size: 0.78rem; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.6; }
   .org-stat { font-size: 0.72rem; color: var(--muted); }
-  .org-stat strong { color: var(--org-color); }
+  .org-stat strong { color: var(--accent-text); }
 
   /* channel card grid */
   .channels-grid {
@@ -183,14 +227,14 @@
     background: var(--surface2); border: 2px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700;
-    color: var(--org-color); flex-shrink: 0;
+    color: var(--accent-text); flex-shrink: 0;
     transition: border-color 0.2s;
   }
   .channel-card:hover .channel-avatar-placeholder { border-color: var(--org-color); }
   .channel-badge {
     font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase;
     padding: 0.18rem 0.45rem; border-radius: 2px;
-    border: 1px solid var(--org-color); color: var(--org-color);
+    border: 1px solid var(--org-color); color: var(--accent-text);
     background: rgba(0,0,0,0.3); flex-shrink: 0;
   }
   .channel-card-name {
@@ -210,7 +254,7 @@
   }
   .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
   .stat-row .stat-value { color: var(--text); }
-  .stat-row .stat-value.highlight { color: var(--org-color); }
+  .stat-row .stat-value.highlight { color: var(--accent-text); }
   .channel-card-stats {
     display: flex; flex-direction: column;
     gap: 0.3rem; width: 100%;
@@ -223,7 +267,7 @@
   }
   .stat-row .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
   .stat-row .stat-value { color: var(--text); }
-  .stat-row .stat-value.highlight { color: var(--org-color); }
+  .stat-row .stat-value.highlight { color: var(--accent-text); }
 
   /* stream cards */
   .streams-grid {
@@ -259,7 +303,7 @@
   }
   .stream-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
   .stat-label { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
-  .stat-value { font-size: 0.9rem; color: var(--org-color); font-weight: 500; }
+  .stat-value { font-size: 0.9rem; color: var(--accent-text); font-weight: 500; }
   .stream-date { font-size: 0.62rem; color: var(--muted); margin-top: 1rem; }
   .empty { color: var(--muted); font-size: 0.8rem; font-style: italic; padding: 1rem 0; }
 
@@ -305,7 +349,7 @@
     font-size: 0.65rem; color: var(--muted);
   }
   .stream-thumb-meta a {
-    color: var(--org-color); text-decoration: none;
+    color: var(--accent-text); text-decoration: none;
   }
   .stream-thumb-meta a:hover { text-decoration: underline; }
   .kpi-side { min-width: 0; }
@@ -325,7 +369,7 @@
   }
   .kpi.kpi-wide { grid-column: span 2; }
   .kpi-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.45rem; }
-  .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--org-color); line-height: 1.1; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700; color: var(--accent-text); line-height: 1.1; }
   .kpi-value.kpi-sm { font-size: 1rem; }
   .kpi-sub   { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
   .kpi-grid .kpi:nth-child(-n+2)::before {
@@ -351,7 +395,7 @@
   }
   .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(30,30,46,0.5); color: var(--text); }
   .data-table tr:hover td { background: var(--surface); }
-  .data-table .num { text-align: right; color: var(--org-color); font-weight: 500; }
+  .data-table .num { text-align: right; color: var(--accent-text); font-weight: 500; }
   .data-table .ts  { color: var(--muted); }
   .pill { display: inline-block; font-size: 0.6rem; padding: 0.15rem 0.4rem; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.1em; }
   .pill-live     { background: rgba(255,79,109,0.15); color: var(--red);  border: 1px solid var(--red); }
@@ -366,7 +410,7 @@
     gap: 1rem; font-size: 0.7rem; color: var(--muted);
   }
   footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
-  footer a:hover { color: var(--org-color); }
+  footer a:hover { color: var(--accent-text); }
 
   /* animations */
   @keyframes fadeUp {
@@ -381,7 +425,7 @@
 </head>
 <body>
 <div class="page">
-<nav class="breadcrumb"><a href="../../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../../index.html">Whicker Butler</a> <span class="sep">&#8250;</span> <a href="../index.html">Thalita Sylvaine【Whicker Butler】</a> <span class="sep">&#8250;</span> <span class="current">【 REVIEW 】MENU KALIAN APA NICH??</span><div class="theme-toggle"><button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme"><span class="toggle-icon-light">☀</span><span class="toggle-thumb" id="toggle-thumb">&#10022;</span><span class="toggle-icon-dark">☽</span></button></div></nav>
+<nav class="breadcrumb"><a href="../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../index.html">Whicker Butler</a> <span class="sep">&#8250;</span> <a href="index.html">Thalita Sylvaine【Whicker Butler】</a> <span class="sep">&#8250;</span> <span class="current">【 REVIEW 】MENU KALIAN APA NICH??</span><div class="theme-toggle"><button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme"><span class="toggle-icon-light">☀</span><span class="toggle-thumb" id="toggle-thumb">&#10022;</span><span class="toggle-icon-dark">☽</span></button></div></nav>
   <header>
     <p class="eyebrow">Whicker Butler &nbsp;&#183;&nbsp; Thalita Sylvaine【Whicker Butler】</p>
     <span class="stream-status status-live" style="display:inline-block;margin-bottom:0.75rem;">&#128308; Live</span>
@@ -428,7 +472,7 @@
     <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>
   </div>
 
-  <p class="generated">Generated 2026-03-16 05:41 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+  <p class="generated">Generated 2026-03-16 05:57 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
 
 <script>
 const ts    = ["2026-03-11 03:17 WIB", "2026-03-11 03:18 WIB", "2026-03-11 03:20 WIB", "2026-03-11 03:21 WIB", "2026-03-11 03:22 WIB", "2026-03-11 03:24 WIB", "2026-03-11 03:25 WIB", "2026-03-11 03:27 WIB", "2026-03-11 03:28 WIB", "2026-03-11 03:29 WIB", "2026-03-11 03:31 WIB", "2026-03-11 03:32 WIB", "2026-03-11 03:34 WIB", "2026-03-11 03:35 WIB", "2026-03-11 03:36 WIB", "2026-03-11 03:38 WIB", "2026-03-11 03:39 WIB", "2026-03-11 03:40 WIB", "2026-03-11 03:42 WIB", "2026-03-11 03:43 WIB", "2026-03-11 03:45 WIB", "2026-03-11 03:46 WIB", "2026-03-11 03:47 WIB", "2026-03-11 03:49 WIB", "2026-03-11 03:50 WIB", "2026-03-11 03:52 WIB", "2026-03-11 03:53 WIB", "2026-03-11 03:54 WIB", "2026-03-11 03:56 WIB", "2026-03-11 03:57 WIB", "2026-03-11 03:59 WIB", "2026-03-11 04:00 WIB", "2026-03-11 04:01 WIB", "2026-03-11 04:03 WIB", "2026-03-11 04:04 WIB", "2026-03-11 04:06 WIB", "2026-03-11 04:07 WIB", "2026-03-11 04:08 WIB", "2026-03-11 04:10 WIB", "2026-03-11 04:11 WIB", "2026-03-11 04:12 WIB", "2026-03-11 04:14 WIB", "2026-03-11 04:15 WIB", "2026-03-11 04:17 WIB", "2026-03-11 04:18 WIB", "2026-03-11 04:19 WIB", "2026-03-11 04:20 WIB", "2026-03-11 04:22 WIB", "2026-03-11 04:23 WIB", "2026-03-11 04:24 WIB", "2026-03-11 04:25 WIB", "2026-03-11 04:26 WIB", "2026-03-11 04:27 WIB", "2026-03-11 04:28 WIB", "2026-03-11 04:30 WIB", "2026-03-11 04:31 WIB", "2026-03-11 04:32 WIB", "2026-03-11 04:33 WIB", "2026-03-11 04:34 WIB", "2026-03-11 04:35 WIB", "2026-03-11 04:37 WIB", "2026-03-11 04:38 WIB", "2026-03-11 04:39 WIB", "2026-03-11 04:40 WIB", "2026-03-11 04:41 WIB", "2026-03-11 04:42 WIB", "2026-03-11 04:43 WIB", "2026-03-11 04:44 WIB", "2026-03-11 04:46 WIB", "2026-03-11 04:47 WIB", "2026-03-11 04:48 WIB", "2026-03-11 04:49 WIB", "2026-03-11 04:50 WIB", "2026-03-11 04:51 WIB", "2026-03-11 04:52 WIB", "2026-03-11 04:54 WIB", "2026-03-11 04:55 WIB", "2026-03-11 04:56 WIB", "2026-03-11 04:57 WIB", "2026-03-11 04:58 WIB", "2026-03-11 04:59 WIB", "2026-03-11 05:00 WIB", "2026-03-11 05:02 WIB", "2026-03-11 05:03 WIB", "2026-03-11 05:04 WIB", "2026-03-11 05:05 WIB", "2026-03-11 05:06 WIB", "2026-03-11 05:07 WIB", "2026-03-11 05:08 WIB", "2026-03-11 05:10 WIB", "2026-03-11 05:11 WIB", "2026-03-11 05:12 WIB", "2026-03-11 05:13 WIB", "2026-03-11 05:14 WIB", "2026-03-11 05:15 WIB", "2026-03-11 05:17 WIB", "2026-03-11 05:18 WIB", "2026-03-11 05:19 WIB", "2026-03-11 05:20 WIB", "2026-03-11 05:21 WIB", "2026-03-11 05:22 WIB", "2026-03-11 05:23 WIB", "2026-03-11 05:24 WIB", "2026-03-11 05:26 WIB", "2026-03-11 05:27 WIB", "2026-03-11 05:28 WIB", "2026-03-11 05:29 WIB", "2026-03-11 05:30 WIB", "2026-03-11 05:31 WIB", "2026-03-11 05:33 WIB", "2026-03-11 05:34 WIB", "2026-03-11 05:35 WIB", "2026-03-11 05:36 WIB", "2026-03-11 05:37 WIB", "2026-03-11 05:38 WIB", "2026-03-11 05:39 WIB", "2026-03-11 05:40 WIB", "2026-03-11 05:42 WIB", "2026-03-11 05:43 WIB", "2026-03-11 05:44 WIB", "2026-03-11 05:45 WIB", "2026-03-11 05:46 WIB", "2026-03-11 05:47 WIB", "2026-03-11 05:49 WIB", "2026-03-11 05:50 WIB", "2026-03-11 05:51 WIB", "2026-03-11 05:52 WIB", "2026-03-11 05:53 WIB", "2026-03-11 05:54 WIB", "2026-03-11 05:55 WIB", "2026-03-11 05:56 WIB", "2026-03-11 05:58 WIB", "2026-03-11 05:59 WIB", "2026-03-11 06:00 WIB", "2026-03-11 06:01 WIB", "2026-03-11 06:02 WIB", "2026-03-11 06:03 WIB", "2026-03-11 06:04 WIB", "2026-03-11 06:06 WIB", "2026-03-11 06:07 WIB", "2026-03-11 06:08 WIB", "2026-03-11 06:09 WIB", "2026-03-11 06:10 WIB", "2026-03-11 06:11 WIB", "2026-03-11 06:12 WIB", "2026-03-11 06:14 WIB", "2026-03-11 06:15 WIB", "2026-03-11 06:16 WIB", "2026-03-11 06:17 WIB", "2026-03-11 06:18 WIB", "2026-03-11 06:19 WIB", "2026-03-11 06:20 WIB", "2026-03-11 06:22 WIB", "2026-03-11 06:23 WIB", "2026-03-11 06:24 WIB", "2026-03-11 06:25 WIB", "2026-03-11 06:26 WIB", "2026-03-11 06:27 WIB", "2026-03-11 06:28 WIB", "2026-03-11 06:30 WIB", "2026-03-11 06:31 WIB", "2026-03-11 06:32 WIB", "2026-03-11 06:33 WIB", "2026-03-11 06:34 WIB", "2026-03-11 06:35 WIB", "2026-03-11 06:36 WIB", "2026-03-11 06:37 WIB", "2026-03-11 06:39 WIB"];
@@ -467,11 +511,11 @@ new Chart(document.getElementById("engagementChart"), {
   <footer>
     <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>
     <span>
-      <a href="../../../index.html">Home</a>
+      <a href="../../index.html">Home</a>
       &nbsp;&middot;&nbsp;
-      <a href="../../../privacy.html">Privacy Policy</a>
+      <a href="../../privacy.html">Privacy Policy</a>
       &nbsp;&middot;&nbsp;
-      <a href="../../../terms.html">Terms of Use</a>
+      <a href="../../terms.html">Terms of Use</a>
     </span>
   </footer>
 </div>
