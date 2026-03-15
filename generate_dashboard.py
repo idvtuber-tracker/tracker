@@ -999,6 +999,10 @@ def _html_head(title: str, depth: int, org_color: str = "#e8ff47",
         f'<script>!function(){{var t=localStorage.getItem("idvt-theme")||'
         f'(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");'
         f'document.documentElement.setAttribute("data-theme",t)}}();</script>\n'
+        f'<meta name="color-scheme" content="dark light">\n'
+        f'<script>!function(){{var t=localStorage.getItem("idvt-theme")||'
+        f'(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");'
+        f'document.documentElement.setAttribute("data-theme",t)}}();</script>\n'
         f'<title>{esc(title)} — IDVTuber Tracker</title>\n'
         f'{_FONTS}\n'
         f'{extra_scripts}\n'
@@ -1343,9 +1347,9 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
     org_color   = org["color"]
 
     bc = _breadcrumb([
-        ("Home",       "../../../index.html"),
-        (org["label"], "../../index.html"),
-        (ch_name,      "../index.html"),
+        ("Home",       "../../index.html"),
+        (org["label"], "../index.html"),
+        (ch_name,      "index.html"),
         (short_title,  ""),
     ])
 
@@ -1450,7 +1454,7 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'</script>\n'
     )
 
-    html = _html_head(title_text, 3, org_color, chart_script) + body + _html_foot(3)
+    html = _html_head(title_text, 2, org_color, chart_script) + body + _html_foot(2)
     (ch_dir / f"{v_slug}.html").write_text(html, encoding="utf-8")
     log.info("    Written: %s/%s/%s.html", org_slug, ch_slug, v_slug)
 
