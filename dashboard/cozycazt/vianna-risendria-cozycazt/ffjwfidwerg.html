@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
+<script>!function(){var t=localStorage.getItem("idvt-theme")||(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");document.documentElement.setAttribute("data-theme",t)}();</script>
 <title>【 S.E.T DONAGOALS 】BENTAR LAGI 50% JADI AYO BIKIN LIST DULU — IDVTuber Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -20,6 +22,63 @@
     --blue:      #4fc3f7;
     --org-color: #e8ff47;
   }
+
+  /* ── light theme ── */
+  [data-theme="light"] {
+    --bg:       #f5f5f0;
+    --surface:  #ffffff;
+    --surface2: #eaeae5;
+    --border:   #d8d8ce;
+    --muted:    #888880;
+    --text:     #1a1a14;
+    --white:    #1a1a14;
+    --red:      #d63050;
+    --blue:     #0077aa;
+  }
+
+  /* ── follow system preference by default ── */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg:       #f5f5f0;
+      --surface:  #ffffff;
+      --surface2: #eaeae5;
+      --border:   #d8d8ce;
+      --muted:    #888880;
+      --text:     #1a1a14;
+      --white:    #1a1a14;
+      --red:      #d63050;
+      --blue:     #0077aa;
+    }
+  }
+
+  /* ── theme toggle ── */
+  .theme-toggle {
+    margin-left: auto; flex-shrink: 0;
+    display: flex; align-items: center;
+  }
+  .toggle-pill {
+    position: relative; display: flex; align-items: center;
+    width: 56px; height: 28px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; cursor: pointer;
+    transition: background 0.25s, border-color 0.25s;
+  }
+  .toggle-pill:hover { border-color: var(--org-color); }
+  .toggle-thumb {
+    position: absolute; left: 4px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--org-color);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; line-height: 1; pointer-events: none;
+  }
+  .toggle-thumb.is-light { transform: translateX(28px); }
+  .toggle-icon-dark,
+  .toggle-icon-light {
+    position: absolute; font-size: 10px; line-height: 1; pointer-events: none;
+  }
+  .toggle-icon-dark  { right: 7px; }
+  .toggle-icon-light { left:  7px; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body {
@@ -322,7 +381,7 @@
 </head>
 <body>
 <div class="page">
-<nav class="breadcrumb"><a href="../../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../../index.html">CozyCazt</a> <span class="sep">&#8250;</span> <a href="../index.html">Vianna Risendria 【CozyCazt】</a> <span class="sep">&#8250;</span> <span class="current">【 S.E.T DONAGOALS 】BENTAR LAGI 50% JADI …</span></nav>
+<nav class="breadcrumb"><a href="../../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../../index.html">CozyCazt</a> <span class="sep">&#8250;</span> <a href="../index.html">Vianna Risendria 【CozyCazt】</a> <span class="sep">&#8250;</span> <span class="current">【 S.E.T DONAGOALS 】BENTAR LAGI 50% JADI …</span><div class="theme-toggle"><button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme"><span class="toggle-icon-light">☀</span><span class="toggle-thumb" id="toggle-thumb">&#10022;</span><span class="toggle-icon-dark">☽</span></button></div></nav>
   <header>
     <p class="eyebrow">CozyCazt &nbsp;&#183;&nbsp; Vianna Risendria 【CozyCazt】</p>
     <span class="stream-status status-live" style="display:inline-block;margin-bottom:0.75rem;">&#128308; Live</span>
@@ -369,7 +428,7 @@
     <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>
   </div>
 
-  <p class="generated">Generated 2026-03-15 21:16 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+  <p class="generated">Generated 2026-03-15 21:32 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
 
 <script>
 const ts    = ["2026-03-14 14:41 WIB", "2026-03-14 14:43 WIB", "2026-03-14 14:45 WIB", "2026-03-14 14:47 WIB", "2026-03-14 14:49 WIB", "2026-03-14 14:50 WIB", "2026-03-14 14:52 WIB", "2026-03-14 14:54 WIB", "2026-03-14 14:56 WIB", "2026-03-14 14:58 WIB", "2026-03-14 14:59 WIB", "2026-03-14 15:01 WIB", "2026-03-14 15:03 WIB", "2026-03-14 15:05 WIB", "2026-03-14 15:07 WIB", "2026-03-14 15:09 WIB", "2026-03-14 15:11 WIB", "2026-03-14 15:13 WIB", "2026-03-14 15:14 WIB", "2026-03-14 15:16 WIB", "2026-03-14 15:18 WIB", "2026-03-14 15:20 WIB", "2026-03-14 15:21 WIB", "2026-03-14 15:23 WIB", "2026-03-14 15:25 WIB", "2026-03-14 15:27 WIB", "2026-03-14 15:29 WIB", "2026-03-14 15:30 WIB", "2026-03-14 15:32 WIB", "2026-03-14 15:34 WIB", "2026-03-14 15:36 WIB", "2026-03-14 15:38 WIB", "2026-03-14 15:40 WIB", "2026-03-14 15:42 WIB", "2026-03-14 15:44 WIB", "2026-03-14 15:45 WIB", "2026-03-14 15:47 WIB", "2026-03-14 15:49 WIB", "2026-03-14 15:51 WIB", "2026-03-14 15:53 WIB", "2026-03-14 15:54 WIB", "2026-03-14 15:56 WIB", "2026-03-14 15:58 WIB", "2026-03-14 16:00 WIB", "2026-03-14 16:02 WIB", "2026-03-14 16:04 WIB", "2026-03-14 16:07 WIB", "2026-03-14 16:09 WIB", "2026-03-14 16:11 WIB", "2026-03-14 16:13 WIB", "2026-03-14 16:16 WIB", "2026-03-14 16:18 WIB", "2026-03-14 16:20 WIB", "2026-03-14 16:22 WIB", "2026-03-14 16:24 WIB", "2026-03-14 16:27 WIB", "2026-03-14 16:29 WIB", "2026-03-14 16:31 WIB", "2026-03-14 16:34 WIB", "2026-03-14 16:36 WIB", "2026-03-14 16:38 WIB", "2026-03-14 16:40 WIB", "2026-03-14 16:42 WIB", "2026-03-14 16:44 WIB", "2026-03-14 16:46 WIB", "2026-03-14 16:48 WIB", "2026-03-14 16:49 WIB", "2026-03-14 16:51 WIB", "2026-03-14 16:53 WIB", "2026-03-14 16:55 WIB", "2026-03-14 16:57 WIB", "2026-03-14 16:59 WIB", "2026-03-14 17:01 WIB", "2026-03-14 17:03 WIB", "2026-03-14 17:05 WIB", "2026-03-14 17:07 WIB", "2026-03-14 17:09 WIB", "2026-03-14 17:11 WIB", "2026-03-14 17:13 WIB", "2026-03-14 17:15 WIB", "2026-03-14 17:17 WIB", "2026-03-14 17:19 WIB", "2026-03-14 17:21 WIB", "2026-03-14 17:23 WIB", "2026-03-14 17:25 WIB", "2026-03-14 17:26 WIB", "2026-03-14 17:28 WIB", "2026-03-14 17:30 WIB", "2026-03-14 17:32 WIB", "2026-03-14 17:34 WIB", "2026-03-14 17:36 WIB", "2026-03-14 17:38 WIB", "2026-03-14 17:40 WIB", "2026-03-14 17:41 WIB", "2026-03-14 17:43 WIB", "2026-03-14 17:44 WIB", "2026-03-14 17:46 WIB", "2026-03-14 17:48 WIB", "2026-03-14 17:49 WIB", "2026-03-14 17:51 WIB", "2026-03-14 17:52 WIB", "2026-03-14 17:54 WIB", "2026-03-14 17:56 WIB", "2026-03-14 17:57 WIB", "2026-03-14 17:59 WIB", "2026-03-14 18:01 WIB", "2026-03-14 18:03 WIB", "2026-03-14 18:04 WIB", "2026-03-14 18:06 WIB", "2026-03-14 18:08 WIB", "2026-03-14 18:09 WIB", "2026-03-14 18:11 WIB", "2026-03-14 18:13 WIB", "2026-03-14 18:14 WIB", "2026-03-14 18:16 WIB", "2026-03-14 18:17 WIB", "2026-03-14 18:19 WIB", "2026-03-14 18:21 WIB", "2026-03-14 18:22 WIB", "2026-03-14 18:24 WIB", "2026-03-14 18:26 WIB", "2026-03-14 18:27 WIB", "2026-03-14 18:29 WIB", "2026-03-14 18:30 WIB", "2026-03-14 18:32 WIB", "2026-03-14 18:33 WIB", "2026-03-14 18:35 WIB", "2026-03-14 18:36 WIB", "2026-03-14 18:38 WIB", "2026-03-14 18:39 WIB", "2026-03-14 18:41 WIB", "2026-03-14 18:42 WIB", "2026-03-14 18:43 WIB", "2026-03-14 18:45 WIB", "2026-03-14 18:46 WIB", "2026-03-14 18:48 WIB", "2026-03-14 18:50 WIB", "2026-03-14 18:51 WIB", "2026-03-14 18:52 WIB", "2026-03-14 18:54 WIB", "2026-03-14 18:55 WIB", "2026-03-14 18:57 WIB", "2026-03-14 18:58 WIB", "2026-03-14 19:00 WIB", "2026-03-14 19:01 WIB", "2026-03-14 19:02 WIB", "2026-03-14 19:04 WIB", "2026-03-14 19:05 WIB", "2026-03-14 19:07 WIB", "2026-03-14 19:08 WIB", "2026-03-14 19:10 WIB", "2026-03-14 19:11 WIB", "2026-03-14 19:13 WIB", "2026-03-14 19:14 WIB", "2026-03-14 19:16 WIB", "2026-03-14 19:17 WIB", "2026-03-14 19:18 WIB", "2026-03-14 19:20 WIB", "2026-03-14 19:21 WIB", "2026-03-14 19:23 WIB", "2026-03-14 19:24 WIB", "2026-03-14 19:25 WIB", "2026-03-14 19:27 WIB", "2026-03-14 19:28 WIB", "2026-03-14 19:30 WIB", "2026-03-14 19:32 WIB", "2026-03-14 19:33 WIB", "2026-03-14 19:34 WIB", "2026-03-14 19:35 WIB", "2026-03-14 19:36 WIB", "2026-03-14 19:38 WIB", "2026-03-14 19:39 WIB", "2026-03-14 19:40 WIB", "2026-03-14 19:41 WIB", "2026-03-14 19:42 WIB", "2026-03-14 19:44 WIB", "2026-03-14 19:45 WIB", "2026-03-14 19:46 WIB", "2026-03-14 19:47 WIB", "2026-03-14 19:49 WIB", "2026-03-14 19:51 WIB", "2026-03-14 19:52 WIB", "2026-03-14 19:53 WIB", "2026-03-14 19:54 WIB", "2026-03-14 19:56 WIB", "2026-03-14 19:57 WIB", "2026-03-14 19:58 WIB", "2026-03-14 19:59 WIB", "2026-03-14 20:00 WIB", "2026-03-14 20:02 WIB", "2026-03-14 20:03 WIB", "2026-03-14 20:04 WIB", "2026-03-14 20:05 WIB", "2026-03-14 20:06 WIB", "2026-03-14 20:08 WIB", "2026-03-14 20:11 WIB", "2026-03-14 20:13 WIB", "2026-03-14 20:15 WIB", "2026-03-14 20:17 WIB", "2026-03-14 20:19 WIB", "2026-03-14 20:21 WIB", "2026-03-14 20:24 WIB", "2026-03-14 20:26 WIB", "2026-03-14 20:28 WIB", "2026-03-14 20:30 WIB", "2026-03-14 20:32 WIB", "2026-03-14 20:34 WIB", "2026-03-14 20:36 WIB", "2026-03-14 20:38 WIB"];
@@ -416,5 +475,60 @@ new Chart(document.getElementById("engagementChart"), {
     </span>
   </footer>
 </div>
+
+<script>
+(function() {
+  var STORAGE_KEY = 'idvt-theme';
+  var root  = document.documentElement;
+  var btn   = null;
+  var thumb = null;
+
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+
+  function getEffectiveTheme() {
+    var stored = localStorage.getItem(STORAGE_KEY);
+    return stored || getSystemTheme();
+  }
+
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    if (thumb) {
+      if (theme === 'light') {
+        thumb.classList.add('is-light');
+      } else {
+        thumb.classList.remove('is-light');
+      }
+    }
+  }
+
+  function toggleTheme() {
+    var current = getEffectiveTheme();
+    var next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(STORAGE_KEY, next);
+    applyTheme(next);
+  }
+
+  // Apply immediately on load to avoid flash
+  applyTheme(getEffectiveTheme());
+
+  // Wire up button after DOM ready
+  document.addEventListener('DOMContentLoaded', function() {
+    btn   = document.getElementById('theme-toggle');
+    thumb = document.getElementById('toggle-thumb');
+    // Re-apply to update thumb position now element exists
+    applyTheme(getEffectiveTheme());
+    if (btn) btn.addEventListener('click', toggleTheme);
+  });
+
+  // Follow system preference changes if user hasn't manually overridden
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function() {
+    if (!localStorage.getItem(STORAGE_KEY)) {
+      applyTheme(getSystemTheme());
+    }
+  });
+})();
+</script>
 </body>
 </html>
