@@ -103,7 +103,7 @@ jobs:
         run: |
           git config user.name  "IDVTuber Dashboard"
           git config user.email "dashboard@idvtuber-tracker"
-          git add cache/
+          git add cache/ dashboard/manifest.json
           if git diff --cached --quiet; then
             echo "Cache unchanged — nothing to commit."
           else
