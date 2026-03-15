@@ -590,6 +590,63 @@ _BASE_CSS = """
     --blue:      #4fc3f7;
     --org-color: #e8ff47;
   }
+
+  /* ── light theme ── */
+  [data-theme="light"] {
+    --bg:       #f5f5f0;
+    --surface:  #ffffff;
+    --surface2: #eaeae5;
+    --border:   #d8d8ce;
+    --muted:    #888880;
+    --text:     #1a1a14;
+    --white:    #1a1a14;
+    --red:      #d63050;
+    --blue:     #0077aa;
+  }
+
+  /* ── follow system preference by default ── */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg:       #f5f5f0;
+      --surface:  #ffffff;
+      --surface2: #eaeae5;
+      --border:   #d8d8ce;
+      --muted:    #888880;
+      --text:     #1a1a14;
+      --white:    #1a1a14;
+      --red:      #d63050;
+      --blue:     #0077aa;
+    }
+  }
+
+  /* ── theme toggle ── */
+  .theme-toggle {
+    margin-left: auto; flex-shrink: 0;
+    display: flex; align-items: center;
+  }
+  .toggle-pill {
+    position: relative; display: flex; align-items: center;
+    width: 56px; height: 28px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; cursor: pointer;
+    transition: background 0.25s, border-color 0.25s;
+  }
+  .toggle-pill:hover { border-color: var(--org-color); }
+  .toggle-thumb {
+    position: absolute; left: 4px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--org-color);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; line-height: 1; pointer-events: none;
+  }
+  .toggle-thumb.is-light { transform: translateX(28px); }
+  .toggle-icon-dark,
+  .toggle-icon-light {
+    position: absolute; font-size: 10px; line-height: 1; pointer-events: none;
+  }
+  .toggle-icon-dark  { right: 7px; }
+  .toggle-icon-light { left:  7px; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body {
@@ -896,6 +953,10 @@ def _html_head(title: str, depth: int, org_color: str = "#e8ff47",
         f'<!DOCTYPE html>\n<html lang="en">\n<head>\n'
         f'<meta charset="UTF-8">\n'
         f'<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+        f'<meta name="color-scheme" content="dark light">\n'
+        f'<script>!function(){{var t=localStorage.getItem("idvt-theme")||'
+        f'(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");'
+        f'document.documentElement.setAttribute("data-theme",t)}}();</script>\n'
         f'<title>{esc(title)} — IDVTuber Tracker</title>\n'
         f'{_FONTS}\n'
         f'{extra_scripts}\n'
@@ -906,6 +967,61 @@ def _html_head(title: str, depth: int, org_color: str = "#e8ff47",
 
 def _html_foot(depth: int) -> str:
     rel = "../" * depth
+    theme_js = """
+<script>
+(function() {
+  var STORAGE_KEY = 'idvt-theme';
+  var root  = document.documentElement;
+  var btn   = null;
+  var thumb = null;
+
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+
+  function getEffectiveTheme() {
+    var stored = localStorage.getItem(STORAGE_KEY);
+    return stored || getSystemTheme();
+  }
+
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    if (thumb) {
+      if (theme === 'light') {
+        thumb.classList.add('is-light');
+      } else {
+        thumb.classList.remove('is-light');
+      }
+    }
+  }
+
+  function toggleTheme() {
+    var current = getEffectiveTheme();
+    var next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(STORAGE_KEY, next);
+    applyTheme(next);
+  }
+
+  // Apply immediately on load to avoid flash
+  applyTheme(getEffectiveTheme());
+
+  // Wire up button after DOM ready
+  document.addEventListener('DOMContentLoaded', function() {
+    btn   = document.getElementById('theme-toggle');
+    thumb = document.getElementById('toggle-thumb');
+    // Re-apply to update thumb position now element exists
+    applyTheme(getEffectiveTheme());
+    if (btn) btn.addEventListener('click', toggleTheme);
+  });
+
+  // Follow system preference changes if user hasn't manually overridden
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function() {
+    if (!localStorage.getItem(STORAGE_KEY)) {
+      applyTheme(getSystemTheme());
+    }
+  });
+})();
+</script>"""
     return (
         f'\n  <footer>\n'
         f'    <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>\n'
@@ -917,7 +1033,9 @@ def _html_foot(depth: int) -> str:
         f'      <a href="{rel}terms.html">Terms of Use</a>\n'
         f'    </span>\n'
         f'  </footer>\n'
-        f'</div>\n</body>\n</html>'
+        f'</div>\n'
+        f'{theme_js}\n'
+        f'</body>\n</html>'
     )
 
 
@@ -930,7 +1048,16 @@ def _breadcrumb(crumbs: list[tuple[str, str]]) -> str:
             parts.append(f'<a href="{href}">{esc(label)}</a>')
         if i < len(crumbs) - 1:
             parts.append('<span class="sep">&#8250;</span>')
-    return '<nav class="breadcrumb">' + " ".join(parts) + "</nav>\n"
+    toggle = (
+        '<div class="theme-toggle">'
+        '<button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">'
+        '<span class="toggle-icon-light">☀</span>'
+        '<span class="toggle-thumb" id="toggle-thumb">&#10022;</span>'
+        '<span class="toggle-icon-dark">☽</span>'
+        '</button>'
+        '</div>'
+    )
+    return '<nav class="breadcrumb">' + " ".join(parts) + toggle + "</nav>\n"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -953,13 +1080,23 @@ def write_index(total_streams: int, total_channels: int, generated_at: str) -> N
 
     body = (
         f'  <header>\n'
-        f'    <p class="eyebrow">IDVTuber Tracker &#8212; Live Analytics</p>\n'
-        f'    <h1>Stream <em>Overview</em></h1>\n'
-        f'    <p class="page-meta">'
+        f'    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">\n'
+        f'      <div>\n'
+        f'        <p class="eyebrow">IDVTuber Tracker &#8212; Live Analytics</p>\n'
+        f'        <h1>Stream <em>Overview</em></h1>\n'
+        f'        <p class="page-meta">'
         f'Generated: {generated_at} &nbsp;&#183;&nbsp; '
         f'{total_streams} streams &nbsp;&#183;&nbsp; '
         f'{total_channels} channels &nbsp;&#183;&nbsp; '
         f'9 organisations</p>\n'
+        f'      </div>\n'
+        f'      <div class="theme-toggle" style="padding-top:0.5rem;">'
+        f'<button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">'
+        f'<span class="toggle-icon-light">☀</span>'
+        f'<span class="toggle-thumb" id="toggle-thumb">&#10022;</span>'
+        f'<span class="toggle-icon-dark">☽</span>'
+        f'</button></div>\n'
+        f'    </div>\n'
         f'  </header>\n'
         f'  <div class="orgs-grid">{org_cards}\n  </div>\n'
     )
