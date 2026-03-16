@@ -403,7 +403,7 @@ def deploy_dashboard() -> None:
         # Pull remote changes (e.g. cache commit from deploy workflow)
         # with --rebase so our staged commit lands on top cleanly.
         pull = subprocess.run(
-            ["git", "pull", "--rebase", "origin", "HEAD"],
+            ["git", "pull", "--rebase", "origin", "main"],
             cwd=repo_dir, capture_output=True, text=True
         )
         if pull.returncode != 0:
@@ -423,10 +423,11 @@ def deploy_dashboard() -> None:
             cwd=repo_dir, check=True, capture_output=True
         )
 
-        # Push with up to 3 retries, re-pulling on each rejection.
+        # Push with up to 3 retries. Use explicit branch name (not HEAD) so
+        # retries work correctly even if a failed rebase left HEAD detached.
         for attempt in range(1, 4):
             push = subprocess.run(
-                ["git", "push", "origin", "HEAD"],
+                ["git", "push", "origin", "main"],
                 cwd=repo_dir, capture_output=True, text=True
             )
             if push.returncode == 0:
@@ -435,10 +436,13 @@ def deploy_dashboard() -> None:
             log.warning("git push failed (attempt %d): %s", attempt, push.stderr.strip())
             if attempt < 3:
                 # Re-pull and rebase our commit on top of whatever was pushed
-                subprocess.run(
-                    ["git", "pull", "--rebase", "origin", "HEAD"],
-                    cwd=repo_dir, capture_output=True
+                rp = subprocess.run(
+                    ["git", "pull", "--rebase", "origin", "main"],
+                    cwd=repo_dir, capture_output=True, text=True
                 )
+                if rp.returncode != 0:
+                    subprocess.run(["git", "rebase", "--abort"],
+                                   cwd=repo_dir, capture_output=True)
         else:
             log.error("git push failed after 3 attempts — skipping deploy dispatch.")
             return
