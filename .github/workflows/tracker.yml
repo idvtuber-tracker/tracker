@@ -107,6 +107,35 @@ jobs:
           }
           Write-Host "Cleanup complete."
 
+      - name: Restart runner service
+        if: always()
+        shell: powershell
+        run: |
+          # Restart the GitHub Actions runner service so it re-establishes
+          # a fresh long-poll connection to GitHub before picking up the next
+          # queued job. Without this, the runner can silently drop its
+          # connection after hours of operation and miss queued jobs.
+          $svc = Get-Service -Name "actions.runner.*" -ErrorAction SilentlyContinue
+          if ($svc) {
+            Write-Host "Restarting runner service: $($svc.Name)"
+            Restart-Service -Name $svc.Name -Force
+            # Wait up to 15 seconds for the service to return to Running state
+            $deadline = (Get-Date).AddSeconds(15)
+            while ((Get-Date) -lt $deadline) {
+              Start-Sleep -Seconds 2
+              $svc.Refresh()
+              if ($svc.Status -eq "Running") {
+                Write-Host "Runner service restarted successfully."
+                break
+              }
+            }
+            if ($svc.Status -ne "Running") {
+              Write-Host "WARNING: Runner service did not return to Running within 15s. Status: $($svc.Status)"
+            }
+          } else {
+            Write-Host "No runner service found — skipping restart."
+          }
+
       - name: Restart workflow
         if: always()
         shell: powershell
