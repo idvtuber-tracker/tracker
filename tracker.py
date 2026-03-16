@@ -386,12 +386,25 @@ def deploy_dashboard() -> None:
         subprocess.run(["git", "config", "user.name", "Stream Tracker Bot"],
                        cwd=repo_dir, check=True, capture_output=True)
 
-        # Stage dashboard files first so the working tree is clean,
-        # allowing git pull --rebase to proceed without "unstaged changes" error.
+        # Pull with --autostash: git automatically stashes any working tree
+        # changes (including staged dashboard files), pulls and rebases, then
+        # pops the stash. This avoids the "index contains uncommitted changes"
+        # error that occurs when staged files are present during a rebase pull.
+        pull = subprocess.run(
+            ["git", "pull", "--rebase", "--autostash", "origin", "main"],
+            cwd=repo_dir, capture_output=True, text=True
+        )
+        if pull.returncode != 0:
+            log.warning("git pull --rebase --autostash failed: %s", pull.stderr.strip())
+            subprocess.run(["git", "rebase", "--abort"],
+                           cwd=repo_dir, capture_output=True)
+
+        # Stage dashboard files after the pull so we commit on top of the
+        # latest remote state.
         subprocess.run(["git", "add", dashboard_dir],
                        cwd=repo_dir, check=True, capture_output=True)
 
-        # Check if there is anything staged — if not, nothing to do.
+        # Nothing changed — skip.
         result = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
             cwd=repo_dir, capture_output=True
@@ -400,31 +413,13 @@ def deploy_dashboard() -> None:
             log.info("Dashboard unchanged — skipping deploy commit.")
             return
 
-        # Pull remote changes (e.g. cache commit from deploy workflow)
-        # with --rebase so our staged commit lands on top cleanly.
-        pull = subprocess.run(
-            ["git", "pull", "--rebase", "origin", "main"],
-            cwd=repo_dir, capture_output=True, text=True
-        )
-        if pull.returncode != 0:
-            log.warning("git pull --rebase failed (will still attempt push): %s", pull.stderr.strip())
-            # Abort any in-progress rebase to leave repo in clean state
-            subprocess.run(
-                ["git", "rebase", "--abort"],
-                cwd=repo_dir, capture_output=True
-            )
-            # Re-stage after abort since rebase may have cleared the index
-            subprocess.run(["git", "add", dashboard_dir],
-                           cwd=repo_dir, capture_output=True)
-
         ts = _now_local().strftime("%Y-%m-%d %H:%M:%S WIB")
         subprocess.run(
             ["git", "commit", "-m", f"chore: dashboard update {ts}"],
             cwd=repo_dir, check=True, capture_output=True
         )
 
-        # Push with up to 3 retries. Use explicit branch name (not HEAD) so
-        # retries work correctly even if a failed rebase left HEAD detached.
+        # Push with up to 3 retries using explicit branch name.
         for attempt in range(1, 4):
             push = subprocess.run(
                 ["git", "push", "origin", "main"],
@@ -435,9 +430,8 @@ def deploy_dashboard() -> None:
                 break
             log.warning("git push failed (attempt %d): %s", attempt, push.stderr.strip())
             if attempt < 3:
-                # Re-pull and rebase our commit on top of whatever was pushed
                 rp = subprocess.run(
-                    ["git", "pull", "--rebase", "origin", "main"],
+                    ["git", "pull", "--rebase", "--autostash", "origin", "main"],
                     cwd=repo_dir, capture_output=True, text=True
                 )
                 if rp.returncode != 0:
