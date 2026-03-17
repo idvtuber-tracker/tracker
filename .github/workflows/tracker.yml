@@ -133,7 +133,7 @@ jobs:
               Write-Host "WARNING: Runner service did not return to Running within 15s. Status: $($svc.Status)"
             }
           } else {
-            Write-Host "No runner service found — skipping restart."
+            Write-Host "No runner service found - skipping restart."
           }
 
       - name: Restart workflow
