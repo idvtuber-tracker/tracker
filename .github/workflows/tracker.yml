@@ -1,4 +1,3 @@
-
 name: YouTube Livestream Tracker
 
 on:
@@ -48,10 +47,13 @@ jobs:
           $url  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/runs?status=queued&per_page=100"
           $runs = (Invoke-RestMethod -Uri $url -Headers $headers).workflow_runs
           foreach ($run in $runs) {
-            if ($run.id -ne [int64]$current) {
+            # Only cancel runs that are OLDER than the current run.
+            # Cancelling newer runs would wipe the job dispatched by the
+            # previous cycle before the runner gets a chance to pick it up.
+            if ($run.id -lt [int64]$current) {
               $cancelUrl = "https://api.github.com/repos/$repo/actions/runs/$($run.id)/cancel"
               Invoke-RestMethod -Uri $cancelUrl -Method POST -Headers $headers
-              Write-Host "Cancelled queued run $($run.id)"
+              Write-Host "Cancelled older queued run $($run.id)"
             }
           }
           Write-Host "Done cancelling duplicates."
@@ -123,3 +125,18 @@ jobs:
           $url  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/dispatches"
           Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body -ContentType "application/json"
           Write-Host "New workflow run triggered."
+
+      - name: Restart runner service
+        if: always()
+        shell: powershell
+        run: |
+          # Restart AFTER dispatching so the runner boots into an idle state
+          # with the new job already queued and picks it up immediately.
+          $svc = Get-Service -Name "actions.runner.*" -ErrorAction SilentlyContinue
+          if ($svc) {
+            Write-Host "Restarting runner service: $($svc.Name)"
+            Restart-Service -Name $svc.Name -Force
+            Write-Host "Runner service restart initiated."
+          } else {
+            Write-Host "No runner service found - skipping restart."
+          }
