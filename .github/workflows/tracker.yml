@@ -119,8 +119,8 @@ jobs:
           if ($svc) {
             Write-Host "Restarting runner service: $($svc.Name)"
             Restart-Service -Name $svc.Name -Force
-            # Wait up to 15 seconds for the service to return to Running state
-            $deadline = (Get-Date).AddSeconds(15)
+            # Wait up to 30 seconds for the service to return to Running state
+            $deadline = (Get-Date).AddSeconds(30)
             while ((Get-Date) -lt $deadline) {
               Start-Sleep -Seconds 2
               $svc.Refresh()
@@ -130,8 +130,13 @@ jobs:
               }
             }
             if ($svc.Status -ne "Running") {
-              Write-Host "WARNING: Runner service did not return to Running within 15s. Status: $($svc.Status)"
+              Write-Host "WARNING: Runner service did not return to Running within 30s. Status: $($svc.Status)"
             }
+            # Additional wait for the runner process to authenticate with GitHub
+            # and establish its long-poll connection before the dispatch fires.
+            Write-Host "Waiting 20s for runner to reconnect to GitHub..."
+            Start-Sleep -Seconds 20
+            Write-Host "Runner reconnect wait complete."
           } else {
             Write-Host "No runner service found - skipping restart."
           }
