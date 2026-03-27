@@ -318,14 +318,14 @@
     </div>
     <div class="kpi-side">
       <div class="kpi-grid">
-        <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">5</div><div class="kpi-sub">concurrent</div></div>
+        <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">6</div><div class="kpi-sub">concurrent</div></div>
         <div class="kpi"><div class="kpi-label">Avg Viewers</div><div class="kpi-value">3</div><div class="kpi-sub">concurrent</div></div>
-        <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">15</div></div>
+        <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">18</div></div>
         <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">0</div></div>
         <div class="kpi"><div class="kpi-label">Stream Start</div><div class="kpi-value kpi-sm">2026-03-27 19:45 WIB</div></div>
-        <div class="kpi"><div class="kpi-label">Stream End</div><div class="kpi-value kpi-sm">2026-03-27 20:45 WIB</div></div>
-        <div class="kpi"><div class="kpi-label">Duration</div><div class="kpi-value kpi-sm">59m 44s</div></div>
-        <div class="kpi"><div class="kpi-label">View Count</div><div class="kpi-value kpi-sm">28</div><div class="kpi-sub">total plays</div></div>
+        <div class="kpi"><div class="kpi-label">Stream End</div><div class="kpi-value kpi-sm">2026-03-27 21:00 WIB</div></div>
+        <div class="kpi"><div class="kpi-label">Duration</div><div class="kpi-value kpi-sm">1h 14m 51s</div></div>
+        <div class="kpi"><div class="kpi-label">View Count</div><div class="kpi-value kpi-sm">36</div><div class="kpi-sub">total plays</div></div>
       </div>
     </div>
   </div>
@@ -340,13 +340,13 @@
     <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>
   </div>
 
-  <p class="generated">Generated 2026-03-27 20:46 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+  <p class="generated">Generated 2026-03-27 21:01 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
 
 <script>
-const ts    = ["2026-03-27 19:45 WIB", "2026-03-27 19:47 WIB", "2026-03-27 19:49 WIB", "2026-03-27 19:50 WIB", "2026-03-27 19:52 WIB", "2026-03-27 19:54 WIB", "2026-03-27 19:56 WIB", "2026-03-27 19:58 WIB", "2026-03-27 20:00 WIB", "2026-03-27 20:02 WIB", "2026-03-27 20:04 WIB", "2026-03-27 20:05 WIB", "2026-03-27 20:07 WIB", "2026-03-27 20:09 WIB", "2026-03-27 20:11 WIB", "2026-03-27 20:15 WIB", "2026-03-27 20:18 WIB", "2026-03-27 20:20 WIB", "2026-03-27 20:22 WIB", "2026-03-27 20:24 WIB", "2026-03-27 20:27 WIB", "2026-03-27 20:29 WIB", "2026-03-27 20:31 WIB", "2026-03-27 20:33 WIB", "2026-03-27 20:36 WIB", "2026-03-27 20:38 WIB", "2026-03-27 20:40 WIB", "2026-03-27 20:42 WIB", "2026-03-27 20:45 WIB"];
-const views = [3, 2, 5, 2, 2, 2, 2, 2, 3, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 4];
-const likes = [4, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 11, 11, 11, 11, 11, 12, 12, 13, 14, 14, 15, 15, 15, 15, 15, 15, 15];
-const comms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const ts    = ["2026-03-27 19:45 WIB", "2026-03-27 19:47 WIB", "2026-03-27 19:49 WIB", "2026-03-27 19:50 WIB", "2026-03-27 19:52 WIB", "2026-03-27 19:54 WIB", "2026-03-27 19:56 WIB", "2026-03-27 19:58 WIB", "2026-03-27 20:00 WIB", "2026-03-27 20:02 WIB", "2026-03-27 20:04 WIB", "2026-03-27 20:05 WIB", "2026-03-27 20:07 WIB", "2026-03-27 20:09 WIB", "2026-03-27 20:11 WIB", "2026-03-27 20:15 WIB", "2026-03-27 20:18 WIB", "2026-03-27 20:20 WIB", "2026-03-27 20:22 WIB", "2026-03-27 20:24 WIB", "2026-03-27 20:27 WIB", "2026-03-27 20:29 WIB", "2026-03-27 20:31 WIB", "2026-03-27 20:33 WIB", "2026-03-27 20:36 WIB", "2026-03-27 20:38 WIB", "2026-03-27 20:40 WIB", "2026-03-27 20:42 WIB", "2026-03-27 20:45 WIB", "2026-03-27 20:47 WIB", "2026-03-27 20:51 WIB", "2026-03-27 20:53 WIB", "2026-03-27 20:55 WIB", "2026-03-27 20:57 WIB", "2026-03-27 21:00 WIB"];
+const views = [3, 2, 5, 2, 2, 2, 2, 2, 3, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 4, 5, 4, 3, 5, 6, 6];
+const likes = [4, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 11, 11, 11, 11, 11, 12, 12, 13, 14, 14, 15, 15, 15, 15, 15, 15, 15, 16, 17, 17, 17, 18, 18];
+const comms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 const orgColor  = '#60a5fa';
 const gridColor = 'rgba(30,30,46,0.8)';
 const tickColor = '#5a5a7a';
