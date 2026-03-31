@@ -190,6 +190,98 @@ ORG_MAP = {
             ("Ririna Ruu【AFTERAIN】",        "talent", "UC_vnL6pH3Mm3XrnuQ38LWtQ"),
         ],
     },
+    "magniv": {
+        "label":   "MagniV",
+        "color":   "#a855f7",
+        "desc":    "An Indonesian Male VTuber idol group. Concept: 'Five as one, we shine.'",
+        "channels": [
+            ("Gema Gathika【AKA Virtual】", "talent", "UC9Mfuai-qdXnTTFN0Z3hkAA"),  
+            ("Istmodius【AKA Virtual】", "talent", "UCpe6USwJgyctDpWQhzVBeVQ"),  
+            ("Mosa【AKA Virtual】", "talent", "UCkYmpSIAkPgNg4wBeNn9JAA"), 
+            ("Funin Mamori【AKA Virtual】", "talent", "UCO6ngsu6Bx1SnJgL1iLyafA"), 
+        ],
+    },
+    "sandaiva": {
+        "label":   "SANDAiVA",
+        "color":   "#e879f9",
+        "desc":    "A three-member Indonesian VTuber idol unit.",
+        "channels": [
+            ("SANDAiVA【AKA Virtual】", "org", "UCHiV8178uHAj6a6KxrYiEdQ"),  
+            ("Kirigaya Raveanne【AKA Virtual】", "talent", "UCmNeOjitXbWHg_CDNGrwoHw"),  
+            ("Njess【AKA Virtual】", "talent", "UC_AGUYW4usybdi-WTZQcYxg"),  
+            ("Quiver Rannette【AKA Virtual】", "talent", "UCGx0t5bUkm-rY3jKSRolY1w"),  
+        ],
+    },
+    "versa": {
+        "label":   "VERSA",
+        "color":   "#38bdf8",
+        "desc":    "An Indonesian VTuber boyband group.",
+        "channels": [
+            ("Agata Seven【AKA Virtual】", "talent", "UC4NdM7WwMvyGzkUr0dsSGJQ"),  
+            ("Alarich【AKA Virtual】", "talent", "UCn58MSGrtsDY8N_VhyLcPjg"),  
+            ("Eray Ryuki【AKA Virtual】", "talent", "UCXp26d9RQqUnCeRwaulXZgA"),  
+            ("Ryoutaa【AKA Virtual】", "talent", "UCRQCV5LXaJKVQ35qaMuI0dw"),  
+            ("SouRizu☪︎【AKA Virtual】", "talent", "UCs2eFSeyAQqjH7PyjZwSH1w"),  
+        ],
+    },
+    "jkt48v": {
+        "label":   "JKT48V",
+        "color":   "#f59e0b",
+        "desc":    "The virtual idol sub-unit of JKT48, Indonesia's iconic idol group. Your Idol, Comes Virtual.",
+        "channels": [
+            ("JKT48V", "org", "UCX3wkex0h-KP7Z3Q9SDkMIA"),  
+            ("Pia Meraleo【JKT48V】", "talent", "UCIa2OxCyhjWjJke-9yYNbwA"),  
+            ("Tana Nona【JKT48V】", "talent", "UCyam-qAWHwBoVnTNXk3gHbQ"),  
+            ("Sami Maono【JKT48V】", "talent", "UCrLhVcbVYhSGWlR6oM8FqTg"),  
+            ("Isha Kirana【JKT48V】", "talent", "UCYm4XQ_YzSnaBZ0UdOIAlrQ"),  
+            ("Maura Nilambari【JKT48V】", "talent", "UCWK3jDHD_LzCTu4CF7amN8A"),  
+        ],
+    },
+    "maha5": {
+        "label":   "MAHA5",
+        "color":   "#34d399",
+        "desc":    "An Indonesian VTuber agency (Mahapanca) under Rentracks Indonesia, connecting Indonesia and Japan through anime and otaku culture.",
+        "channels": [
+            ("MAHA5", "org", "UCzc8GwjUvecxpjhGtuewYOQ"),  
+            ("Kevin Vangardo【MAHA5】", "talent", "UCAnKiHbZhEayttn6p-sxfbg"),  
+            ("Rena Anggraeni【MAHA5】", "talent", "UCjQyHnE_Q58jYTaP8gRHv4g"),  
+            ("Hera Garalea【MAHA5】", "talent", "UCXMdn7Omv5l2yqQxuepQtNA"),  
+            ("Daisy Ignacia Y【MAHA5】", "talent", "UCgwZmQZC7O-TP1Xbnz50VtQ"),  
+            ("Saku Kurata【MAHA5】", "talent", "UCxL9H-mOD2Op4yynXPOWGnQ"),  
+            ("Maudy Sukaiga【MAHA5】", "talent", "UCmp1vw137-GvWyrBFraXQUw"),  
+            ("Fuyumi Celestia【MAHA5】", "talent", "UCge_6FJHyeOCxRtWCmaVTAQ"),  
+        ],
+    },
+    "rememories": {
+        "label":   "Re:Memories",
+        "color":   "#fb7185",
+        "desc":    "An Indonesian indie VTuber agency focused on two-way interactive entertainment and fostering real connections with their community.",
+        "channels": [
+            ("Re:Memories", "org", "UCJZnhqz3mNpWJJ1FGrAy_qA"),  
+            ("Chloe Pawapua『Re:Memories』", "talent", "UCrKS2bOUZDXA_R3qhCux7ow"),  
+            ("Lily Ifeta『Re:Memories』", "talent", "UCXSbl3XQYtx1u4Gvvca7NUA"),  
+            ("Reynard Blanc『Re:Memories』", "talent", "UCoUFv7APM1XOo4TUaWbRekw"),  
+            ("Elaine Celestia『Re:Memories』", "talent", "UCyapmNSsYj2KkoQEhZEhxrw"),  
+            ("Cecilia Lieberia『Re:Memories』", "talent", "UC4pEixMozb6UnOtwg5Uew-Q"),  
+            ("Marin Goldlock『Re:Memories』", "talent", "UCgexPS9fwEtLTCM8VZnEpjA"),  
+            ("Izanami Chiara『Re:Memories』", "talent", "UCYVhzyujupNgRbvVPcA3KrA"),  
+            ("Leo Axenos『Re:Memories』", "talent", "UCoWz6jan_0RD-Z1pk3-h9Mg"),  
+            ("Pinku Rimu『Re:Memories』", "talent", "UC1fvUNao61EenXh0KPFGSTg"),  
+        ],
+    },
+    "eon-of-stars": {
+        "label":   "Eon of Stars",
+        "color":   "#818cf8",
+        "desc":    "An Indonesian indie VTuber group Debuted January 2026.",
+        "channels": [
+            ("Eon of Stars", "org", "UCpvevZ8VPSNe4qlSKAcLMBg"),  
+            ("Harris Caine【EOS】", "talent", "UCtC7olOldksX4fcl_8XKUFA"),  
+            ("Gingitsune Gehenna【EOS】", "talent", "UC8D3XmwYEr97q-tuNZjUuww"),  
+            ("Souta【EOS】", "talent", "UCv7rxNkDhRu-uyyLIQg2tew"),  
+            ("Mikazuki Arion【EOS】", "talent", "UCz_9zqgFPUYQBhDiZBFc00w"),  
+        ],
+    },
+
 }
 
 # Build reverse lookup: channel_name → (org_slug, org)
