@@ -571,6 +571,13 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
     Rotates through all available API keys on 403.
     Falls back to last successful fetch on complete failure.
     Results are cached to disk for the remainder of the local day.
+
+    Cache validity requires BOTH:
+      (a) the cache date matches today, AND
+      (b) every requested channel_id is already present in the cache.
+    If new channel IDs are requested (e.g. newly-added orgs), the cache is
+    considered stale and a fresh fetch is performed for all missing IDs.
+    The result is then merged back into the cache and saved.
     """
     today = _now_local().strftime("%Y-%m-%d")
 
@@ -579,10 +586,29 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
             with open(_LOGO_CACHE_FILE, encoding="utf-8") as f:
                 cache = json.load(f)
             if cache.get("date") == today:
-                log.info("Using cached channel data (%d entries).", len(cache.get("logos", {})))
-                return cache["logos"], cache.get("subscribers", {})
+                cached_logos = cache.get("logos", {})
+                cached_subs  = cache.get("subscribers", {})
+                missing_ids  = [cid for cid in channel_ids if cid not in cached_logos]
+                if not missing_ids:
+                    log.info("Using cached channel data (%d entries, all present).",
+                             len(cached_logos))
+                    return cached_logos, cached_subs
+                log.info(
+                    "Cache is from today but missing %d channel ID(s) — "
+                    "fetching missing entries only.",
+                    len(missing_ids),
+                )
+                # Fall through to fetch only the missing IDs, then merge below
+                channel_ids = missing_ids
+                # Keep existing cached data so we can merge at the end
+                _partial_cache = (cached_logos, cached_subs)
+            else:
+                _partial_cache = None
         except Exception as e:
             log.warning("Logo cache unreadable (%s) — will re-fetch.", e)
+            _partial_cache = None
+    else:
+        _partial_cache = None
 
     raw_keys = os.environ.get("YOUTUBE_API_KEYS") or os.environ.get("YOUTUBE_API_KEY", "")
     api_keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
@@ -650,6 +676,9 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
 
     if api_failed and not logos and not subscribers:
         log.warning("API fetch produced no data — falling back to last known good channel data.")
+        # Still merge with any partial cache we loaded earlier
+        if _partial_cache:
+            return _partial_cache
         return _load_fallback()
 
     if api_failed and (logos or subscribers):
@@ -658,10 +687,16 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
         logos       = {**fallback_logos, **logos}
         subscribers = {**fallback_subs,  **subscribers}
 
+    # Merge with the partial cache (data already present from today's earlier fetch)
+    if _partial_cache:
+        prev_logos, prev_subs = _partial_cache
+        logos       = {**prev_logos, **logos}       # fresh data wins on conflict
+        subscribers = {**prev_subs,  **subscribers}
+
     try:
         with open(_LOGO_CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump({"date": today, "logos": logos, "subscribers": subscribers}, f)
-        log.info("Channel data fetched and cached (%d logos, %d subscriber counts).",
+        log.info("Channel data cached — %d logos, %d subscriber count(s) total.",
                  len(logos), len(subscribers))
     except Exception as e:
         log.warning("Could not save channel data cache: %s", e)
