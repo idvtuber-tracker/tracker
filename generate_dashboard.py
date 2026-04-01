@@ -1519,6 +1519,15 @@ def build_dashboard() -> None:
             ch_name = entry[0]
             db_row  = db_by_name.get(ch_name)
             if not db_row:
+                # Name in ORG_MAP doesn't match anything in the DB channels table.
+                # The tracker stores channel_name as returned by the YouTube API
+                # (snippet.channelTitle), which may differ from the ORG_MAP string.
+                log.warning(
+                    "ORG_MAP channel '%s' (org: %s) not found in DB channels table "
+                    "— no pages will be generated for it. Check that the name in "
+                    "ORG_MAP exactly matches the channel_name stored by the tracker.",
+                    ch_name, org_slug,
+                )
                 stream_counts[ch_name] = 0
                 all_streams_by_channel[ch_name] = []
                 continue
@@ -1592,32 +1601,41 @@ def build_dashboard() -> None:
                     "generated_at": _now_local().strftime("%Y-%m-%d %H:%M WIB"),
                 }
 
-    # ── regenerate dirty channel pages ────────────────────────────────────────
+    # ── regenerate channel pages ─────────────────────────────────────────────
+    # Write ALL channel pages that exist in the DB — not just dirty ones.
+    # This ensures pages are created on the first run for newly-added orgs,
+    # even when all their streams are already VOD (and therefore not dirty).
+    # Channel pages are cheap to write (no timeseries, just summary cards).
+    channels_written = 0
     for org_slug, org in ORG_MAP.items():
         for entry in org["channels"]:
             ch_name = entry[0]
-            if ch_name not in dirty_channels:
-                continue
+            if not db_by_name.get(ch_name):
+                continue  # not in DB yet — skip (warning already logged above)
 
             streams = all_streams_by_channel.get(ch_name, [])
-            # channel page only needs summary data (no timeseries) — enrich lightly
             enriched = []
             for stream in streams:
                 s = dict(stream)
                 if s.get("avg_viewers") is None:
-                    s["avg_viewers"] = None  # not needed for channel page cards
+                    s["avg_viewers"] = None
                 enriched.append(s)
 
             write_channel_page(org_slug, org, ch_name, enriched)
+            channels_written += 1
 
-    # ── regenerate dirty org pages ────────────────────────────────────────────
+    log.info("Channel pages written: %d", channels_written)
+
+    # ── regenerate org pages ─────────────────────────────────────────────────
+    # Always write ALL org pages so that newly-added orgs with no streams yet
+    # still get their index.html (otherwise the org card on the home page 404s).
+    # Org pages are cheap — no timeseries, just channel cards.
     for org_slug, org in ORG_MAP.items():
-        if org_slug not in dirty_orgs:
-            continue
         write_org_page(org_slug, org, stream_counts,
                        logos=logos,
                        channel_ids_map=channel_ids_map,
                        subscribers=subscribers)
+    log.info("Org pages written: %d", len(ORG_MAP))
 
     # ── always regenerate index ───────────────────────────────────────────────
     generated_at = _now_local().strftime("%Y-%m-%d %H:%M WIB")
@@ -1630,12 +1648,12 @@ def build_dashboard() -> None:
     if hist:
         hist.close()
 
-    pages_written = len(dirty_video_ids) + len(dirty_channels) + len(dirty_orgs) + 1
+    pages_written = len(dirty_video_ids) + channels_written + len(ORG_MAP) + 1
     log.info(
         "Dashboard complete — %d page(s) written "
         "(%d stream, %d channel, %d org, 1 index) out of %d total streams.",
         pages_written,
-        len(dirty_video_ids), len(dirty_channels), len(dirty_orgs),
+        len(dirty_video_ids), channels_written, len(ORG_MAP),
         total_streams
     )
 
