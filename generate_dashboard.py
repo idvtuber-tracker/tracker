@@ -309,11 +309,15 @@ def load_manifest() -> dict:
 
 
 def save_manifest(manifest: dict) -> None:
+    """Write manifest atomically via a temp file so a mid-write crash can never
+    corrupt the file and cause 'Manifest unreadable' warnings on the next run."""
     try:
-        MANIFEST_PATH.write_text(
+        tmp = MANIFEST_PATH.with_suffix(".tmp")
+        tmp.write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False),
             encoding="utf-8"
         )
+        tmp.replace(MANIFEST_PATH)   # atomic on POSIX; near-atomic on Windows
     except Exception as e:
         log.warning("Could not save manifest: %s", e)
 
@@ -1483,6 +1487,7 @@ def build_dashboard() -> None:
     # ── channel ID / logo maps ────────────────────────────────────────────────
     db_channels = get_channel_rows(conn)
     db_by_name  = {ch["channel_name"]: ch for ch in db_channels}
+    db_by_id    = {ch["channel_id"]:   ch for ch in db_channels}
 
     channel_ids_map: dict[str, str] = {}
     for org in ORG_MAP.values():
@@ -1517,20 +1522,32 @@ def build_dashboard() -> None:
         (OUTPUT_DIR / org_slug).mkdir(exist_ok=True)
         for entry in org["channels"]:
             ch_name = entry[0]
-            db_row  = db_by_name.get(ch_name)
+            # Primary lookup: by channel_name (exact match).
+            # Fallback: by channel_id from ORG_MAP entry[2] — handles the common
+            # case where the tracker stored a slightly different channel_name than
+            # what is written in ORG_MAP (e.g. missing 【bracket】 suffixes).
+            db_row = db_by_name.get(ch_name)
             if not db_row:
-                # Name in ORG_MAP doesn't match anything in the DB channels table.
-                # The tracker stores channel_name as returned by the YouTube API
-                # (snippet.channelTitle), which may differ from the ORG_MAP string.
-                log.warning(
-                    "ORG_MAP channel '%s' (org: %s) not found in DB channels table "
-                    "— no pages will be generated for it. Check that the name in "
-                    "ORG_MAP exactly matches the channel_name stored by the tracker.",
-                    ch_name, org_slug,
-                )
-                stream_counts[ch_name] = 0
-                all_streams_by_channel[ch_name] = []
-                continue
+                org_map_id = entry[2] if len(entry) > 2 else ""
+                if org_map_id:
+                    db_row = db_by_id.get(org_map_id)
+                if db_row:
+                    log.info(
+                        "ORG_MAP name '%s' matched DB by channel_id (%s) — "
+                        "DB stores it as '%s'. Pages will be generated correctly. "
+                        "Consider aligning the ORG_MAP name to avoid this fallback.",
+                        ch_name, org_map_id, db_row["channel_name"],
+                    )
+                else:
+                    log.warning(
+                        "ORG_MAP channel '%s' (org: %s) not found in DB by name "
+                        "or channel_id — no pages will be generated for it. "
+                        "The tracker may not have seen this channel stream yet.",
+                        ch_name, org_slug,
+                    )
+                    stream_counts[ch_name] = 0
+                    all_streams_by_channel[ch_name] = []
+                    continue
 
             table       = db_row["table_name"]
             raw_streams = get_streams_for_channel(conn, table)
