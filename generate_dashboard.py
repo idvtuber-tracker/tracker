@@ -272,7 +272,7 @@ ORG_MAP = {
     "eon-of-stars": {
         "label":   "Eon of Stars",
         "color":   "#818cf8",
-        "desc":    "An Indonesian indie VTuber group Debuted January 2026.",
+        "desc":    "An Indonesian indie male VTuber group providing high-quality boyfriend experience.",
         "channels": [
             ("Eon of Stars", "org", "UCpvevZ8VPSNe4qlSKAcLMBg"),  
             ("Harris Caine【EOS】", "talent", "UCtC7olOldksX4fcl_8XKUFA"),  
