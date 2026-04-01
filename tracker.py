@@ -323,7 +323,8 @@ def init_channel_table(channel_id: str, channel_name: str) -> Optional[str]:
             pass
     
 def save_to_db(row: dict, table: str) -> None:
-    """Open a fresh connection, insert one analytics row, close immediately."""
+    """Open a fresh connection, insert one analytics row, close immediately.
+    For bulk saves across multiple streams use save_many_to_db() instead."""
     conn = _new_conn()
     if conn is None:
         return
@@ -343,6 +344,48 @@ def save_to_db(row: dict, table: str) -> None:
         conn.commit()
     except Exception as e:
         log.error("DB save failed: %s", e)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def save_many_to_db(rows: list[tuple[dict, str]]) -> None:
+    """Insert analytics rows for multiple streams in a single DB connection.
+
+    Each element of rows is (row_dict, table_name). All inserts are sent in
+    one round-trip, paying the TCP + SSL handshake cost only once per cycle
+    instead of once per live stream.
+    """
+    if not rows:
+        return
+    conn = _new_conn()
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cur:
+            for row, table in rows:
+                sql = f"""
+                    INSERT INTO {table}
+                        (collected_at, channel_id, channel_name, video_id, video_title,
+                         concurrent_viewers, view_count, like_count, comment_count,
+                         stream_status, scheduled_start, actual_start)
+                    VALUES
+                        (%(collected_at)s, %(channel_id)s, %(channel_name)s, %(video_id)s,
+                         %(video_title)s, %(concurrent_viewers)s, %(view_count)s,
+                         %(like_count)s, %(comment_count)s, %(stream_status)s,
+                         %(scheduled_start)s, %(actual_start)s)
+                """
+                cur.execute(sql, row)
+        conn.commit()
+        log.info("DB: inserted %d row(s) in one connection.", len(rows))
+    except Exception as e:
+        log.error("DB batch save failed: %s", e)
         try:
             conn.rollback()
         except Exception:
@@ -627,6 +670,11 @@ signal.signal(signal.SIGTERM, _handle_signal)
 
 
 def collect_and_store(stream: dict, table: str) -> None:
+    """Fetch analytics for one live stream and persist them.
+    Dashboard regeneration is intentionally NOT called here — it is called
+    once per cycle in run() after all streams are processed, so the
+    subprocess overhead is paid once regardless of how many streams are live.
+    """
     video_id  = stream["video_id"]
     analytics = get_video_analytics(video_id)
     if analytics is None:
@@ -645,10 +693,8 @@ def collect_and_store(stream: dict, table: str) -> None:
         history[video_id].pop(0)
 
     save_to_csv(stream)
-    if table:
-        save_to_db(stream, table)
-
-    regenerate_dashboard()
+    # DB write is handled in run() via save_many_to_db() so all streams
+    # are flushed in a single connection per cycle rather than one per stream.
 
 def run() -> None:
     log.info("Tracker starting. Monitoring channels: %s", CHANNEL_IDS)
@@ -696,26 +742,58 @@ def run() -> None:
             time.sleep(STREAM_POLL_SEC)
             continue
         
+        cycle_start = datetime.now(timezone.utc)
         active_streams: list[dict] = list(known_streams.values())
+
+        # ── Step 1: collect analytics for every live stream ───────────────
+        # collect_and_store() now saves to CSV and records to history but
+        # does NOT write to DB or regenerate the dashboard — those happen
+        # below in a single batch, paying their fixed costs only once.
+        db_batch: list[tuple[dict, str]] = []
+        any_live = False
         for stream in active_streams:
             if stream["stream_status"] == "live":
                 table = channel_tables.get(stream["channel_id"])
                 collect_and_store(stream, table)
-                now = datetime.now(timezone.utc)
-                if (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC:
-                    deploy_dashboard()
-                    last_deploy_time = now
+                if table:
+                    db_batch.append((stream, table))
+                any_live = True
             else:
-                # Ensure upcoming streams always have safe default keys
                 stream.setdefault("concurrent_viewers", 0)
                 stream.setdefault("like_count", 0)
                 stream.setdefault("comment_count", 0)
-        
+
+        # ── Step 2: flush all DB rows in one connection ───────────────────
+        if db_batch:
+            save_many_to_db(db_batch)
+
+        # ── Step 3: regenerate dashboard once per cycle ───────────────────
+        if any_live:
+            regenerate_dashboard()
+
+        # ── Step 4: deploy (throttled) ────────────────────────────────────
+        if any_live:
+            now = datetime.now(timezone.utc)
+            if (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC:
+                deploy_dashboard()
+                last_deploy_time = now
+
         log_active_streams(active_streams)
-        log.info("Next analytics poll in %ds | Next channel scan in %ds",
-                 STREAM_POLL_SEC,
-                 (max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC) - channel_poll_counter) * STREAM_POLL_SEC)
-        time.sleep(STREAM_POLL_SEC)
+
+        # ── Step 5: sleep only the remaining time ─────────────────────────
+        # Subtract the time already spent on work so the total cycle length
+        # stays close to STREAM_POLL_SEC regardless of how many streams are
+        # live or how long the dashboard regeneration takes.
+        elapsed = (datetime.now(timezone.utc) - cycle_start).total_seconds()
+        remaining = max(0.0, STREAM_POLL_SEC - elapsed)
+        log.info(
+            "Cycle: %.1fs work + %.1fs sleep = %.1fs total | "
+            "Next channel scan in %ds",
+            elapsed, remaining, elapsed + remaining,
+            (max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC) - channel_poll_counter)
+            * STREAM_POLL_SEC,
+        )
+        time.sleep(remaining)
 
     log.info("Tracker stopped.")
 
