@@ -45,9 +45,15 @@ if not YOUTUBE_API_KEYS:
 CHANNEL_IDS          = [c.strip() for c in os.environ["CHANNEL_IDS"].split(",")]
 AIVEN_DATABASE_URL   = os.environ.get("AIVEN_DATABASE_URL")          # postgres DSN
 CSV_OUTPUT_PATH      = os.environ.get("CSV_OUTPUT_PATH", "analytics.csv")
-POLL_INTERVAL_SEC    = int(os.environ.get("POLL_INTERVAL_SEC", "60"))
-STREAM_POLL_SEC      = int(os.environ.get("STREAM_POLL_SEC", "30"))
-MAX_HISTORY_POINTS   = int(os.environ.get("MAX_HISTORY_POINTS", "60"))   # chart window
+POLL_INTERVAL_SEC          = int(os.environ.get("POLL_INTERVAL_SEC", "60"))
+STREAM_POLL_SEC            = int(os.environ.get("STREAM_POLL_SEC", "30"))
+MAX_HISTORY_POINTS         = int(os.environ.get("MAX_HISTORY_POINTS", "60"))   # chart window
+# How close to its scheduled start time an upcoming stream must be before
+# it enters the fast-poll cycle (check_upcoming_went_live every 30s).
+# Streams outside this window are left to the normal activities.list scan.
+# Default: 600s (10 minutes). Lower = tighter detection, more API calls.
+UPCOMING_POLL_WINDOW_SEC   = int(os.environ.get("UPCOMING_POLL_WINDOW_SEC", "600"))
+
 
 # ── API key rotation ───────────────────────────────────────────────────────────
 _key_index         = 0          # index of the currently active key
@@ -566,16 +572,18 @@ def find_live_videos(channel_id: str) -> list[dict]:
                     continue
 
                 snippet          = video_items[0].get("snippet", {})
+                live_details     = video_items[0].get("liveStreamingDetails", {})
                 broadcast_status = snippet.get("liveBroadcastContent")
                 if broadcast_status not in ("live", "upcoming"):
                     continue
 
                 results.append({
-                    "video_id":      video_id,
-                    "channel_id":    channel_id,
-                    "channel_name":  snippet.get("channelTitle", ""),
-                    "video_title":   snippet.get("title", ""),
-                    "stream_status": broadcast_status,
+                    "video_id":        video_id,
+                    "channel_id":      channel_id,
+                    "channel_name":    snippet.get("channelTitle", ""),
+                    "video_title":     snippet.get("title", ""),
+                    "stream_status":   broadcast_status,
+                    "scheduled_start": live_details.get("scheduledStartTime"),
                 })
             return results
 
@@ -590,6 +598,48 @@ def find_live_videos(channel_id: str) -> list[dict]:
             return results
 
     return results
+
+
+def check_upcoming_went_live(video_ids: list[str]) -> dict[str, str]:
+    """
+    Fix A — Scheduled stream fast detection.
+
+    For every video_id currently tracked as 'upcoming', call videos.list
+    to check whether it has transitioned to 'live'. This costs 1 unit per
+    call and runs every cycle, so a scheduled stream is detected within
+    the next 30s cycle rather than waiting up to POLL_INTERVAL_SEC.
+
+    Returns a dict of {video_id: new_status} for any that changed.
+    """
+    if not video_ids:
+        return {}
+    global youtube
+    changed: dict[str, str] = {}
+    # videos.list accepts up to 50 IDs per call
+    for i in range(0, len(video_ids), 50):
+        batch = video_ids[i:i + 50]
+        for attempt in range(len(YOUTUBE_API_KEYS)):
+            try:
+                resp = youtube.videos().list(
+                    part="snippet",
+                    id=",".join(batch),
+                ).execute()
+                for item in resp.get("items", []):
+                    vid    = item["id"]
+                    status = item.get("snippet", {}).get("liveBroadcastContent")
+                    if status in ("live", "none"):
+                        changed[vid] = status
+                break
+            except HttpError as e:
+                if e.resp.status == 403:
+                    log.warning("403 on check_upcoming_went_live: %s", e)
+                    if not _mark_exhausted():
+                        return changed
+                    youtube = _build_client(_current_key())
+                    continue
+                log.error("check_upcoming_went_live error: %s", e)
+                break
+    return changed
 
 
 def get_video_analytics(video_id: str) -> Optional[dict]:
@@ -705,37 +755,74 @@ def run() -> None:
 
     known_streams: dict[str, dict] = {}
     channel_tables: dict[str, str] = {}   # channel_id -> table name
-    last_deploy_time = datetime.now(timezone.utc)
-    DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))  # 15 min default
+    last_deploy_time  = datetime.now(timezone.utc)
+    DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))
     channel_poll_counter = 0
 
     log.info("Scanning for streams…")
 
     while _running:
         try:
+            # ── activities.list channel scan (every POLL_INTERVAL_SEC) ────
             if channel_poll_counter == 0:
                 discovered: dict[str, dict] = {}
                 for ch in CHANNEL_IDS:
                     for s in find_live_videos(ch):
                         vid = s["video_id"]
                         discovered[vid] = s
-    
-                        # initialise the channel's table on first encounter
                         if AIVEN_DATABASE_URL and ch not in channel_tables:
                             channel_tables[ch] = init_channel_table(
                                 ch, s["channel_name"]
                             )
-    
                         if vid not in known_streams:
-                            log.info("New stream detected: %s — %s [%s]",
+                            log.info("New stream detected (activities): %s — %s [%s]",
                                      s["channel_name"], s["video_title"], s["stream_status"])
                 for vid in list(known_streams):
                     if vid not in discovered:
                         log.info("Stream ended: %s", vid)
                 known_streams = discovered
-    
+
             channel_poll_counter = (channel_poll_counter + 1) % max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC)
-    
+
+            # ── Fix A: upcoming→live fast detection (every cycle, 1 unit/vid)
+            # Only fast-poll streams whose scheduled start is within
+            # UPCOMING_POLL_WINDOW_SEC of now. Streams scheduled hours away
+            # are left to the normal activities.list scan — polling them
+            # every 30s wastes API calls on guaranteed "still upcoming" results.
+            # Streams with no known scheduled_start are always included as a
+            # safe fallback (we don't know when they'll start).
+            _now_utc = datetime.now(timezone.utc)
+            _window  = timedelta(seconds=UPCOMING_POLL_WINDOW_SEC)
+            upcoming_ids = []
+            for vid, s in known_streams.items():
+                if s.get("stream_status") != "upcoming":
+                    continue
+                sched = s.get("scheduled_start")
+                if sched is None:
+                    # No schedule info — include as safe fallback
+                    upcoming_ids.append(vid)
+                    continue
+                try:
+                    sched_dt = datetime.fromisoformat(
+                        sched.replace("Z", "+00:00")
+                    )
+                    if sched_dt - _now_utc <= _window:
+                        upcoming_ids.append(vid)
+                except (ValueError, TypeError):
+                    upcoming_ids.append(vid)  # unparseable — include as fallback
+            if upcoming_ids:
+                status_changes = check_upcoming_went_live(upcoming_ids)
+                for vid, new_status in status_changes.items():
+                    if new_status == "live" and known_streams.get(vid, {}).get("stream_status") != "live":
+                        known_streams[vid]["stream_status"] = "live"
+                        log.info("Stream went live (fast poll): %s — %s",
+                                 known_streams[vid].get("channel_name", vid),
+                                 known_streams[vid].get("video_title", ""))
+                    elif new_status == "none":
+                        # Stream ended or was cancelled without going live
+                        log.info("Upcoming stream cancelled/ended: %s", vid)
+                        known_streams.pop(vid, None)
+
         except Exception as e:
             log.error("Unexpected error in main loop: %s — continuing in %ds",
                       e, STREAM_POLL_SEC)
