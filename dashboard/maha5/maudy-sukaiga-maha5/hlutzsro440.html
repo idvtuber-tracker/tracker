@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark light">
 <script>!function(){var t=localStorage.getItem("idvt-theme")||(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");document.documentElement.setAttribute("data-theme",t)}();</script>
-<title>Stream Analytics — IDVTuber Tracker</title>
+<title>【KARAOKE】 Nyanyi Lagu-Lagu yang Ada Mau di — IDVTuber Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 
   :root {
@@ -295,128 +295,97 @@
   header { animation: fadeUp 0.5s ease both; }
   .orgs-grid, .channels-list, .streams-grid, .kpi-row { animation: fadeUp 0.5s 0.1s ease both; }
 
-  :root { --org-color: #e8ff47; }
+  :root { --org-color: #34d399; }
 </style>
 </head>
 <body>
 <div class="page">
+<nav class="breadcrumb"><a href="../../index.html">Home</a> <span class="sep">&#8250;</span> <a href="../index.html">MAHA5</a> <span class="sep">&#8250;</span> <a href="index.html">Maudy Sukaiga【MAHA5】</a> <span class="sep">&#8250;</span> <span class="current">【KARAOKE】 Nyanyi Lagu-Lagu yang Ada Mau …</span><div class="theme-toggle"><button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme"><span class="toggle-icon-light">☀</span><span class="toggle-thumb" id="toggle-thumb">&#10022;</span><span class="toggle-icon-dark">☽</span></button></div></nav>
   <header>
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
-      <div>
-        <p class="eyebrow">IDVTuber Tracker &#8212; Live Analytics</p>
-        <h1>Stream <em>Overview</em></h1>
-        <p class="page-meta">Generated: 2026-04-03 15:42 WIB &nbsp;&#183;&nbsp; 534 streams &nbsp;&#183;&nbsp; 73 channels &nbsp;&#183;&nbsp; 9 organisations</p>
-      </div>
-      <div class="theme-toggle" style="padding-top:0.5rem;"><div class="theme-toggle"><button class="toggle-pill" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme"><span class="toggle-icon-light">☀</span><span class="toggle-thumb" id="toggle-thumb">&#10022;</span><span class="toggle-icon-dark">☽</span></button></div></div>
-    </div>
+    <p class="eyebrow">MAHA5 &nbsp;&#183;&nbsp; Maudy Sukaiga【MAHA5】</p>
+    <span class="stream-status status-live" style="display:inline-block;margin-bottom:0.75rem;">&#128308; Live</span>
+    <h1>【KARAOKE】 Nyanyi Lagu-Lagu yang Ada Mau di</h1>
+    <p class="page-meta">Video ID: HLutZsRo440</p>
   </header>
-  <div class="orgs-grid">
-    <a class="org-card" href="pandavva/index.html" style="--org-color:#e8ff47">
-      <div class="org-dot"></div>
-      <div class="org-title">PANDAVVA</div>
-      <div class="org-desc">An Indonesian VTuber organization with a rich mythological theme inspired by the Mahabharata.</div>
-      <div class="org-stat"><strong>6</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="project-livium/index.html" style="--org-color:#47ffb2">
-      <div class="org-dot"></div>
-      <div class="org-title">Project:LIVIUM</div>
-      <div class="org-desc">A dynamic VTuber project featuring seven unique talents spanning a wide range of creative personalities.</div>
-      <div class="org-stat"><strong>8</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="whicker-butler/index.html" style="--org-color:#b47fff">
-      <div class="org-dot"></div>
-      <div class="org-title">Whicker Butler</div>
-      <div class="org-desc">A boutique VTuber agency known for its refined aesthetic and five distinctive talents with global appeal.</div>
-      <div class="org-stat"><strong>6</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="yorukaze/index.html" style="--org-color:#7ec8e3">
-      <div class="org-dot"></div>
-      <div class="org-title">Yorukaze Production</div>
-      <div class="org-desc">An Indonesian VTuber organization serving as a bridge and support platform for virtual content creators.</div>
-      <div class="org-stat"><strong>13</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="prism-nova/index.html" style="--org-color:#c084fc">
-      <div class="org-dot"></div>
-      <div class="org-title">Prism:NOVA</div>
-      <div class="org-desc">An Indonesian VTuber agency focused on characterisation, storytelling, and roleplaying.</div>
-      <div class="org-stat"><strong>4</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="vcosmix/index.html" style="--org-color:#f472b6">
-      <div class="org-dot"></div>
-      <div class="org-title">VCosmix</div>
-      <div class="org-desc">An Indonesian VTuber group who provides girls fun experience.</div>
-      <div class="org-stat"><strong>4</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="dexter/index.html" style="--org-color:#f87171">
-      <div class="org-dot"></div>
-      <div class="org-title">DEXTER</div>
-      <div class="org-desc">An Indonesian VTuber agency with male talents that specializes in various contents and singing.</div>
-      <div class="org-stat"><strong>5</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="cozycazt/index.html" style="--org-color:#fb923c">
-      <div class="org-dot"></div>
-      <div class="org-title">CozyCazt</div>
-      <div class="org-desc">An Indonesian VTuber agency which projects comfortable and friendly aura.</div>
-      <div class="org-stat"><strong>7</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="afterain/index.html" style="--org-color:#60a5fa">
-      <div class="org-dot"></div>
-      <div class="org-title">AfteRain</div>
-      <div class="org-desc">An Indonesian VTuber agency with various talents background and specialties.</div>
-      <div class="org-stat"><strong>9</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="magniv/index.html" style="--org-color:#a855f7">
-      <div class="org-dot"></div>
-      <div class="org-title">MagniV</div>
-      <div class="org-desc">An Indonesian Male VTuber idol group. Concept: 'Five as one, we shine.'</div>
-      <div class="org-stat"><strong>4</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="sandaiva/index.html" style="--org-color:#e879f9">
-      <div class="org-dot"></div>
-      <div class="org-title">SANDAiVA</div>
-      <div class="org-desc">A three-member Indonesian VTuber idol unit.</div>
-      <div class="org-stat"><strong>4</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="versa/index.html" style="--org-color:#38bdf8">
-      <div class="org-dot"></div>
-      <div class="org-title">VERSA</div>
-      <div class="org-desc">An Indonesian VTuber boyband group.</div>
-      <div class="org-stat"><strong>5</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="jkt48v/index.html" style="--org-color:#f59e0b">
-      <div class="org-dot"></div>
-      <div class="org-title">JKT48V</div>
-      <div class="org-desc">The virtual idol sub-unit of JKT48, Indonesia's iconic idol group. Your Idol, Comes Virtual.</div>
-      <div class="org-stat"><strong>6</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="maha5/index.html" style="--org-color:#34d399">
-      <div class="org-dot"></div>
-      <div class="org-title">MAHA5</div>
-      <div class="org-desc">An Indonesian VTuber agency (Mahapanca) under Rentracks Indonesia, connecting Indonesia and Japan through anime and otaku culture.</div>
-      <div class="org-stat"><strong>8</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="rememories/index.html" style="--org-color:#fb7185">
-      <div class="org-dot"></div>
-      <div class="org-title">Re:Memories</div>
-      <div class="org-desc">An Indonesian indie VTuber agency focused on two-way interactive entertainment and fostering real connections with their community.</div>
-      <div class="org-stat"><strong>10</strong> channels tracked</div>
-    </a>
-    <a class="org-card" href="eon-of-stars/index.html" style="--org-color:#818cf8">
-      <div class="org-dot"></div>
-      <div class="org-title">Eon of Stars</div>
-      <div class="org-desc">An Indonesian indie male VTuber group providing high-quality boyfriend experience.</div>
-      <div class="org-stat"><strong>5</strong> channels tracked</div>
-    </a>
+
+  <div class="stream-hero">
+    <div class="embed-side">
+      <div class="embed-wrap">
+        <iframe src="https://www.youtube.com/embed/HLutZsRo440" allowfullscreen loading="lazy"></iframe>
+      </div>
+      <div class="stream-thumb-meta">
+        <span>2026-04-03 15:37 WIB</span>
+        <a href="https://www.youtube.com/watch?v=HLutZsRo440" target="_blank" rel="noopener">Watch on YouTube ↗</a>
+      </div>
+    </div>
+    <div class="kpi-side">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Peak Viewers</div><div class="kpi-value">9</div><div class="kpi-sub">concurrent</div></div>
+        <div class="kpi"><div class="kpi-label">Avg Viewers</div><div class="kpi-value">6</div><div class="kpi-sub">concurrent</div></div>
+        <div class="kpi"><div class="kpi-label">Peak Likes</div><div class="kpi-value">13</div></div>
+        <div class="kpi"><div class="kpi-label">Peak Comments</div><div class="kpi-value">0</div></div>
+        <div class="kpi"><div class="kpi-label">Stream Start</div><div class="kpi-value kpi-sm">2026-04-03 15:37 WIB</div></div>
+        <div class="kpi"><div class="kpi-label">Stream End</div><div class="kpi-value kpi-sm">2026-04-03 15:42 WIB</div></div>
+        <div class="kpi"><div class="kpi-label">Duration</div><div class="kpi-value kpi-sm">5m 01s</div></div>
+        <div class="kpi"><div class="kpi-label">View Count</div><div class="kpi-value kpi-sm">12</div><div class="kpi-sub">total plays</div></div>
+      </div>
+    </div>
   </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Concurrent Viewers over Time</div>
+    <div class="chart-wrap"><canvas id="viewerChart"></canvas></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title">Likes &amp; Comments over Time</div>
+    <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>
+  </div>
+
+  <p class="generated">Generated 2026-04-03 15:42 WIB &nbsp;&#183;&nbsp; yt-livestream-tracker</p>
+
+<script>
+const ts    = ["2026-04-03 15:37 WIB", "2026-04-03 15:38 WIB", "2026-04-03 15:39 WIB", "2026-04-03 15:40 WIB", "2026-04-03 15:41 WIB", "2026-04-03 15:42 WIB"];
+const views = [4, 1, 7, 7, 6, 9];
+const likes = [7, 9, 11, 12, 12, 13];
+const comms = [0, 0, 0, 0, 0, 0];
+const orgColor  = '#34d399';
+const gridColor = 'rgba(30,30,46,0.8)';
+const tickColor = '#5a5a7a';
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  interaction: { mode: "index", intersect: false },
+  plugins: { legend: { labels: { color: tickColor, font: { family: "DM Mono", size: 11 }, boxWidth: 12 } } },
+  scales: {
+    x: { ticks: { color: tickColor, font: { family: "DM Mono", size: 10 }, maxTicksLimit: 10, maxRotation: 0 }, grid: { color: gridColor } },
+    y: { ticks: { color: tickColor, font: { family: "DM Mono", size: 10 } }, grid: { color: gridColor } }
+  }
+};
+new Chart(document.getElementById("viewerChart"), {
+  type: "line",
+  data: { labels: ts, datasets: [{ label: "Concurrent Viewers", data: views,
+    borderColor: orgColor, backgroundColor: orgColor + "22",
+    borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }] },
+  options: { ...baseOpts }
+});
+new Chart(document.getElementById("engagementChart"), {
+  type: "line",
+  data: { labels: ts, datasets: [
+    { label: "Likes",    data: likes, borderColor: "#ff4f6d", backgroundColor: "rgba(255,79,109,0.05)",  borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 },
+    { label: "Comments", data: comms, borderColor: "#4fc3f7", backgroundColor: "rgba(79,195,247,0.05)", borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }
+  ] },
+  options: { ...baseOpts }
+});
+</script>
 
   <footer>
     <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>
     <span>
-      <a href="index.html">Home</a>
+      <a href="../../index.html">Home</a>
       &nbsp;&middot;&nbsp;
-      <a href="privacy.html">Privacy Policy</a>
+      <a href="../../privacy.html">Privacy Policy</a>
       &nbsp;&middot;&nbsp;
-      <a href="terms.html">Terms of Use</a>
+      <a href="../../terms.html">Terms of Use</a>
     </span>
   </footer>
 </div>
