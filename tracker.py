@@ -746,6 +746,103 @@ def collect_and_store(stream: dict, table: str) -> None:
     # DB write is handled in run() via save_many_to_db() so all streams
     # are flushed in a single connection per cycle rather than one per stream.
 
+
+def load_channel_tables_from_db() -> dict[str, str]:
+    """
+    Pre-populate channel_tables from the DB channels registry.
+
+    Called once at startup. Returns {channel_id: table_name} for every
+    channel already registered in the DB. This restores the full mapping
+    after a restart so no channel ever has a missing table entry just
+    because it had no stream at startup time.
+    """
+    if not AIVEN_DATABASE_URL:
+        return {}
+    conn = _new_conn()
+    if conn is None:
+        return {}
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT channel_id, table_name FROM channels")
+            rows = cur.fetchall()
+        result = {row["channel_id"]: row["table_name"] for row in rows}
+        log.info("Loaded %d channel table mapping(s) from DB.", len(result))
+        return result
+    except Exception as e:
+        log.error("Could not load channel tables from DB: %s", e)
+        return {}
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def ensure_all_channel_tables(existing: dict[str, str]) -> dict[str, str]:
+    """
+    Ensure every tracked channel has a DB table and a channel_tables entry.
+
+    Called once at startup after load_channel_tables_from_db(). For channels
+    already in the DB, their entry is already in `existing` — skip them.
+    For genuinely new channels (not yet in DB), fetch their names from the
+    YouTube channels.list API (1 unit per 50 channels) and call
+    init_channel_table() so the table and registry entry exist before any
+    stream is ever detected.
+
+    Returns the updated channel_tables dict (existing + newly created).
+    """
+    result = dict(existing)
+    new_ids = [ch for ch in CHANNEL_IDS if ch not in result]
+    if not new_ids:
+        log.info("All %d channel(s) already have DB table entries.", len(CHANNEL_IDS))
+        return result
+
+    log.info("%d new channel(s) not yet in DB — fetching names from YouTube API.",
+             len(new_ids))
+
+    global youtube
+    names: dict[str, str] = {}   # channel_id → channel_name
+    for i in range(0, len(new_ids), 50):
+        batch = new_ids[i:i + 50]
+        for attempt in range(len(YOUTUBE_API_KEYS)):
+            try:
+                resp = youtube.channels().list(
+                    part="snippet",
+                    id=",".join(batch),
+                    maxResults=50,
+                ).execute()
+                for item in resp.get("items", []):
+                    cid   = item["id"]
+                    title = item.get("snippet", {}).get("title", cid)
+                    names[cid] = title
+                break
+            except HttpError as e:
+                if e.resp.status == 403:
+                    log.warning("403 on startup channels.list: %s", e)
+                    if not _mark_exhausted():
+                        log.error("All API keys exhausted — cannot fetch channel names.")
+                        return result
+                    youtube = _build_client(_current_key())
+                    continue
+                log.error("channels.list error at startup: %s", e)
+                break
+
+    for ch_id in new_ids:
+        ch_name = names.get(ch_id)
+        if not ch_name:
+            log.warning(
+                "Could not fetch name for channel %s — table will be created "
+                "on first stream detection instead.", ch_id
+            )
+            continue
+        table = init_channel_table(ch_id, ch_name)
+        if table:
+            result[ch_id] = table
+            log.info("Pre-initialised table for '%s' (%s).", ch_name, ch_id)
+
+    return result
+
+
 def run() -> None:
     log.info("Tracker starting. Monitoring channels: %s", CHANNEL_IDS)
     if AIVEN_DATABASE_URL:
@@ -754,7 +851,17 @@ def run() -> None:
         log.warning("No DB connection – CSV-only mode.")
 
     known_streams: dict[str, dict] = {}
-    channel_tables: dict[str, str] = {}   # channel_id -> table name
+
+    # Pre-populate channel_tables from the DB, then ensure every tracked
+    # channel has a table — even ones that have never had a stream detected.
+    # This means a channel that went live before being picked up by
+    # activities.list will have its table ready the moment it's first seen.
+    if AIVEN_DATABASE_URL:
+        _db_tables    = load_channel_tables_from_db()
+        channel_tables = ensure_all_channel_tables(_db_tables)
+    else:
+        channel_tables: dict[str, str] = {}
+
     last_deploy_time  = datetime.now(timezone.utc)
     DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))
     channel_poll_counter = 0
@@ -815,8 +922,14 @@ def run() -> None:
                 for vid, new_status in status_changes.items():
                     if new_status == "live" and known_streams.get(vid, {}).get("stream_status") != "live":
                         known_streams[vid]["stream_status"] = "live"
+                        ch_id   = known_streams[vid].get("channel_id", "")
+                        ch_name = known_streams[vid].get("channel_name", "")
+                        if AIVEN_DATABASE_URL and ch_id and ch_id not in channel_tables:
+                            tbl = init_channel_table(ch_id, ch_name)
+                            if tbl:
+                                channel_tables[ch_id] = tbl
                         log.info("Stream went live (fast poll): %s — %s",
-                                 known_streams[vid].get("channel_name", vid),
+                                 ch_name or vid,
                                  known_streams[vid].get("video_title", ""))
                     elif new_status == "none":
                         # Stream ended or was cancelled without going live
