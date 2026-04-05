@@ -167,7 +167,7 @@ ORG_MAP = {
         "channels": [
             ("Cozy Cazt",                        "org",    "UCFCfSe5tJrnQt3cuT9g59Lw"),
             ("Rannia Taiga 【CozyCazt】",         "talent", "UCjPBlVNDtHHYwrvpxBCiY5g"),
-            ("Lyta Luciana Ch.【CozyCazt】",      "talent", "UCca5aOYzqyO6GdeNLB8QDNg"),
+            ("Lyta Luciana Ch.【CozyCazt】",      "talent", "UC7nVykWmH1ORUOBU3bTlNIg"),
             ("Arphina Stellaria【CozyCazt】",     "talent", "UCDxHKSgQD7tcTr36F2GnvDg"),
             ("Vianna Risendria 【CozyCazt】",     "talent", "UCuGlDdzoTyM55cQrJO_kEZw"),
             ("Fuyo Mafuyu【CozyCazt】",           "talent", "UCMtHNyhNeLZEPw6S2-1556A"),
