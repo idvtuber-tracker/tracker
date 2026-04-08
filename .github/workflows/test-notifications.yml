@@ -1,0 +1,11 @@
+name: Test Notifications
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exit with code 1
+        run: exit 1
