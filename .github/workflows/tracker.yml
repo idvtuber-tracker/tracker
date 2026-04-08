@@ -131,18 +131,12 @@ jobs:
           if grep -q "Error: Process completed with exit code 1" <<< "${{ job.status }}"; then
             curl -X POST ${{ secrets.DISCORD_WEBHOOK }} \
               -H 'Content-Type: application/json' \
-              -d '{
-                "embeds": [{
-                  "title": "❌ Workflow Failed",
-                  "description": "Error: Process completed with exit code 1",
-                  "color": 16711680,
-                  "fields": [
-                    {"name": "Repository", "value": "${{ github.repository }}", "inline": true},
-                    {"name": "Run", "value": "#${{ github.run_number }}", "inline": true},
-                    {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
-                    {"name": "Actor", "value": "${{ github.actor }}", "inline": true}
-                  ],
-                  "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                }]
-              }'
-          fi
+          curl -X POST ${{ secrets.DISCORD_WEBHOOK }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "content": "@here Workflow failed with exit code 1!",
+              "embeds": [{
+                "title": "❌ Workflow Failed",
+                "color": 16711680
+              }]
+            }'
