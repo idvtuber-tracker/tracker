@@ -123,3 +123,26 @@ jobs:
           $url  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/dispatches"
           Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body -ContentType "application/json"
           Write-Host "New workflow run triggered."
+
+      - name: Send Discord notification on specific error
+        if: failure()
+        run: |
+          # Check if the specific error exists in the logs
+          if grep -q "Error: Process completed with exit code 1" <<< "${{ job.status }}"; then
+            curl -X POST ${{ secrets.DISCORD_WEBHOOK }} \
+              -H 'Content-Type: application/json' \
+              -d '{
+                "embeds": [{
+                  "title": "❌ Workflow Failed",
+                  "description": "Error: Process completed with exit code 1",
+                  "color": 16711680,
+                  "fields": [
+                    {"name": "Repository", "value": "${{ github.repository }}", "inline": true},
+                    {"name": "Run", "value": "#${{ github.run_number }}", "inline": true},
+                    {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                    {"name": "Actor", "value": "${{ github.actor }}", "inline": true}
+                  ],
+                  "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }]
+              }'
+          fi
