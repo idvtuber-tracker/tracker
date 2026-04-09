@@ -26,7 +26,9 @@ import shutil
 import sqlite3
 import logging
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
+from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -433,6 +435,53 @@ def get_streams_for_channel(conn, table: str) -> list[dict]:
         return cur.fetchall()
 
 
+def get_all_streams_bulk(conn, table_infos: list[tuple[str, str]]) -> dict[str, list[dict]]:
+    """
+    Fetch summary rows for every channel in one round-trip using UNION ALL.
+    *table_infos* is [(channel_name, table_name), ...] for tables that exist.
+    Returns {channel_name: [stream_dict, ...]} with streams ordered newest-first.
+    """
+    if not table_infos:
+        return {}
+
+    parts = []
+    for ch_name, table in table_infos:
+        view_count_expr = (
+            "MAX(view_count) AS view_count"
+            if _has_column(conn, table, "view_count")
+            else "NULL::BIGINT AS view_count"
+        )
+        parts.append(f"""
+            SELECT
+                {psycopg2.extensions.adapt(ch_name).getquoted().decode()} AS channel_name,
+                video_id,
+                MAX(video_title)        AS video_title,
+                MAX(stream_status)      AS stream_status,
+                MIN(collected_at)       AS first_seen,
+                MAX(collected_at)       AS last_seen,
+                MAX(concurrent_viewers) AS peak_viewers,
+                {view_count_expr},
+                MAX(like_count)         AS peak_likes,
+                MAX(comment_count)      AS peak_comments,
+                COUNT(*)                AS data_points
+            FROM {table}
+            GROUP BY video_id
+        """)
+
+    union_sql = " UNION ALL ".join(parts) + " ORDER BY channel_name, first_seen DESC"
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(union_sql)
+        rows = cur.fetchall()
+
+    result: dict[str, list[dict]] = {ch: [] for ch, _ in table_infos}
+    for row in rows:
+        d = dict(row)
+        ch = d.pop("channel_name")
+        result[ch].append(d)
+    return result
+
+
 def get_stream_timeseries(conn, table: str, video_id: str) -> list[dict]:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(f"""
@@ -501,6 +550,44 @@ def get_archived_streams_for_channel(hist, channel_name: str,
                     pass
         d["_source"] = "history"
         result.append(d)
+    return result
+
+
+def get_all_archived_streams(hist, channel_names: list[str]) -> dict[str, list]:
+    """
+    Bulk-fetch archived streams for all requested channel names in a single
+    SQLite query.  Returns {channel_name: [stream_dict, ...]} for every name
+    in *channel_names* (missing channels get an empty list).
+    """
+    if not channel_names:
+        return {}
+    placeholders = ",".join("?" * len(channel_names))
+    rows = hist.execute(f"""
+        SELECT
+            channel_name,
+            video_id, video_title, stream_status,
+            stream_start  AS first_seen,
+            stream_end    AS last_seen,
+            peak_viewers, avg_viewers, view_count,
+            peak_likes, peak_comments, data_points
+        FROM streams
+        WHERE channel_name IN ({placeholders})
+        ORDER BY channel_name, stream_start DESC
+    """, channel_names).fetchall()
+
+    result: dict[str, list] = {name: [] for name in channel_names}
+    for r in rows:
+        d = dict(r)
+        ch = d.pop("channel_name")
+        for key in ("first_seen", "last_seen"):
+            val = d.get(key)
+            if isinstance(val, str):
+                try:
+                    d[key] = datetime.fromisoformat(val)
+                except ValueError:
+                    pass
+        d["_source"] = "history"
+        result[ch].append(d)
     return result
 
 
@@ -709,6 +796,7 @@ def get_channel_data(channel_ids: list[str]) -> tuple[dict[str, str], dict[str, 
 # UTILITY HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
+@lru_cache(maxsize=None)
 def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
@@ -1538,7 +1626,7 @@ def build_dashboard() -> None:
     logos, subscribers = get_channel_data(all_channel_ids)
     log.info("Fetched %d logo(s) and %d subscriber count(s).", len(logos), len(subscribers))
 
-    # ── bulk-load schema cache (single query for all 62 tables) ──────────────
+    # ── bulk-load schema cache (single query for all tables) ─────────────────
     all_table_names = [ch["table_name"] for ch in db_channels]
     _load_schema_cache(conn, all_table_names)
 
@@ -1546,21 +1634,15 @@ def build_dashboard() -> None:
     manifest = load_manifest()
     log.info("Manifest loaded — %d stream pages previously generated.", len(manifest))
 
-    # ── collect ALL streams from DB + history per channel ────────────────────
-    # Structure: {ch_name: [stream_dict, ...]}
-    all_streams_by_channel: dict[str, list[dict]] = {}
-    stream_counts: dict[str, int] = {}
-    total_streams  = 0
-    total_channels = 0
-
+    # ── resolve ORG_MAP channels → DB rows (with fallback by channel_id) ─────
+    # resolved_channels: {ch_name: db_row}  (only channels found in DB)
+    resolved_channels: dict[str, dict] = {}
     for org_slug, org in ORG_MAP.items():
         (OUTPUT_DIR / org_slug).mkdir(exist_ok=True)
         for entry in org["channels"]:
             ch_name = entry[0]
-            # Primary lookup: by channel_name (exact match).
-            # Fallback: by channel_id from ORG_MAP entry[2] — handles the common
-            # case where the tracker stored a slightly different channel_name than
-            # what is written in ORG_MAP (e.g. missing 【bracket】 suffixes).
+            if ch_name in resolved_channels:
+                continue
             db_row = db_by_name.get(ch_name)
             if not db_row:
                 org_map_id = entry[2] if len(entry) > 2 else ""
@@ -1580,35 +1662,60 @@ def build_dashboard() -> None:
                         "The tracker may not have seen this channel stream yet.",
                         ch_name, org_slug,
                     )
-                    stream_counts[ch_name] = 0
-                    all_streams_by_channel[ch_name] = []
-                    continue
+            if db_row:
+                resolved_channels[ch_name] = db_row
 
-            table       = db_row["table_name"]
-            raw_streams = get_streams_for_channel(conn, table)
-            live_ids    = {s["video_id"] for s in raw_streams}
-            archived    = get_archived_streams_for_channel(hist, ch_name, live_ids) if hist else []
-            all_raw     = list(raw_streams) + archived
+    # ── BULK fetch all stream summaries in ONE Postgres round-trip ────────────
+    table_infos = [
+        (ch_name, row["table_name"])
+        for ch_name, row in resolved_channels.items()
+        if _table_exists(conn, row["table_name"])
+    ]
+    log.info("Fetching stream summaries for %d channel tables in bulk…", len(table_infos))
+    bulk_live: dict[str, list[dict]] = get_all_streams_bulk(conn, table_infos) if table_infos else {}
 
-            all_streams_by_channel[ch_name] = all_raw
-            stream_counts[ch_name]          = len(all_raw)
-            total_channels += 1
-            total_streams  += len(all_raw)
+    # ── BULK fetch all archived streams in ONE SQLite round-trip ─────────────
+    all_ch_names = list(resolved_channels.keys())
+    bulk_archived: dict[str, list[dict]] = (
+        get_all_archived_streams(hist, all_ch_names) if hist else {}
+    )
+
+    # ── merge live + archived per channel ─────────────────────────────────────
+    all_streams_by_channel: dict[str, list[dict]] = {}
+    stream_counts: dict[str, int] = {}
+    total_streams  = 0
+    total_channels = 0
+
+    for ch_name in resolved_channels:
+        live_streams = bulk_live.get(ch_name, [])
+        live_ids     = {s["video_id"] for s in live_streams}
+        archived     = [s for s in bulk_archived.get(ch_name, [])
+                        if s["video_id"] not in live_ids]
+        merged = list(live_streams) + archived
+        all_streams_by_channel[ch_name] = merged
+        stream_counts[ch_name]          = len(merged)
+        total_channels += 1
+        total_streams  += len(merged)
+
+    # channels not found in DB still need an entry for org page stream counts
+    for org in ORG_MAP.values():
+        for entry in org["channels"]:
+            ch_name = entry[0]
+            if ch_name not in stream_counts:
+                stream_counts[ch_name] = 0
+            if ch_name not in all_streams_by_channel:
+                all_streams_by_channel[ch_name] = []
 
     log.info("DB query complete — %d streams across %d channels.", total_streams, total_channels)
 
     # ── diff: determine which stream pages need (re)generating ────────────────
-    # A stream is dirty if:
-    #   (a) it has no entry in the manifest yet  →  new stream
-    #   (b) it was recorded as 'live' last run   →  may still be updating
     dirty_video_ids: set[str] = set()
-    dirty_channels:  set[str] = set()  # channel names whose channel page needs rebuild
-    dirty_orgs:      set[str] = set()  # org slugs whose org page needs rebuild
+    dirty_channels:  set[str] = set()
+    dirty_orgs:      set[str] = set()
 
     for ch_name, streams in all_streams_by_channel.items():
         for stream in streams:
-            vid    = stream["video_id"]
-            status = stream.get("stream_status") or "vod"
+            vid         = stream["video_id"]
             in_manifest = vid in manifest
             was_live    = manifest.get(vid, {}).get("status") == "live"
 
@@ -1625,68 +1732,88 @@ def build_dashboard() -> None:
         len(dirty_video_ids), len(dirty_channels), len(dirty_orgs)
     )
 
-    # ── generate dirty stream pages ───────────────────────────────────────────
+    # ── build work list for dirty stream pages ────────────────────────────────
+    # Each item: (org_slug, org, ch_name, db_row_table, stream)
+    dirty_work: list[tuple] = []
     for org_slug, org in ORG_MAP.items():
         for entry in org["channels"]:
             ch_name = entry[0]
-            db_row  = db_by_name.get(ch_name)
+            db_row  = resolved_channels.get(ch_name)
             if not db_row:
                 continue
-
             table   = db_row["table_name"]
-            streams = all_streams_by_channel.get(ch_name, [])
+            for stream in all_streams_by_channel.get(ch_name, []):
+                if stream["video_id"] in dirty_video_ids:
+                    dirty_work.append((org_slug, org, ch_name, table, stream))
 
-            for stream in streams:
-                vid = stream["video_id"]
-                if vid not in dirty_video_ids:
-                    continue
+    # Capture a single timestamp for all manifest entries written this run
+    run_ts = _now_local().strftime("%Y-%m-%d %H:%M WIB")
 
-                stream, ts = _enrich_stream(stream, conn, table, hist)
-                write_stream_page(org_slug, org, ch_name, stream, ts)
+    # ── generate dirty stream pages (parallel) ────────────────────────────────
+    def _write_one_stream(args):
+        org_slug, org, ch_name, table, stream = args
+        enriched, ts = _enrich_stream(stream, conn, table, hist)
+        write_stream_page(org_slug, org, ch_name, enriched, ts)
+        return enriched["video_id"], {
+            "org_slug":     org_slug,
+            "ch_slug":      slugify(ch_name),
+            "ch_name":      ch_name,
+            "status":       enriched.get("stream_status") or "vod",
+            "generated_at": run_ts,
+        }
 
-                # update manifest entry
-                manifest[vid] = {
-                    "org_slug":     org_slug,
-                    "ch_slug":      slugify(ch_name),
-                    "ch_name":      ch_name,
-                    "status":       stream.get("stream_status") or "vod",
-                    "generated_at": _now_local().strftime("%Y-%m-%d %H:%M WIB"),
-                }
+    # _enrich_stream issues DB queries; use threads so the GIL releases during
+    # network I/O and multiple timeseries fetches overlap.
+    max_workers = min(8, max(1, len(dirty_work)))
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = [pool.submit(_write_one_stream, item) for item in dirty_work]
+        for fut in as_completed(futures):
+            try:
+                vid, entry = fut.result()
+                manifest[vid] = entry
+            except Exception as exc:
+                log.error("Stream page generation failed: %s", exc)
 
-    # ── regenerate channel pages ─────────────────────────────────────────────
-    # Write ALL channel pages that exist in the DB — not just dirty ones.
-    # This ensures pages are created on the first run for newly-added orgs,
-    # even when all their streams are already VOD (and therefore not dirty).
-    # Channel pages are cheap to write (no timeseries, just summary cards).
-    channels_written = 0
+    # ── regenerate channel pages (parallel) ──────────────────────────────────
+    channel_write_args = []
     for org_slug, org in ORG_MAP.items():
         for entry in org["channels"]:
             ch_name = entry[0]
-            if not db_by_name.get(ch_name):
-                continue  # not in DB yet — skip (warning already logged above)
+            if not resolved_channels.get(ch_name):
+                continue
+            streams  = all_streams_by_channel.get(ch_name, [])
+            channel_write_args.append((org_slug, org, ch_name, streams))
 
-            streams = all_streams_by_channel.get(ch_name, [])
-            enriched = []
-            for stream in streams:
-                s = dict(stream)
-                if s.get("avg_viewers") is None:
-                    s["avg_viewers"] = None
-                enriched.append(s)
+    def _write_channel(args):
+        write_channel_page(*args)
 
-            write_channel_page(org_slug, org, ch_name, enriched)
-            channels_written += 1
+    with ThreadPoolExecutor(max_workers=min(8, max(1, len(channel_write_args)))) as pool:
+        futs = [pool.submit(_write_channel, a) for a in channel_write_args]
+        for fut in as_completed(futs):
+            try:
+                fut.result()
+            except Exception as exc:
+                log.error("Channel page generation failed: %s", exc)
 
+    channels_written = len(channel_write_args)
     log.info("Channel pages written: %d", channels_written)
 
-    # ── regenerate org pages ─────────────────────────────────────────────────
-    # Always write ALL org pages so that newly-added orgs with no streams yet
-    # still get their index.html (otherwise the org card on the home page 404s).
-    # Org pages are cheap — no timeseries, just channel cards.
-    for org_slug, org in ORG_MAP.items():
-        write_org_page(org_slug, org, stream_counts,
-                       logos=logos,
-                       channel_ids_map=channel_ids_map,
-                       subscribers=subscribers)
+    # ── regenerate org pages (parallel) ──────────────────────────────────────
+    def _write_org(args):
+        write_org_page(*args)
+
+    org_write_args = [
+        (org_slug, org, stream_counts, logos, channel_ids_map, subscribers)
+        for org_slug, org in ORG_MAP.items()
+    ]
+    with ThreadPoolExecutor(max_workers=min(8, len(org_write_args))) as pool:
+        futs = [pool.submit(_write_org, a) for a in org_write_args]
+        for fut in as_completed(futs):
+            try:
+                fut.result()
+            except Exception as exc:
+                log.error("Org page generation failed: %s", exc)
+
     log.info("Org pages written: %d", len(ORG_MAP))
 
     # ── always regenerate index ───────────────────────────────────────────────
