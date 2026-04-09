@@ -168,7 +168,7 @@ jobs:
       #   - steps.run_tracker.outcome == 'success'  → tracker ran its full 6h
       #   - steps.restart.outcome     == 'success'  → new cycle was triggered
       - name: Notify Discord — cycle complete, restarting
-        if: always() && steps.run_tracker.outcome == 'success' && steps.restart.outcome == 'success'
+        if: always() && (steps.run_tracker.outcome == 'cancelled' || steps.run_tracker.outcome == 'success') && steps.restart.outcome == 'success'
         shell: powershell
         run: |
           $repo      = "${{ github.repository }}"
