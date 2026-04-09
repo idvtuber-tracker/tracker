@@ -1,4 +1,3 @@
-
 name: YouTube Livestream Tracker
 
 on:
@@ -83,7 +82,9 @@ jobs:
         shell: powershell
         run: pip install -r requirements.txt
 
+      # id is required so the Discord steps below can inspect this step's outcome.
       - name: Run tracker
+        id: run_tracker
         shell: powershell
         run: python tracker.py
 
@@ -108,7 +109,9 @@ jobs:
           }
           Write-Host "Cleanup complete."
 
+      # id is required so the Discord step below can inspect this step's outcome.
       - name: Restart workflow
+        id: restart
         if: always()
         shell: powershell
         run: |
@@ -123,3 +126,73 @@ jobs:
           $url  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/dispatches"
           Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body -ContentType "application/json"
           Write-Host "New workflow run triggered."
+
+      # ── Discord: error notification ───────────────────────────────────────────
+      # Fires when "Run tracker" exits with a non-zero code (exit code 1).
+      # steps.run_tracker.outcome == 'failure' is the correct way to detect this —
+      # it is set by GitHub Actions when the step's process exits non-zero.
+      # The old bash/grep approach did not work on a Windows runner and was checking
+      # job.status (which only holds "failure"/"success"), not the actual log text.
+      - name: Notify Discord — tracker error
+        if: steps.run_tracker.outcome == 'failure'
+        shell: powershell
+        run: |
+          $repo   = "${{ github.repository }}"
+          $runId  = "${{ github.run_id }}"
+          $runUrl = "https://github.com/$repo/actions/runs/$runId"
+          $body   = [ordered]@{
+            content = "@here"
+            embeds  = @(
+              [ordered]@{
+                title       = "❌ Tracker crashed — exit code 1"
+                description = "``tracker.py`` exited with a non-zero code. The 6-hour cycle was interrupted and data collection has stopped until the workflow restarts."
+                color       = 15548997   # red (#ED4245)
+                fields      = @(
+                  [ordered]@{ name = "Run"; value = "[$runId]($runUrl)"; inline = $true }
+                  [ordered]@{ name = "Repository"; value = $repo; inline = $true }
+                )
+                footer      = [ordered]@{ text = "IDVTuber Tracker" }
+              }
+            )
+          } | ConvertTo-Json -Depth 10
+          Invoke-RestMethod `
+            -Uri         "${{ secrets.DISCORD_WEBHOOK }}" `
+            -Method      POST `
+            -Body        $body `
+            -ContentType "application/json"
+          Write-Host "Discord error notification sent."
+
+      # ── Discord: successful restart notification ──────────────────────────────
+      # Fires when the 6-hour cycle completed normally AND the "Restart workflow"
+      # step succeeded (a new cycle was dispatched). Both conditions must be true:
+      #   - steps.run_tracker.outcome == 'success'  → tracker ran its full 6h
+      #   - steps.restart.outcome     == 'success'  → new cycle was triggered
+      - name: Notify Discord — cycle complete, restarting
+        if: steps.run_tracker.outcome == 'success' && steps.restart.outcome == 'success'
+        shell: powershell
+        run: |
+          $repo      = "${{ github.repository }}"
+          $runId     = "${{ github.run_id }}"
+          $runUrl    = "https://github.com/$repo/actions/runs/$runId"
+          $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm") + " UTC"
+          $body      = [ordered]@{
+            content = "@here"
+            embeds  = @(
+              [ordered]@{
+                title       = "✅ 6-hour cycle complete — new cycle started"
+                description = "``tracker.py`` completed its 6-hour run successfully. A new workflow cycle has been dispatched and data collection continues."
+                color       = 5763719   # green (#57F287)
+                fields      = @(
+                  [ordered]@{ name = "Completed run"; value = "[$runId]($runUrl)"; inline = $true }
+                  [ordered]@{ name = "Timestamp"; value = $timestamp; inline = $true }
+                )
+                footer      = [ordered]@{ text = "IDVTuber Tracker" }
+              }
+            )
+          } | ConvertTo-Json -Depth 10
+          Invoke-RestMethod `
+            -Uri         "${{ secrets.DISCORD_WEBHOOK }}" `
+            -Method      POST `
+            -Body        $body `
+            -ContentType "application/json"
+          Write-Host "Discord restart notification sent."
