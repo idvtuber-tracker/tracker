@@ -440,12 +440,20 @@ def get_all_streams_bulk(conn, table_infos: list[tuple[str, str]]) -> dict[str, 
     Fetch summary rows for every channel in one round-trip using UNION ALL.
     *table_infos* is [(channel_name, table_name), ...] for tables that exist.
     Returns {channel_name: [stream_dict, ...]} with streams ordered newest-first.
+
+    Channel names are NOT embedded in the SQL — they are stored in an index
+    list and looked up from an integer tag column to avoid encoding issues with
+    Unicode characters (e.g. Japanese brackets 【】) that psycopg2's latin-1
+    adapter cannot handle.
     """
     if not table_infos:
         return {}
 
+    # Map integer index → channel_name so we never put Unicode into SQL text.
+    idx_to_ch: list[str] = []
     parts = []
-    for ch_name, table in table_infos:
+    for idx, (ch_name, table) in enumerate(table_infos):
+        idx_to_ch.append(ch_name)
         view_count_expr = (
             "MAX(view_count) AS view_count"
             if _has_column(conn, table, "view_count")
@@ -453,7 +461,7 @@ def get_all_streams_bulk(conn, table_infos: list[tuple[str, str]]) -> dict[str, 
         )
         parts.append(f"""
             SELECT
-                {psycopg2.extensions.adapt(ch_name).getquoted().decode()} AS channel_name,
+                {idx} AS ch_idx,
                 video_id,
                 MAX(video_title)        AS video_title,
                 MAX(stream_status)      AS stream_status,
@@ -468,7 +476,7 @@ def get_all_streams_bulk(conn, table_infos: list[tuple[str, str]]) -> dict[str, 
             GROUP BY video_id
         """)
 
-    union_sql = " UNION ALL ".join(parts) + " ORDER BY channel_name, first_seen DESC"
+    union_sql = " UNION ALL ".join(parts) + " ORDER BY ch_idx, first_seen DESC"
 
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(union_sql)
@@ -477,7 +485,7 @@ def get_all_streams_bulk(conn, table_infos: list[tuple[str, str]]) -> dict[str, 
     result: dict[str, list[dict]] = {ch: [] for ch, _ in table_infos}
     for row in rows:
         d = dict(row)
-        ch = d.pop("channel_name")
+        ch = idx_to_ch[d.pop("ch_idx")]
         result[ch].append(d)
     return result
 
