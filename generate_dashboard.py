@@ -1758,17 +1758,27 @@ def build_dashboard() -> None:
     run_ts = _now_local().strftime("%Y-%m-%d %H:%M WIB")
 
     # ── generate dirty stream pages (parallel) ────────────────────────────────
+    # Both psycopg2 and sqlite3 connections are NOT thread-safe — they must not
+    # be shared across threads.  Each worker opens its own short-lived
+    # connections and closes them before returning.
     def _write_one_stream(args):
         org_slug, org, ch_name, table, stream = args
-        enriched, ts = _enrich_stream(stream, conn, table, hist)
-        write_stream_page(org_slug, org, ch_name, enriched, ts)
-        return enriched["video_id"], {
-            "org_slug":     org_slug,
-            "ch_slug":      slugify(ch_name),
-            "ch_name":      ch_name,
-            "status":       enriched.get("stream_status") or "vod",
-            "generated_at": run_ts,
-        }
+        t_conn = get_conn()
+        t_hist = get_history_conn()
+        try:
+            enriched, ts = _enrich_stream(stream, t_conn, table, t_hist)
+            write_stream_page(org_slug, org, ch_name, enriched, ts)
+            return enriched["video_id"], {
+                "org_slug":     org_slug,
+                "ch_slug":      slugify(ch_name),
+                "ch_name":      ch_name,
+                "status":       enriched.get("stream_status") or "vod",
+                "generated_at": run_ts,
+            }
+        finally:
+            t_conn.close()
+            if t_hist:
+                t_hist.close()
 
     # _enrich_stream issues DB queries; use threads so the GIL releases during
     # network I/O and multiple timeseries fetches overlap.
