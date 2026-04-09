@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test_exit_code_1:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Simulate tracker exit code 1
