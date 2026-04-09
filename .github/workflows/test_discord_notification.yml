@@ -1,0 +1,72 @@
+name: Test — Discord Exit Code 1 Notification
+
+# Manual trigger only — this workflow deliberately fails to verify
+# that the Discord error notification fires correctly.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test_exit_code_1:
+    runs-on: self-hosted
+
+    steps:
+      - name: Simulate tracker exit code 1
+        id: run_tracker
+        shell: powershell
+        # Exit 1 mimics what happens when tracker.py raises SystemExit(1) or
+        # any unhandled exception that causes a non-zero exit code.
+        run: |
+          Write-Host "Simulating tracker.py crash..."
+          Write-Host "ERROR: Process completed with exit code 1"
+          exit 1
+
+      # This step must NOT run — confirms that a real crash skips the restart.
+      - name: Restart workflow (skipped on failure)
+        id: restart
+        if: always() && steps.run_tracker.outcome == 'success'
+        shell: powershell
+        run: |
+          Write-Host "This should not run during the test."
+
+      # ── Discord: error notification ───────────────────────────────────────────
+      # Condition mirrors tracker.yml exactly.
+      - name: Notify Discord — tracker error
+        if: steps.run_tracker.outcome == 'failure'
+        shell: powershell
+        run: |
+          $repo   = "${{ github.repository }}"
+          $runId  = "${{ github.run_id }}"
+          $runUrl = "https://github.com/$repo/actions/runs/$runId"
+          $body   = [ordered]@{
+            content = "@here"
+            embeds  = @(
+              [ordered]@{
+                title       = "❌ Tracker crashed — exit code 1"
+                description = "``tracker.py`` exited with a non-zero code. The 6-hour cycle was interrupted and data collection has stopped until the workflow restarts."
+                color       = 15548997   # red (#ED4245)
+                fields      = @(
+                  [ordered]@{ name = "Run"; value = "[$runId]($runUrl)"; inline = $true }
+                  [ordered]@{ name = "Repository"; value = $repo; inline = $true }
+                )
+                footer      = [ordered]@{ text = "IDVTuber Tracker — TEST" }
+              }
+            )
+          } | ConvertTo-Json -Depth 10
+          Invoke-RestMethod `
+            -Uri         "${{ secrets.DISCORD_WEBHOOK }}" `
+            -Method      POST `
+            -Body        $body `
+            -ContentType "application/json"
+          Write-Host "Discord test notification sent."
+
+      # ── Confirm restart notification does NOT fire ────────────────────────────
+      # This step should be skipped because run_tracker failed.
+      - name: Notify Discord — cycle complete, restarting (should be skipped)
+        if: steps.run_tracker.outcome == 'success' && steps.restart.outcome == 'success'
+        shell: powershell
+        run: |
+          Write-Host "ERROR: This step should not have run. Condition logic is broken."
+          exit 1
