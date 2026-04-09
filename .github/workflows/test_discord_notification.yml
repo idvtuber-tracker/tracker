@@ -32,7 +32,7 @@ jobs:
       # ── Discord: error notification ───────────────────────────────────────────
       # Condition mirrors tracker.yml exactly.
       - name: Notify Discord — tracker error
-        if: steps.run_tracker.outcome == 'failure'
+        if: always() && steps.run_tracker.outcome == 'failure'
         shell: bash
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
