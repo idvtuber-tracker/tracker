@@ -502,17 +502,22 @@ def deploy_dashboard() -> None:
                 "event_type": "deploy-dashboard",
                 "client_payload": {"triggered_by": "tracker"}
             })
-            resp = requests.post(
-                f"https://api.github.com/repos/{repo_slug}/dispatches",
-                headers=headers,
-                data=payload,
-                timeout=10,
-            )
-            if resp.status_code == 204:
-                log.info("Deploy event fired successfully.")
-            else:
-                log.error("Deploy event failed: %s %s", resp.status_code, resp.text)
-
+            try:
+                resp = requests.post(
+                    f"https://api.github.com/repos/{repo_slug}/dispatches",
+                    headers=headers,
+                    data=payload,
+                    timeout=10,
+                )
+                if resp.status_code == 204:
+                    log.info("Deploy event fired successfully.")
+                else:
+                    log.error("Deploy event failed: %s %s", resp.status_code, resp.text)
+            except requests.exceptions.ConnectionError as e:
+                log.error("Deploy dispatch failed (network error) — dashboard push still completed: %s", e)
+            except requests.exceptions.Timeout:
+                log.error("Deploy dispatch timed out — dashboard push still completed.")
+    
     except subprocess.CalledProcessError as e:
         log.error("Deploy failed: %s\nstderr: %s",
                   e, e.stderr.decode() if e.stderr else '')
