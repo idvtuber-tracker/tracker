@@ -145,7 +145,7 @@ jobs:
             content = "@here"
             embeds  = @(
               [ordered]@{
-                title       = "❌ Tracker crashed — exit code 1"
+                title       = "[ERROR] Tracker crashed - exit code 1"
                 description = "``tracker.py`` exited with a non-zero code. The 6-hour cycle was interrupted and data collection has stopped until the workflow restarts."
                 color       = 15548997   # red (#ED4245)
                 fields      = @(
@@ -180,7 +180,7 @@ jobs:
             content = "@here"
             embeds  = @(
               [ordered]@{
-                title       = "✅ 6-hour cycle complete — new cycle started"
+                title       = "[OK] 6-hour cycle complete - new cycle started"
                 description = "``tracker.py`` completed its 6-hour run successfully. A new workflow cycle has been dispatched and data collection continues."
                 color       = 5763719   # green (#57F287)
                 fields      = @(
