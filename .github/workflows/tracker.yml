@@ -8,6 +8,7 @@ on:
       - 'dashboard/**'
       - 'db_backup/**'
       - 'analytics.csv'
+      - 'cache/**'
 
 permissions:
   contents: write
