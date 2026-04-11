@@ -2,13 +2,23 @@ name: YouTube Livestream Tracker
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths-ignore:
-      - 'dashboard/**'
-      - 'db_backup/**'
-      - 'analytics.csv'
-      - 'cache/**'
+  # NOTE: The push trigger has been intentionally removed.
+  #
+  # Having both workflow_dispatch (fired by the "Restart workflow" step) and
+  # a push trigger created a race condition:
+  #
+  #   1. The 6-hour cycle ends → "Restart workflow" queues a workflow_dispatch run.
+  #   2. deploy_dashboard() pushes a dashboard commit to main.
+  #   3. That push ALSO triggers a second run via the push trigger.
+  #   4. The "Cancel queued duplicates" step in the push-triggered run sees the
+  #      workflow_dispatch run still queued and cancels it — killing the intended
+  #      restart and replacing it with a push-triggered run instead.
+  #   5. On subsequent restarts the cycle repeats, creating doubled runs that
+  #      compete for the single-instance self-hosted runner, causing it to stall
+  #      or stop accepting jobs.
+  #
+  # The workflow is self-restarting entirely via workflow_dispatch. The push
+  # trigger was redundant and is the root cause of the runner instability.
 
 permissions:
   contents: write
@@ -132,8 +142,6 @@ jobs:
       # Fires when "Run tracker" exits with a non-zero code (exit code 1).
       # steps.run_tracker.outcome == 'failure' is the correct way to detect this —
       # it is set by GitHub Actions when the step's process exits non-zero.
-      # The old bash/grep approach did not work on a Windows runner and was checking
-      # job.status (which only holds "failure"/"success"), not the actual log text.
       - name: Notify Discord — tracker error
         if: always() && steps.run_tracker.outcome == 'failure'
         shell: powershell
