@@ -429,36 +429,52 @@ def deploy_dashboard() -> None:
     repo_slug     = os.environ.get("GITHUB_REPOSITORY", "")
     repo_dir      = os.getcwd()
 
+    # Why fetch+reset instead of pull --rebase:
+    # Both the tracker (Windows runner) and deploy_dashboard.yml (ubuntu runner)
+    # commit to the same branch concurrently. When the deploy workflow commits
+    # cache/ or manifest.json between two tracker deploys, the tracker's local
+    # history diverges from remote. Rebasing then replays old tracker commits
+    # on top of remote, hitting merge conflicts on the same dashboard files.
+    # "Rebasing (1/N)" in the error log is the symptom.
+    #
+    # fetch+reset --hard always aligns local HEAD exactly with remote,
+    # discarding any stale local commits. This is safe because dashboard/
+    # is regenerated fresh from the DB on every deploy — git history is not
+    # the source of truth for dashboard content, the database is.
+
     try:
         subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"],
                        cwd=repo_dir, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Stream Tracker Bot"],
                        cwd=repo_dir, check=True, capture_output=True)
 
-        # Pull with --autostash: git automatically stashes any working tree
-        # changes (including staged dashboard files), pulls and rebases, then
-        # pops the stash. This avoids the "index contains uncommitted changes"
-        # error that occurs when staged files are present during a rebase pull.
-        pull = subprocess.run(
-            ["git", "pull", "--rebase", "--autostash", "origin", "main"],
+        # Step 1: fetch latest remote state — no merge, no rebase.
+        fetch = subprocess.run(
+            ["git", "fetch", "origin", "main"],
             cwd=repo_dir, capture_output=True, text=True
         )
-        if pull.returncode != 0:
-            log.warning("git pull --rebase --autostash failed: %s", pull.stderr.strip())
-            subprocess.run(["git", "rebase", "--abort"],
-                           cwd=repo_dir, capture_output=True)
+        if fetch.returncode != 0:
+            log.warning("git fetch failed: %s", fetch.stderr.strip())
 
-        # Stage dashboard files after the pull so we commit on top of the
-        # latest remote state.
+        # Step 2: hard-reset local HEAD to origin/main, discarding any stale
+        # local commits that diverged from remote due to concurrent commits
+        # from deploy_dashboard.yml (e.g. cache/ or manifest.json updates).
+        reset = subprocess.run(
+            ["git", "reset", "--hard", "origin/main"],
+            cwd=repo_dir, capture_output=True, text=True
+        )
+        if reset.returncode != 0:
+            log.warning("git reset --hard failed: %s", reset.stderr.strip())
+
+        # Step 3: stage fresh dashboard output on top of the aligned HEAD.
         subprocess.run(["git", "add", dashboard_dir],
                        cwd=repo_dir, check=True, capture_output=True)
 
-        # Nothing changed — skip.
-        result = subprocess.run(
+        unchanged = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
             cwd=repo_dir, capture_output=True
         )
-        if result.returncode == 0:
+        if unchanged.returncode == 0:
             log.info("Dashboard unchanged — skipping deploy commit.")
             return
 
@@ -468,7 +484,9 @@ def deploy_dashboard() -> None:
             cwd=repo_dir, check=True, capture_output=True
         )
 
-        # Push with up to 3 retries using explicit branch name.
+        # Step 4: push with up to 3 retries.
+        # If another commit landed between our fetch and push, re-fetch and
+        # re-reset before retrying — always produces a clean fast-forward.
         for attempt in range(1, 4):
             push = subprocess.run(
                 ["git", "push", "origin", "main"],
@@ -479,18 +497,28 @@ def deploy_dashboard() -> None:
                 break
             log.warning("git push failed (attempt %d): %s", attempt, push.stderr.strip())
             if attempt < 3:
-                rp = subprocess.run(
-                    ["git", "pull", "--rebase", "--autostash", "origin", "main"],
-                    cwd=repo_dir, capture_output=True, text=True
+                subprocess.run(["git", "fetch", "origin", "main"],
+                               cwd=repo_dir, capture_output=True)
+                subprocess.run(["git", "reset", "--hard", "origin/main"],
+                               cwd=repo_dir, capture_output=True)
+                subprocess.run(["git", "add", dashboard_dir],
+                               cwd=repo_dir, capture_output=True)
+                rechk = subprocess.run(
+                    ["git", "diff", "--cached", "--quiet"],
+                    cwd=repo_dir, capture_output=True
                 )
-                if rp.returncode != 0:
-                    subprocess.run(["git", "rebase", "--abort"],
-                                   cwd=repo_dir, capture_output=True)
+                if rechk.returncode == 0:
+                    log.info("Dashboard unchanged after re-fetch — skipping retry.")
+                    break
+                subprocess.run(
+                    ["git", "commit", "-m", f"chore: dashboard update {ts}"],
+                    cwd=repo_dir, capture_output=True
+                )
         else:
             log.error("git push failed after 3 attempts — skipping deploy dispatch.")
             return
 
-        # Fire the Pages deploy trigger
+        # Step 5: fire the Pages deploy trigger.
         if pat and repo_slug:
             headers = {
                 "Authorization":        f"Bearer {pat}",
@@ -517,7 +545,7 @@ def deploy_dashboard() -> None:
                 log.error("Deploy dispatch failed (network error) — dashboard push still completed: %s", e)
             except requests.exceptions.Timeout:
                 log.error("Deploy dispatch timed out — dashboard push still completed.")
-    
+
     except subprocess.CalledProcessError as e:
         log.error("Deploy failed: %s\nstderr: %s",
                   e, e.stderr.decode() if e.stderr else '')
