@@ -543,32 +543,23 @@ def deploy_dashboard() -> None:
         )
 
         # ── Step 2: sync generated files into the clone ───────────────────
-        # We copy every file from dashboard/ (the local output dir) into the
-        # root of the clone.  Any file that existed in the clone but no longer
-        # exists in the source is removed so the repo stays in sync.
+        # The dashboard repo contains files that must never be touched by the
+        # tracker: generate_dashboard.py, requirements.txt, .github/, README.md,
+        # etc.  We must NOT wipe the whole clone root — only the dashboard/
+        # subdirectory should be replaced on every deploy.
         #
+        # Strategy:
+        #   • Delete  clone_dir/dashboard/  entirely (stale generated output).
+        #   • Copy    src_dir/             → clone_dir/dashboard/  (fresh output).
+        #
+        # Every other file/folder in the clone root is left completely untouched.
         # shutil is used instead of rsync because the self-hosted runner is
         # Windows and rsync is not available there by default.
-        #
-        # The .git directory inside clone_dir must be preserved — we remove
-        # everything else then copy fresh content on top.
-        log.info("Syncing %s → %s", src_dir, clone_dir)
-        for item in os.listdir(clone_dir):
-            if item == ".git":
-                continue
-            item_path = os.path.join(clone_dir, item)
-            if os.path.isdir(item_path):
-                shutil.rmtree(item_path)
-            else:
-                os.remove(item_path)
-
-        for item in os.listdir(src_dir):
-            s = os.path.join(src_dir, item)
-            d = os.path.join(clone_dir, item)
-            if os.path.isdir(s):
-                shutil.copytree(s, d)
-            else:
-                shutil.copy2(s, d)
+        dst_dashboard = os.path.join(clone_dir, dashboard_dir)
+        log.info("Syncing %s → %s", src_dir, dst_dashboard)
+        if os.path.isdir(dst_dashboard):
+            shutil.rmtree(dst_dashboard)
+        shutil.copytree(src_dir, dst_dashboard)
 
         # ── Step 3: stage, check for changes, commit ──────────────────────
         subprocess.run(
@@ -614,22 +605,13 @@ def deploy_dashboard() -> None:
                 subprocess.run(["git", "reset", "--hard", "origin/main"],
                                cwd=clone_dir, capture_output=True)
 
-                # Re-sync files after reset (reset wiped our staged changes).
-                for item in os.listdir(clone_dir):
-                    if item == ".git":
-                        continue
-                    item_path = os.path.join(clone_dir, item)
-                    if os.path.isdir(item_path):
-                        shutil.rmtree(item_path)
-                    else:
-                        os.remove(item_path)
-                for item in os.listdir(src_dir):
-                    s = os.path.join(src_dir, item)
-                    d = os.path.join(clone_dir, item)
-                    if os.path.isdir(s):
-                        shutil.copytree(s, d)
-                    else:
-                        shutil.copy2(s, d)
+                # Re-sync dashboard/ after reset (reset wiped our staged changes).
+                # Same targeted replacement as the initial sync above — only
+                # the dashboard/ subdirectory is wiped and repopulated; all
+                # other files in the clone root are left untouched.
+                if os.path.isdir(dst_dashboard):
+                    shutil.rmtree(dst_dashboard)
+                shutil.copytree(src_dir, dst_dashboard)
 
                 subprocess.run(["git", "add", "."],
                                cwd=clone_dir, capture_output=True)
