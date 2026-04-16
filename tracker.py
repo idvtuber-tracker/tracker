@@ -16,6 +16,7 @@ import json
 import logging
 import signal
 import sys
+import shutil
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -182,6 +183,7 @@ from zoneinfo import ZoneInfo
 _PACIFIC_TZ = ZoneInfo("America/Los_Angeles")
 # Display timezone — Indonesia does not observe DST so this is always UTC+7.
 _LOCAL_TZ   = ZoneInfo("Asia/Jakarta")
+
 
 def _now_local() -> datetime:
     """Current time in local display timezone (WIB / UTC+7)."""
@@ -401,6 +403,7 @@ def save_many_to_db(rows: list[tuple[dict, str]]) -> None:
             conn.close()
         except Exception:
             pass
+
 # ══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD REGENERATION
 # ══════════════════════════════════════════════════════════════════════════════
@@ -422,57 +425,160 @@ def regenerate_dashboard() -> None:
         log.error("Dashboard generation timed out.")
     except Exception as e:
         log.error("Dashboard generation error: %s", e)
-        
-def deploy_dashboard() -> None:
-    dashboard_dir = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
-    pat           = os.environ.get("GH_PAT", "")
-    repo_slug     = os.environ.get("GITHUB_REPOSITORY", "")
-    repo_dir      = os.getcwd()
 
-    # Why fetch+reset instead of pull --rebase:
-    # Both the tracker (Windows runner) and deploy_dashboard.yml (ubuntu runner)
-    # commit to the same branch concurrently. When the deploy workflow commits
-    # cache/ or manifest.json between two tracker deploys, the tracker's local
-    # history diverges from remote. Rebasing then replays old tracker commits
-    # on top of remote, hitting merge conflicts on the same dashboard files.
-    # "Rebasing (1/N)" in the error log is the symptom.
-    #
-    # fetch+reset --hard always aligns local HEAD exactly with remote,
-    # discarding any stale local commits. This is safe because dashboard/
-    # is regenerated fresh from the DB on every deploy — git history is not
-    # the source of truth for dashboard content, the database is.
+
+def _get_dashboard_clone_dir() -> str:
+    """
+    Return a stable path for the dashboard repo clone that persists across
+    workflow runs on the self-hosted Windows runner.
+
+    We place it one level above RUNNER_WORKSPACE (i.e. next to the tracker
+    checkout) so it survives the fresh checkout that happens at the start of
+    every run and is never inside the workspace that Actions wipes.
+
+    Layout on disk (example):
+        C:\\actions-runner\\_work\\tracker\\           ← RUNNER_WORKSPACE/../
+            tracker\\                                  ← tracker checkout (cwd)
+            dashboard-deploy\\                         ← dashboard clone  ← HERE
+    """
+    workspace = os.environ.get("RUNNER_WORKSPACE", "")
+    if workspace:
+        parent = os.path.normpath(os.path.join(workspace, ".."))
+        candidate = os.path.join(parent, "dashboard-deploy")
+        # Verify the parent is writable before committing to this path.
+        try:
+            test = os.path.join(parent, ".write_test")
+            with open(test, "w") as f:
+                f.write("x")
+            os.remove(test)
+            return candidate
+        except Exception:
+            pass
+    # Fallback: place the clone as a sibling of the current working directory.
+    return os.path.normpath(os.path.join(os.getcwd(), "..", "dashboard-deploy"))
+
+
+def deploy_dashboard() -> None:
+    """
+    Push the freshly-generated dashboard/ folder to the dedicated dashboard
+    repo (DASHBOARD_REPO), then fire a repository_dispatch event on that repo
+    to trigger GitHub Pages deployment via deploy_dashboard.yml.
+
+    Why a separate clone instead of operating on the tracker's own git repo:
+      The tracker repo no longer contains dashboard/ at all — it only holds
+      tracker.py, generate_dashboard.py, requirements.txt, and workflows.
+      Pushing dashboard output into a separate repo keeps concerns clean:
+        • tracker repo  → source code + CI history
+        • dashboard repo → only the generated HTML/CSS/JS, deployed to Pages
+
+    Why fetch+reset instead of pull --rebase (same reasoning as before):
+      The ubuntu-based deploy_dashboard.yml workflow may commit manifest.json
+      back to the dashboard repo between two tracker pushes. A rebase would
+      replay the tracker commit on top of remote and hit merge conflicts.
+      fetch+reset --hard always aligns HEAD with remote before we add our
+      new files, guaranteeing a clean fast-forward push every time.
+    """
+    dashboard_dir  = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
+    pat            = os.environ.get("GH_PAT", "")
+    # DASHBOARD_REPO is the slug of the separate repo that hosts GitHub Pages,
+    # e.g. "idvtuber-tracker/dashboard".  Falls back to the tracker repo so
+    # the old single-repo behaviour is preserved when the env var is absent.
+    dashboard_repo = os.environ.get("DASHBOARD_REPO", "").strip()
+    tracker_repo   = os.environ.get("GITHUB_REPOSITORY", "").strip()
+
+    if not dashboard_repo:
+        # Backward-compat: no DASHBOARD_REPO set → push into the tracker repo
+        # exactly as before.  Log a warning so it's visible in the run log.
+        log.warning(
+            "DASHBOARD_REPO is not set — falling back to pushing dashboard/ "
+            "into the tracker repo (%s).  Set DASHBOARD_REPO in tracker.yml "
+            "to enable the split-repo workflow.", tracker_repo
+        )
+        dashboard_repo = tracker_repo
+
+    if not pat:
+        log.error("GH_PAT is not set — cannot push dashboard.")
+        return
+    if not dashboard_repo:
+        log.error("Neither DASHBOARD_REPO nor GITHUB_REPOSITORY is set — cannot push dashboard.")
+        return
+
+    repo_url  = f"https://x-access-token:{pat}@github.com/{dashboard_repo}.git"
+    clone_dir = _get_dashboard_clone_dir()
+    src_dir   = os.path.join(os.getcwd(), dashboard_dir)
+
+    log.info("Dashboard deploy → repo: %s  clone_dir: %s", dashboard_repo, clone_dir)
 
     try:
-        subprocess.run(["git", "config", "user.email", "tracker-bot@localhost"],
-                       cwd=repo_dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "Stream Tracker Bot"],
-                       cwd=repo_dir, check=True, capture_output=True)
+        # ── Step 1: get the dashboard repo onto disk ──────────────────────
+        # If a previous run already cloned it, fast-update via fetch+reset.
+        # Otherwise clone fresh.  Using --depth=1 keeps the clone lean.
+        if os.path.isdir(os.path.join(clone_dir, ".git")):
+            log.info("Dashboard clone already exists — updating.")
+            fetch = subprocess.run(
+                ["git", "fetch", "origin", "main"],
+                cwd=clone_dir, capture_output=True, text=True
+            )
+            if fetch.returncode != 0:
+                log.warning("git fetch on dashboard clone failed: %s", fetch.stderr.strip())
+            subprocess.run(
+                ["git", "reset", "--hard", "origin/main"],
+                cwd=clone_dir, capture_output=True, text=True, check=True
+            )
+        else:
+            log.info("Cloning dashboard repo for the first time.")
+            os.makedirs(clone_dir, exist_ok=True)
+            subprocess.run(
+                ["git", "clone", "--depth=1", repo_url, clone_dir],
+                capture_output=True, text=True, check=True
+            )
 
-        # Step 1: fetch latest remote state — no merge, no rebase.
-        fetch = subprocess.run(
-            ["git", "fetch", "origin", "main"],
-            cwd=repo_dir, capture_output=True, text=True
+        subprocess.run(
+            ["git", "config", "user.email", "tracker-bot@localhost"],
+            cwd=clone_dir, check=True, capture_output=True
         )
-        if fetch.returncode != 0:
-            log.warning("git fetch failed: %s", fetch.stderr.strip())
-
-        # Step 2: hard-reset local HEAD to origin/main, discarding any stale
-        # local commits that diverged from remote due to concurrent commits
-        # from deploy_dashboard.yml (e.g. cache/ or manifest.json updates).
-        reset = subprocess.run(
-            ["git", "reset", "--hard", "origin/main"],
-            cwd=repo_dir, capture_output=True, text=True
+        subprocess.run(
+            ["git", "config", "user.name", "Stream Tracker Bot"],
+            cwd=clone_dir, check=True, capture_output=True
         )
-        if reset.returncode != 0:
-            log.warning("git reset --hard failed: %s", reset.stderr.strip())
 
-        # Step 3: stage fresh dashboard output on top of the aligned HEAD.
-        subprocess.run(["git", "add", dashboard_dir],
-                       cwd=repo_dir, check=True, capture_output=True)
+        # ── Step 2: sync generated files into the clone ───────────────────
+        # We copy every file from dashboard/ (the local output dir) into the
+        # root of the clone.  Any file that existed in the clone but no longer
+        # exists in the source is removed so the repo stays in sync.
+        #
+        # shutil is used instead of rsync because the self-hosted runner is
+        # Windows and rsync is not available there by default.
+        #
+        # The .git directory inside clone_dir must be preserved — we remove
+        # everything else then copy fresh content on top.
+        log.info("Syncing %s → %s", src_dir, clone_dir)
+        for item in os.listdir(clone_dir):
+            if item == ".git":
+                continue
+            item_path = os.path.join(clone_dir, item)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+            else:
+                os.remove(item_path)
+
+        for item in os.listdir(src_dir):
+            s = os.path.join(src_dir, item)
+            d = os.path.join(clone_dir, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d)
+            else:
+                shutil.copy2(s, d)
+
+        # ── Step 3: stage, check for changes, commit ──────────────────────
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=clone_dir, check=True, capture_output=True
+        )
 
         unchanged = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
-            cwd=repo_dir, capture_output=True
+            cwd=clone_dir, capture_output=True
         )
         if unchanged.returncode == 0:
             log.info("Dashboard unchanged — skipping deploy commit.")
@@ -481,45 +587,75 @@ def deploy_dashboard() -> None:
         ts = _now_local().strftime("%Y-%m-%d %H:%M:%S WIB")
         subprocess.run(
             ["git", "commit", "-m", f"chore: dashboard update {ts}"],
-            cwd=repo_dir, check=True, capture_output=True
+            cwd=clone_dir, check=True, capture_output=True
         )
 
-        # Step 4: push with up to 3 retries.
-        # If another commit landed between our fetch and push, re-fetch and
-        # re-reset before retrying — always produces a clean fast-forward.
+        # ── Step 4: push with up to 3 retries ────────────────────────────
+        # If another commit (e.g. from deploy_dashboard.yml committing
+        # manifest.json) landed between our fetch and our push, re-fetch,
+        # re-reset, re-sync, and retry.  This guarantees a clean fast-forward.
         for attempt in range(1, 4):
             push = subprocess.run(
                 ["git", "push", "origin", "main"],
-                cwd=repo_dir, capture_output=True, text=True
+                cwd=clone_dir, capture_output=True, text=True
             )
             if push.returncode == 0:
-                log.info("Dashboard pushed to repository (attempt %d).", attempt)
+                log.info("Dashboard pushed to %s (attempt %d).", dashboard_repo, attempt)
                 break
-            log.warning("git push failed (attempt %d): %s", attempt, push.stderr.strip())
+
+            log.warning(
+                "git push to dashboard repo failed (attempt %d): %s",
+                attempt, push.stderr.strip()
+            )
             if attempt < 3:
+                # Re-align with remote then re-apply our generated files.
                 subprocess.run(["git", "fetch", "origin", "main"],
-                               cwd=repo_dir, capture_output=True)
+                               cwd=clone_dir, capture_output=True)
                 subprocess.run(["git", "reset", "--hard", "origin/main"],
-                               cwd=repo_dir, capture_output=True)
-                subprocess.run(["git", "add", dashboard_dir],
-                               cwd=repo_dir, capture_output=True)
+                               cwd=clone_dir, capture_output=True)
+
+                # Re-sync files after reset (reset wiped our staged changes).
+                for item in os.listdir(clone_dir):
+                    if item == ".git":
+                        continue
+                    item_path = os.path.join(clone_dir, item)
+                    if os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+                    else:
+                        os.remove(item_path)
+                for item in os.listdir(src_dir):
+                    s = os.path.join(src_dir, item)
+                    d = os.path.join(clone_dir, item)
+                    if os.path.isdir(s):
+                        shutil.copytree(s, d)
+                    else:
+                        shutil.copy2(s, d)
+
+                subprocess.run(["git", "add", "."],
+                               cwd=clone_dir, capture_output=True)
                 rechk = subprocess.run(
                     ["git", "diff", "--cached", "--quiet"],
-                    cwd=repo_dir, capture_output=True
+                    cwd=clone_dir, capture_output=True
                 )
                 if rechk.returncode == 0:
                     log.info("Dashboard unchanged after re-fetch — skipping retry.")
                     break
                 subprocess.run(
                     ["git", "commit", "-m", f"chore: dashboard update {ts}"],
-                    cwd=repo_dir, capture_output=True
+                    cwd=clone_dir, capture_output=True
                 )
         else:
-            log.error("git push failed after 3 attempts — skipping deploy dispatch.")
+            log.error(
+                "git push to dashboard repo failed after 3 attempts — "
+                "skipping Pages deploy dispatch."
+            )
             return
 
-        # Step 5: fire the Pages deploy trigger.
-        if pat and repo_slug:
+        # ── Step 5: fire the Pages deploy trigger on the dashboard repo ───
+        # The repository_dispatch event is sent to DASHBOARD_REPO (not the
+        # tracker repo).  deploy_dashboard.yml in the dashboard repo listens
+        # for the "deploy-dashboard" event type and runs the Pages deployment.
+        if pat and dashboard_repo:
             headers = {
                 "Authorization":        f"Bearer {pat}",
                 "Accept":               "application/vnd.github+json",
@@ -532,23 +668,36 @@ def deploy_dashboard() -> None:
             })
             try:
                 resp = requests.post(
-                    f"https://api.github.com/repos/{repo_slug}/dispatches",
+                    f"https://api.github.com/repos/{dashboard_repo}/dispatches",
                     headers=headers,
                     data=payload,
                     timeout=10,
                 )
                 if resp.status_code == 204:
-                    log.info("Deploy event fired successfully.")
+                    log.info(
+                        "Deploy event fired on %s successfully.", dashboard_repo
+                    )
                 else:
-                    log.error("Deploy event failed: %s %s", resp.status_code, resp.text)
+                    log.error(
+                        "Deploy event on %s failed: %s %s",
+                        dashboard_repo, resp.status_code, resp.text
+                    )
             except requests.exceptions.ConnectionError as e:
-                log.error("Deploy dispatch failed (network error) — dashboard push still completed: %s", e)
+                log.error(
+                    "Deploy dispatch failed (network error) — "
+                    "dashboard push still completed: %s", e
+                )
             except requests.exceptions.Timeout:
-                log.error("Deploy dispatch timed out — dashboard push still completed.")
+                log.error(
+                    "Deploy dispatch timed out — dashboard push still completed."
+                )
 
     except subprocess.CalledProcessError as e:
-        log.error("Deploy failed: %s\nstderr: %s",
-                  e, e.stderr.decode() if e.stderr else '')
+        log.error(
+            "Deploy failed: %s\nstderr: %s",
+            e, e.stderr.decode() if e.stderr else ''
+        )
+
 # ══════════════════════════════════════════════════════════════════════════════
 # CSV
 # ══════════════════════════════════════════════════════════════════════════════
