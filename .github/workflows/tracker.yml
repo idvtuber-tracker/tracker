@@ -19,6 +19,14 @@ on:
   #
   # The workflow is self-restarting entirely via workflow_dispatch. The push
   # trigger was redundant and is the root cause of the runner instability.
+  #
+  # NOTE ON DASHBOARD_REPO:
+  # tracker.py's deploy_dashboard() no longer commits dashboard/ into this
+  # (tracker) repo.  Instead it clones the separate dashboard repo
+  # (DASHBOARD_REPO), copies the generated files there, pushes, and fires a
+  # repository_dispatch event on the dashboard repo to trigger Pages deployment.
+  # This means pushes from the tracker will never touch the tracker repo's git
+  # history at all, completely eliminating the old push-trigger race condition.
 
 permissions:
   contents: write
@@ -34,6 +42,26 @@ jobs:
       AIVEN_DATABASE_URL:   ${{ secrets.AIVEN_DATABASE_URL }}
       GH_PAT:               ${{ secrets.GH_PAT }}
       GITHUB_REPOSITORY:    ${{ github.repository }}
+
+      # ── Split-repo dashboard setting ──────────────────────────────────────
+      # DASHBOARD_REPO is the GitHub repo slug where the generated dashboard
+      # pages live and where GitHub Pages is configured.
+      #
+      # Format:  "<owner>/<repo>"
+      # Example: "idvtuber-tracker/dashboard"
+      #
+      # tracker.py will:
+      #   1. Clone this repo (or fast-update an existing clone) on the runner.
+      #   2. Copy the freshly-generated dashboard/ output into the clone.
+      #   3. Commit and push to this repo's main branch.
+      #   4. Fire a repository_dispatch "deploy-dashboard" event on this repo
+      #      so that deploy_dashboard.yml (living in THIS repo) triggers a
+      #      GitHub Pages deployment.
+      #
+      # If this variable is left empty or removed, tracker.py falls back to
+      # the old behaviour of pushing dashboard/ into the tracker repo itself.
+      DASHBOARD_REPO:       idvtuber-tracker/dashboard
+
       CSV_OUTPUT_PATH:      analytics.csv
       DASHBOARD_OUTPUT_DIR: dashboard
       POLL_INTERVAL_SEC:    "900"
