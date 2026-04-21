@@ -236,22 +236,35 @@ def _new_conn(retries: int = 3, base_delay: float = 5.0) -> Optional[psycopg2.ex
 
 
 def ping_db() -> bool:
-    """Lightweight connectivity check. Returns True if DB is reachable."""
-    conn = _new_conn()
-    if conn is None:
+    """Lightweight connectivity check. Returns True if DB is reachable.
+
+    Uses a single direct connection attempt (no retries) with a short timeout
+    so the startup retry loop in run() stays in control of retry cadence.
+    Calling _new_conn() here would open up to 3 connections per ping attempt
+    (its own internal retries), exhausting the Supabase Session-mode pool_size
+    cap when the startup loop fires multiple pings in quick succession.
+    """
+    if not AIVEN_DATABASE_URL:
         return False
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
-        return True
+        conn = psycopg2.connect(
+            AIVEN_DATABASE_URL,
+            sslmode="require",
+            connect_timeout=10,
+            options="-c search_path=public -c statement_timeout=5000",
+        )
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            return True
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
     except Exception as e:
         log.warning("DB ping failed: %s", e)
         return False
-    finally:
-        try:
-            conn.close()
-        except Exception:
-            pass
 
 
 def get_table_name(channel_name: str) -> str:
@@ -1119,6 +1132,7 @@ def run() -> None:
     log.info("Scanning for streams…")
 
     while _running:
+        cycle_start = datetime.now(timezone.utc)
         try:
             # ── activities.list channel scan (every POLL_INTERVAL_SEC) ────
             if channel_poll_counter == 0:
@@ -1192,7 +1206,6 @@ def run() -> None:
             time.sleep(STREAM_POLL_SEC)
             continue
         
-        cycle_start = datetime.now(timezone.utc)
         active_streams: list[dict] = list(known_streams.values())
 
         # ── Step 1: collect analytics for every live stream ───────────────
