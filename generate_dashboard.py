@@ -329,9 +329,13 @@ def save_manifest(manifest: dict) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def get_conn():
+    # connect_timeout=10 caps each TCP attempt at 10 seconds.
+    # Without this, psycopg2 uses the OS default (~20s per IP on Windows),
+    # causing the 120s subprocess timeout to be hit before any error is logged.
     return psycopg2.connect(
         AIVEN_DATABASE_URL,
         sslmode="require",
+        connect_timeout=10,
         options="-c search_path=public -c statement_timeout=30000",
     )
 
