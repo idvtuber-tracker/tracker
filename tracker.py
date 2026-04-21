@@ -201,70 +201,39 @@ history: dict[str, list] = {}   # video_id -> list of (ts, viewers, likes, comme
 # DATABASE
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _new_conn(retries: int = 3, base_delay: float = 5.0) -> Optional[psycopg2.extensions.connection]:
-    """Open and return a fresh DB connection, or None on failure.
-
-    Retries up to `retries` times with exponential backoff to handle transient
-    network failures (e.g. router NAT state expiry after idle periods).
-    connect_timeout=10 means each attempt costs at most 10 seconds.
-    With defaults: worst case = 3 x 10s + (5s + 10s) backoff = 55s total.
-    """
+def _new_conn() -> Optional[psycopg2.extensions.connection]:
+    """Open and return a fresh DB connection, or None on failure."""
     if not AIVEN_DATABASE_URL:
         return None
-    for attempt in range(1, retries + 1):
-        try:
-            conn = psycopg2.connect(
-                AIVEN_DATABASE_URL,
-                sslmode="require",
-                connect_timeout=10,
-                options="-c search_path=public -c statement_timeout=30000",
-            )
-            if attempt > 1:
-                log.info("DB connection succeeded on attempt %d.", attempt)
-            return conn
-        except Exception as e:
-            if attempt < retries:
-                delay = base_delay * attempt   # 5s, then 10s
-                log.warning(
-                    "DB connection failed (attempt %d/%d): %s — retrying in %.0fs",
-                    attempt, retries, e, delay
-                )
-                time.sleep(delay)
-            else:
-                log.error("DB connection failed after %d attempts: %s", retries, e)
-    return None
-
-
-def ping_db() -> bool:
-    """Lightweight connectivity check. Returns True if DB is reachable.
-
-    Uses a single direct connection attempt (no retries) with a short timeout
-    so the startup retry loop in run() stays in control of retry cadence.
-    Calling _new_conn() here would open up to 3 connections per ping attempt
-    (its own internal retries), exhausting the Supabase Session-mode pool_size
-    cap when the startup loop fires multiple pings in quick succession.
-    """
-    if not AIVEN_DATABASE_URL:
-        return False
     try:
-        conn = psycopg2.connect(
+        return psycopg2.connect(
             AIVEN_DATABASE_URL,
             sslmode="require",
             connect_timeout=10,
-            options="-c search_path=public -c statement_timeout=5000",
+            options="-c search_path=public -c statement_timeout=30000",
         )
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-            return True
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+    except Exception as e:
+        log.error("DB connection failed: %s", e)
+        return None
+
+
+def ping_db() -> bool:
+    """Lightweight connectivity check. Returns True if DB is reachable."""
+    conn = _new_conn()
+    if conn is None:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        return True
     except Exception as e:
         log.warning("DB ping failed: %s", e)
         return False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def get_table_name(channel_name: str) -> str:
@@ -394,32 +363,12 @@ def save_to_db(row: dict, table: str) -> None:
             pass
 
 
-def _update_heartbeat(cur) -> None:
-    """Write current UTC timestamp to the tracker_heartbeat table.
-
-    Piggybacked on the save_many_to_db() connection — zero extra TCP cost.
-    The dead man's switch pg_cron job in Supabase monitors this table and
-    fires a Discord alert if the heartbeat goes stale.
-    """
-    try:
-        cur.execute("""
-            INSERT INTO tracker_heartbeat (id, last_seen, channel_count)
-            VALUES (1, NOW(), %s)
-            ON CONFLICT (id) DO UPDATE
-                SET last_seen     = EXCLUDED.last_seen,
-                    channel_count = EXCLUDED.channel_count
-        """, (len(CHANNEL_IDS),))
-    except Exception as e:
-        log.debug("Heartbeat update skipped: %s", e)
-
-
 def save_many_to_db(rows: list[tuple[dict, str]]) -> None:
     """Insert analytics rows for multiple streams in a single DB connection.
 
     Each element of rows is (row_dict, table_name). All inserts are sent in
     one round-trip, paying the TCP + SSL handshake cost only once per cycle
-    instead of once per live stream. Also updates tracker_heartbeat on the
-    same connection so the dead man's switch stays current.
+    instead of once per live stream.
     """
     if not rows:
         return
@@ -441,7 +390,6 @@ def save_many_to_db(rows: list[tuple[dict, str]]) -> None:
                          %(scheduled_start)s, %(actual_start)s)
                 """
                 cur.execute(sql, row)
-            _update_heartbeat(cur)
         conn.commit()
         log.info("DB: inserted %d row(s) in one connection.", len(rows))
     except Exception as e:
@@ -812,13 +760,6 @@ def find_live_videos(channel_id: str) -> list[dict]:
                 continue            # retry with new key
             log.error("activities API error for %s: %s", channel_id, e)
             return results
-        except Exception as e:
-            # Catches socket-level errors (WinError 10060, SSL EOF, etc.)
-            # that are not wrapped as HttpError by the API client.
-            log.warning("find_live_videos network error (attempt %d): %s — retrying in 5s",
-                        attempt + 1, e)
-            time.sleep(5)
-            continue
 
     return results
 
@@ -862,11 +803,6 @@ def check_upcoming_went_live(video_ids: list[str]) -> dict[str, str]:
                     continue
                 log.error("check_upcoming_went_live error: %s", e)
                 break
-            except Exception as e:
-                log.warning("check_upcoming_went_live network error (attempt %d): %s — retrying in 5s",
-                            attempt + 1, e)
-                time.sleep(5)
-                continue
     return changed
 
 
@@ -906,11 +842,6 @@ def get_video_analytics(video_id: str) -> Optional[dict]:
                 continue          # retry with new key
             log.error("videos API error for %s: %s", video_id, e)
             return None
-        except Exception as e:
-            log.warning("get_video_analytics network error (attempt %d): %s — retrying in 5s",
-                        attempt + 1, e)
-            time.sleep(5)
-            continue
 
     return None
 
@@ -1059,11 +990,6 @@ def ensure_all_channel_tables(existing: dict[str, str]) -> dict[str, str]:
                     continue
                 log.error("channels.list error at startup: %s", e)
                 break
-            except Exception as e:
-                log.warning("ensure_all_channel_tables network error (attempt %d): %s — retrying in 5s",
-                            attempt + 1, e)
-                time.sleep(5)
-                continue
 
     for ch_id in new_ids:
         ch_name = names.get(ch_id)
@@ -1083,47 +1009,22 @@ def ensure_all_channel_tables(existing: dict[str, str]) -> dict[str, str]:
 
 def run() -> None:
     log.info("Tracker starting. Monitoring channels: %s", CHANNEL_IDS)
-
-    # ── Startup DB connectivity wait ──────────────────────────────────────────
-    # After a 6-hour idle gap the router NAT state table may have expired,
-    # causing the first outbound TCP connections to fail for 1-3 minutes.
-    # Retry every 30s for up to 5 minutes before falling back to CSV-only mode.
-    # This ensures channel_tables is fully populated before the main loop starts
-    # rather than silently dropping all DB writes with an empty mapping.
-    _DB_STARTUP_RETRIES = 10      # 10 x 30s = 5 minutes maximum wait
-    _DB_STARTUP_DELAY   = 30      # seconds between retries
-    channel_tables: dict[str, str] = {}
-
     if AIVEN_DATABASE_URL:
-        for _attempt in range(1, _DB_STARTUP_RETRIES + 1):
-            log.info("DB startup check (attempt %d/%d)...", _attempt, _DB_STARTUP_RETRIES)
-            if ping_db():
-                log.info("DB reachable — initialising.")
-                init_db()
-                _db_tables     = load_channel_tables_from_db()
-                channel_tables = ensure_all_channel_tables(_db_tables)
-                log.info("DB startup complete — %d channel table(s) loaded.", len(channel_tables))
-                break
-            else:
-                if _attempt < _DB_STARTUP_RETRIES:
-                    log.warning(
-                        "DB not reachable at startup (attempt %d/%d) — "
-                        "retrying in %ds. Check network/router state.",
-                        _attempt, _DB_STARTUP_RETRIES, _DB_STARTUP_DELAY
-                    )
-                    time.sleep(_DB_STARTUP_DELAY)
-                else:
-                    log.error(
-                        "DB unreachable after %d startup attempts (%d minutes). "
-                        "Starting in CSV-only mode — no analytics will be written "
-                        "to the database until the next restart.",
-                        _DB_STARTUP_RETRIES,
-                        (_DB_STARTUP_RETRIES * _DB_STARTUP_DELAY) // 60
-                    )
+        init_db()
     else:
-        log.warning("No AIVEN_DATABASE_URL set — CSV-only mode.")
+        log.warning("No DB connection – CSV-only mode.")
 
     known_streams: dict[str, dict] = {}
+
+    # Pre-populate channel_tables from the DB, then ensure every tracked
+    # channel has a table — even ones that have never had a stream detected.
+    # This means a channel that went live before being picked up by
+    # activities.list will have its table ready the moment it's first seen.
+    if AIVEN_DATABASE_URL:
+        _db_tables    = load_channel_tables_from_db()
+        channel_tables = ensure_all_channel_tables(_db_tables)
+    else:
+        channel_tables: dict[str, str] = {}
 
     last_deploy_time  = datetime.now(timezone.utc)
     DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))
@@ -1132,7 +1033,6 @@ def run() -> None:
     log.info("Scanning for streams…")
 
     while _running:
-        cycle_start = datetime.now(timezone.utc)
         try:
             # ── activities.list channel scan (every POLL_INTERVAL_SEC) ────
             if channel_poll_counter == 0:
@@ -1206,6 +1106,7 @@ def run() -> None:
             time.sleep(STREAM_POLL_SEC)
             continue
         
+        cycle_start = datetime.now(timezone.utc)
         active_streams: list[dict] = list(known_streams.values())
 
         # ── Step 1: collect analytics for every live stream ───────────────
