@@ -1,22 +1,22 @@
 """
 generate_dashboard.py
+
 Pulls livestream analytics from PostgreSQL and generates a 4-level
 static HTML dashboard:
-  index.html                       ← org cards
-  {org}/index.html                 ← channel list per org
-  {org}/{channel}/index.html       ← stream cards per channel
-  {org}/{channel}/{video}.html     ← stream detail + charts
+  index.html                       <- org cards
+  {org}/index.html                 <- channel list per org
+  {org}/{channel}/index.html       <- stream cards per channel
+  {org}/{channel}/{video}.html     <- stream detail + charts
 
 Partial build algorithm:
-  - A manifest (dashboard/manifest.json) tracks every generated stream page.
+  - A manifest (dashboard/manifest.json) tracks every stream page.
   - On each run, only stream pages that are NEW or currently LIVE are
     (re)generated. Their parent channel and org pages are then also
     regenerated to reflect updated stream counts / card lists.
   - The index page is always regenerated (trivially cheap).
   - Unchanged stream pages (VOD, already in manifest) are never touched.
 
-Org membership is driven by the ORG_MAP dict below — update it when
-channels are added or moved between organisations.
+Org membership is driven by the ORG_MAP dict below.
 """
 
 import os
@@ -197,10 +197,12 @@ ORG_MAP = {
         "color":   "#a855f7",
         "desc":    "An Indonesian Male VTuber idol group. Concept: 'Five as one, we shine.'",
         "channels": [
+            ("MagniV",             "org",    "UCJifvCPf04WdIqdZY50Tsag"),
             ("Gema Gathika【MagniV】", "talent", "UC9Mfuai-qdXnTTFN0Z3hkAA"),  
-            ("Istmodius【AKA Virtual】", "talent", "UCpe6USwJgyctDpWQhzVBeVQ"),  
-            ("Mosa【MagniV】", "talent", "UCkYmpSIAkPgNg4wBeNn9JAA"), 
-            ("Funin Mamori【AKA Virtual】", "talent", "UCO6ngsu6Bx1SnJgL1iLyafA"), 
+            ("Istmodius【MagniV】", "talent", "UCpe6USwJgyctDpWQhzVBeVQ"),  
+            ("Funin Mamori【MagniV】", "talent", "UCO6ngsu6Bx1SnJgL1iLyafA"), 
+            ("Shiru 【MagniV】", "talent", "UCYE181HONC3O7Iul62aAoYg"), 
+            ("CANCNCN -Ezacancan", "talent", "UC31csAlk6YaJffLT3qPvEZg"), 
         ],
     },
     "sandaiva": {
@@ -252,23 +254,6 @@ ORG_MAP = {
             ("Saku Kurata 【MAHA5】", "talent", "UCxL9H-mOD2Op4yynXPOWGnQ"),  
             ("Maudy Sukaiga【MAHA5】", "talent", "UCmp1vw137-GvWyrBFraXQUw"),  
             ("Fuyumi Celestia【MAHA5】", "talent", "UCge_6FJHyeOCxRtWCmaVTAQ"),  
-        ],
-    },
-    "rememories": {
-        "label":   "Re:Memories",
-        "color":   "#fb7185",
-        "desc":    "An Indonesian indie VTuber agency focused on two-way interactive entertainment and fostering real connections with their community.",
-        "channels": [
-            ("Re:Memories", "org", "UCJZnhqz3mNpWJJ1FGrAy_qA"),  
-            ("Chloe Pawapua Ch.『 Re:Memories 』", "talent", "UCrKS2bOUZDXA_R3qhCux7ow"),  
-            ("Lily Ifeta Ch.『 Re:Memories 』", "talent", "UCXSbl3XQYtx1u4Gvvca7NUA"),  
-            ("Reynard Blanc Ch.『 Re:Memories 』", "talent", "UCoUFv7APM1XOo4TUaWbRekw"),  
-            ("Elaine Celestia Ch.『 Re:Memories 』", "talent", "UCyapmNSsYj2KkoQEhZEhxrw"),  
-            ("Cecilia Lieberia Ch.『 Re:Memories 』", "talent", "UC4pEixMozb6UnOtwg5Uew-Q"),  
-            ("Marin Goldlock Ch.『 Re:Memories 』", "talent", "UCgexPS9fwEtLTCM8VZnEpjA"),  
-            ("Izanami Chiara Ch.『 Re:Memories 』", "talent", "UCYVhzyujupNgRbvVPcA3KrA"),  
-            ("Leo Axenos Ch.『 Re:Memories 』", "talent", "UCoWz6jan_0RD-Z1pk3-h9Mg"),  
-            ("Pinku Rimu", "talent", "UC1fvUNao61EenXh0KPFGSTg"),  
         ],
     },
     "eon-of-stars": {
@@ -832,18 +817,25 @@ def fmt_subs(n) -> str:
         return "—"
 
 
-def fmt_dt(dt) -> str:
+def fmt_dt(dt, time_only: bool = False) -> str:
+    """Format a datetime for display in WIB (UTC+7).
+
+    time_only=True returns only HH:MM — used for chart x-axis labels
+    so ticks stay readable without the date repeating on every tick.
+    """
     if dt is None:
         return "—"
-    if isinstance(dt, datetime):
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(_LOCAL_TZ).strftime("%Y-%m-%d %H:%M WIB")
     try:
-        parsed = datetime.fromisoformat(str(dt).replace("Z", "+00:00"))
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(_LOCAL_TZ).strftime("%Y-%m-%d %H:%M WIB")
+        if isinstance(dt, datetime):
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            local = dt.astimezone(_LOCAL_TZ)
+        else:
+            parsed = datetime.fromisoformat(str(dt).replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            local = parsed.astimezone(_LOCAL_TZ)
+        return local.strftime("%H:%M") if time_only else local.strftime("%Y-%m-%d %H:%M WIB")
     except Exception:
         return str(dt)[:16]
 
@@ -1131,8 +1123,18 @@ _BASE_CSS = """
   .kpi-sub { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
   .kpi-grid .kpi:nth-child(-n+2)::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--org-color); }
   .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem; }
-  .chart-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 1.25rem; }
-  .chart-wrap { position: relative; height: 280px; }
+  .chart-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; gap: 0.75rem; }
+  .chart-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin: 0; }
+  .chart-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .chart-btn {
+    font-family: "DM Mono", monospace; font-size: 0.6rem; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 0.25rem 0.6rem; border-radius: 3px;
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+    cursor: pointer; transition: border-color 0.2s, color 0.2s; white-space: nowrap;
+  }
+  .chart-btn:hover { border-color: var(--org-color); color: var(--accent-text); }
+  .chart-hint { font-size: 0.58rem; color: var(--muted); opacity: 0.6; margin-top: 0.5rem; text-align: right; }
+  .chart-wrap { position: relative; height: 320px; }
   .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-bottom: 3rem; }
   .data-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted); font-weight: 500; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
@@ -1454,7 +1456,7 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
     else:
         s_cls, s_lbl = "status-vod",      "VOD"
 
-    labels   = [fmt_dt(r["collected_at"])         for r in timeseries]
+    labels   = [fmt_dt(r["collected_at"], time_only=True) for r in timeseries]
     viewers  = [int(r["concurrent_viewers"] or 0) for r in timeseries]
     likes    = [int(r["like_count"]         or 0) for r in timeseries]
     comments = [int(r["comment_count"]      or 0) for r in timeseries]
@@ -1471,8 +1473,9 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
     ])
 
     chart_script = (
-        '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">'
-        '</script>'
+        '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>\n'
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>\n'
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>'
     )
 
     def _fmt_duration(first, last) -> str:
@@ -1521,47 +1524,162 @@ def write_stream_page(org_slug: str, org: dict, ch_name: str,
         f'    </div>\n'
         f'  </div>\n\n'
         f'  <div class="chart-box">\n'
-        f'    <div class="chart-title">Concurrent Viewers over Time</div>\n'
+        f'    <div class="chart-toolbar">\n'
+        f'      <div class="chart-title">Concurrent Viewers over Time</div>\n'
+        f'      <div class="chart-actions">\n'
+        f'        <button class="chart-btn" onclick="resetZoom(\'viewerChart\')">Reset Zoom</button>\n'
+        f'        <button class="chart-btn" onclick="downloadCSV(\'viewerChart\')">Download CSV</button>\n'
+        f'      </div>\n'
+        f'    </div>\n'
         f'    <div class="chart-wrap"><canvas id="viewerChart"></canvas></div>\n'
+        f'    <p class="chart-hint">Scroll to zoom &nbsp;&#183;&nbsp; Shift+drag to select range &nbsp;&#183;&nbsp; Drag to pan &nbsp;&#183;&nbsp; Double-click to reset</p>\n'
         f'  </div>\n\n'
         f'  <div class="chart-box">\n'
-        f'    <div class="chart-title">Likes &amp; Comments over Time</div>\n'
+        f'    <div class="chart-toolbar">\n'
+        f'      <div class="chart-title">Likes &amp; Comments over Time</div>\n'
+        f'      <div class="chart-actions">\n'
+        f'        <button class="chart-btn" onclick="resetZoom(\'engagementChart\')">Reset Zoom</button>\n'
+        f'        <button class="chart-btn" onclick="downloadCSV(\'engagementChart\')">Download CSV</button>\n'
+        f'      </div>\n'
+        f'    </div>\n'
         f'    <div class="chart-wrap"><canvas id="engagementChart"></canvas></div>\n'
+        f'    <p class="chart-hint">Scroll to zoom &nbsp;&#183;&nbsp; Shift+drag to select range &nbsp;&#183;&nbsp; Drag to pan &nbsp;&#183;&nbsp; Double-click to reset</p>\n'
         f'  </div>\n\n'
         f'  <p class="generated">Generated {_now_local().strftime("%Y-%m-%d %H:%M WIB")}'
         f' &nbsp;&#183;&nbsp; yt-livestream-tracker</p>\n\n'
         f'<script>\n'
+        f'// ── Data ────────────────────────────────────────────────────────\n'
         f'const ts    = {json.dumps(labels)};\n'
         f'const views = {json.dumps(viewers)};\n'
         f'const likes = {json.dumps(likes)};\n'
         f'const comms = {json.dumps(comments)};\n'
-        f"const orgColor  = '{org_color}';\n"
-        f"const gridColor = 'rgba(30,30,46,0.8)';\n"
-        f"const tickColor = '#5a5a7a';\n"
-        f'const baseOpts = {{\n'
-        f'  responsive: true, maintainAspectRatio: false,\n'
-        f'  interaction: {{ mode: "index", intersect: false }},\n'
-        f'  plugins: {{ legend: {{ labels: {{ color: tickColor, font: {{ family: "DM Mono", size: 11 }}, boxWidth: 12 }} }} }},\n'
-        f'  scales: {{\n'
-        f'    x: {{ ticks: {{ color: tickColor, font: {{ family: "DM Mono", size: 10 }}, maxTicksLimit: 10, maxRotation: 0 }}, grid: {{ color: gridColor }} }},\n'
-        f'    y: {{ ticks: {{ color: tickColor, font: {{ family: "DM Mono", size: 10 }} }}, grid: {{ color: gridColor }} }}\n'
-        f'  }}\n'
+        f'const VIDEO_ID = {json.dumps(vid)};\n'
+        f"const orgColor = '{org_color}';\n"
+        f'\n'
+        f'// ── Theme-aware colours (read CSS variables at runtime) ─────────\n'
+        f'function getCSSVar(name) {{\n'
+        f'  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();\n'
+        f'}}\n'
+        f'function chartColors() {{\n'
+        f'  return {{\n'
+        f'    grid: getCSSVar("--border") || "rgba(90,90,122,0.25)",\n'
+        f'    tick: getCSSVar("--muted")  || "#5a5a7a",\n'
+        f'  }};\n'
+        f'}}\n'
+        f'\n'
+        f'// ── Shared dataset defaults ──────────────────────────────────────\n'
+        f'const LINE = {{\n'
+        f'  borderWidth: 2,\n'
+        f'  pointRadius: 0,          // no dots on the line\n'
+        f'  pointHoverRadius: 4,     // dot appears only on hover\n'
+        f'  pointHoverBorderWidth: 2,\n'
+        f'  fill: true,\n'
+        f'  tension: 0.4,            // smooth cubic bezier curve\n'
         f'}};\n'
-        f'new Chart(document.getElementById("viewerChart"), {{\n'
+        f'\n'
+        f'// ── Base chart options ───────────────────────────────────────────\n'
+        f'function makeOpts(extraPlugins) {{\n'
+        f'  const c = chartColors();\n'
+        f'  return {{\n'
+        f'    responsive: true,\n'
+        f'    maintainAspectRatio: false,\n'
+        f'    interaction: {{ mode: "index", intersect: false }},\n'
+        f'    plugins: {{\n'
+        f'      legend: {{ labels: {{ color: c.tick, font: {{ family: "DM Mono", size: 11 }}, boxWidth: 12 }} }},\n'
+        f'      zoom: {{\n'
+        f'        pan: {{\n'
+        f'          enabled: true,\n'
+        f'          mode: "x",\n'
+        f'        }},\n'
+        f'        zoom: {{\n'
+        f'          wheel:  {{ enabled: true }},\n'
+        f'          pinch:  {{ enabled: true }},\n'
+        f'          drag:   {{ enabled: true, modifierKey: "shift", backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.3)", borderWidth: 1 }},\n'
+        f'          mode: "x",\n'
+        f'        }},\n'
+        f'      }},\n'
+        f'      ...extraPlugins,\n'
+        f'    }},\n'
+        f'    scales: {{\n'
+        f'      x: {{\n'
+        f'        ticks: {{ color: c.tick, font: {{ family: "DM Mono", size: 10 }}, maxTicksLimit: 10, maxRotation: 0 }},\n'
+        f'        grid:  {{ color: c.grid }},\n'
+        f'      }},\n'
+        f'      y: {{\n'
+        f'        ticks: {{ color: c.tick, font: {{ family: "DM Mono", size: 10 }}, beginAtZero: true }},\n'
+        f'        grid:  {{ color: c.grid }},\n'
+        f'      }},\n'
+        f'    }},\n'
+        f'  }};\n'
+        f'}}\n'
+        f'\n'
+        f'// ── Chart registry ───────────────────────────────────────────────\n'
+        f'const CHARTS = {{}};\n'
+        f'\n'
+        f'// ── Viewer chart ─────────────────────────────────────────────────\n'
+        f'CHARTS.viewerChart = new Chart(document.getElementById("viewerChart"), {{\n'
         f'  type: "line",\n'
-        f'  data: {{ labels: ts, datasets: [{{ label: "Concurrent Viewers", data: views,\n'
-        f'    borderColor: orgColor, backgroundColor: orgColor + "22",\n'
-        f'    borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }}] }},\n'
-        f'  options: {{ ...baseOpts }}\n'
+        f'  data: {{\n'
+        f'    labels: ts,\n'
+        f'    datasets: [{{\n'
+        f'      label: "Concurrent Viewers",\n'
+        f'      data: views,\n'
+        f'      borderColor: orgColor,\n'
+        f'      backgroundColor: orgColor + "18",\n'
+        f'      ...LINE,\n'
+        f'    }}],\n'
+        f'  }},\n'
+        f'  options: makeOpts({{}}),\n'
         f'}});\n'
-        f'new Chart(document.getElementById("engagementChart"), {{\n'
+        f'\n'
+        f'// ── Engagement chart ─────────────────────────────────────────────\n'
+        f'CHARTS.engagementChart = new Chart(document.getElementById("engagementChart"), {{\n'
         f'  type: "line",\n'
-        f'  data: {{ labels: ts, datasets: [\n'
-        f'    {{ label: "Likes",    data: likes, borderColor: "#ff4f6d", backgroundColor: "rgba(255,79,109,0.05)",  borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }},\n'
-        f'    {{ label: "Comments", data: comms, borderColor: "#4fc3f7", backgroundColor: "rgba(79,195,247,0.05)", borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }}\n'
-        f'  ] }},\n'
-        f'  options: {{ ...baseOpts }}\n'
+        f'  data: {{\n'
+        f'    labels: ts,\n'
+        f'    datasets: [\n'
+        f'      {{ label: "Likes",    data: likes, borderColor: "#ff4f6d", backgroundColor: "rgba(255,79,109,0.06)",  ...LINE }},\n'
+        f'      {{ label: "Comments", data: comms, borderColor: "#4fc3f7", backgroundColor: "rgba(79,195,247,0.06)", ...LINE }},\n'
+        f'    ],\n'
+        f'  }},\n'
+        f'  options: makeOpts({{}}),\n'
         f'}});\n'
+        f'\n'
+        f'// ── Reset zoom ───────────────────────────────────────────────────\n'
+        f'function resetZoom(id) {{\n'
+        f'  const c = CHARTS[id];\n'
+        f'  if (c) c.resetZoom();\n'
+        f'}}\n'
+        f'\n'
+        f'// Attach double-click reset to both canvases\n'
+        f'document.getElementById("viewerChart").addEventListener("dblclick", function() {{ resetZoom("viewerChart"); }});\n'
+        f'document.getElementById("engagementChart").addEventListener("dblclick", function() {{ resetZoom("engagementChart"); }});\n'
+        f'\n'
+        f'// ── CSV download ─────────────────────────────────────────────────\n'
+        f'function downloadCSV(id) {{\n'
+        f'  const chart = CHARTS[id];\n'
+        f'  if (!chart) return;\n'
+        f'  const datasets = chart.data.datasets;\n'
+        f'  const labels   = chart.data.labels;\n'
+        f'  // Header row: Timestamp + one column per dataset\n'
+        f'  const header = ["Timestamp", ...datasets.map(function(d) {{ return d.label; }})];\n'
+        f'  // Data rows\n'
+        f'  const rows = labels.map(function(lbl, i) {{\n'
+        f'    return [lbl, ...datasets.map(function(d) {{ return d.data[i] ?? ""; }})]\n'
+        f'      .map(function(v) {{ return String(v).includes(",") ? \'"\' + v + \'"\' : v; }})\n'
+        f'      .join(",");\n'
+        f'  }});\n'
+        f'  const csv  = [header.join(","), ...rows].join("\\n");\n'
+        f'  const blob = new Blob([csv], {{ type: "text/csv" }});\n'
+        f'  const url  = URL.createObjectURL(blob);\n'
+        f'  const a    = document.createElement("a");\n'
+        f'  a.href     = url;\n'
+        f'  a.download = VIDEO_ID + "_" + id + ".csv";\n'
+        f'  document.body.appendChild(a);\n'
+        f'  a.click();\n'
+        f'  document.body.removeChild(a);\n'
+        f'  URL.revokeObjectURL(url);\n'
+        f'}}\n'
         f'</script>\n'
     )
 
