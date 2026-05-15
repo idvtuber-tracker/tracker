@@ -150,18 +150,6 @@ ORG_MAP = {
             ("Li Mingshu Ch.",   "talent", "UCJL18InOQxSBXswn4sfD_fQ"),
         ],
     },
-    "dexter": {
-        "label":   "DEXTER",
-        "color":   "#f87171",
-        "desc":    "An Indonesian VTuber agency with male talents that specializes in various contents and singing.",
-        "channels": [
-            ("Dexter Official",              "org",    "UCVitBVX8nnvP0gfe1s5VRGA"),
-            ("Richard Ravindra【DEXTER】",    "talent", "UCeEXULUk2S16jjLSv7ar51Q"),
-            ("Rex Arcadia【DEXTER】",         "talent", "UCCv6ctVKeh2U3LAH1RNejmQ"),
-            ("Lucentia【DEXTER】",            "talent", "UC1J_JlLEIzkXwkDdkEhE2dg"),
-            ("Noa Florastra【DEXTER】",       "talent", "UC19WbhRSDkExpUE6XAqDANg"),
-        ],
-    },
     "cozycazt": {
         "label":   "CozyCazt",
         "color":   "#fb923c",
@@ -268,7 +256,86 @@ ORG_MAP = {
             ("Mikazuki Arion【EOS】", "talent", "UCz_9zqgFPUYQBhDiZBFc00w"),  
         ],
     },
-
+    "uver-id": {
+        "label":   "UVER ID",
+        "color":   "#4a00e0",
+        "desc":    "An large group with eclectic style that shows the diversity of its talents.",
+        "channels": [
+            ("UVER ID", "org", "UCjgqLbt6MXPeTcnYbRBdChw"),  
+            ("Shana Ophelia [ UVER ID ]", "talent", "UCqEDMsqjTiO239UTJ2z2ftQ"),  
+            ("Scardia Agnibrata ♦ [ UVER ID ]", "talent", "UCq3hfX7OAnEfb3nkw22E7mw"),  
+            ("Meltdhe Corsieur Ch. [ UVER ID ]", "talent", "UCYvEICuAdq_dHsvgEJQglKA"),  
+            ("Cyure Michantrell Ch. [ UVER ID ]", "talent", "UCd9llXPNO3BF1QypPqWanSA"),  
+            ("Zelinus Vihnlock", "talent", "UCqlHd6k2zDNbjqVS9it8VJA"),  
+            ("Nephthya Anya Ch. [ UVER ID ]", "talent", "UC2EuxVDjpoEd-wdEmz5nfOA"),  
+            ("FUJIO  [ UVER ID ]", "talent", "UCK4HWNrcNiCFNdefybmEnVw"),  
+            ("Hiro Kyasuta [ UVER ID ]", "talent", "UC3GcxfDhuFQ8XfKCp34qpMg"),  
+            ("Arjuna Candra Pawitra Ch. [ UVER ID ]", "talent", "UCnMgBvpptZbgfvt4RVZ9Jcg"),  
+            ("Wei Yang [ UVER ID ]", "talent", "UCGC_uTT99Co4G0aiYWXDxOA"),  
+            ("Jae Min Ho [ UVER ID ]", "talent", "UCRjD_xEJ3mKIv6399Jt8GIw"),  
+            ("Doh Chen ah [ UVER ID ]", "talent", "UCNYi3CluU99__mhU014xpYg"),  
+            ("Gi Hwa Young [ UVER ID ]", "talent", "UCzOX836IOW8jpzIM6LYyjfA"),
+            ("Aira Lunagrandia [ UVER ID ]", "talent", "UCFJ7A3461hnv_mcgsEojAGw"),  
+            ("Minoguchi Romulus Ch. [ UVER ID ]", "talent", "UCKl29eeVHAv9ZZHa09mAweA"),  
+            ("Norn Haira〔UVER ID〕", "talent", "UCjev0yMRo4XoJRNN9boGlfw"),  
+            ("Isabella Naemi. Ch. ★ [ UVER ID ]", "talent", "UCcMzPa8mDNFvfwZ2qmuk7Zw"),  
+        ],
+    },
+    "crims-on": {
+        "label":   "CRIMS:On",
+        "color":   "#d90429",
+        "desc":    "Circle of friends with different background who shares one passion towards content creators scene.",
+        "channels": [
+            ("Cole Calamello【CRIMS:on】", "talent", "UCqyX914s1cW_NwhbREvKTxA"),  
+            ("Rijii【CRIMS:on】", "talent", "UCZoxWxYT0X_4gqUDo4kR6BA"),  
+            ("Iana【CRIMS:on】", "talent", "UCbwIX7MLfRsMdbP7yzyRoEg"),  
+            ("Makoto Takuma 【CRIMS:on】", "talent", "UChpYVFWNuWbOTtXfxCL62Kw"),  
+            ("Selia Aisnith 【CRIMS:on】", "talent", "UCZphYueZZE2NVcriExbnkBw"),  
+        ],
+    },
+    "gravt": {
+        "label":   "GRAVT",
+        "color":   "#212529",
+        "desc":    "Boyband groups formed from four members with music expertise.",
+        "channels": [
+            ("GRAVT", "org", "UCKnLF98-xHPQMwtIlXnAmkQ"),  
+            ("Akemi Ch. 猫町アケミ【GRAVT】【AKA Virtual】", "talent", "UC61iJVuFVS4YsnPkZe5EmXg"),  
+            ("Ave Kanehoshii【GRAVT】【AKA Virtual】", "talent", "UCdrbNcRAy424_FFWsY1A6og"),  
+            ("daem【GRAVT】", "talent", "UCiJVUvvDMYHof7P5lt9NU3g"),   
+        ],
+    },
+    "eterluna": {
+        "label":   "EterLuna",
+        "color":   "#d0d1ff",
+        "desc":    "Small VTuber agency with the focus of management and talent development.",
+        "channels": [
+            ("EterLuna", "org", "UCbfT3rJmyTjGk5O6ZqiksjA"),  
+            ("Sanna Salma Ch.", "talent", "UC45RCWpsk3g7u1wLkvt0f-A"),  
+            ("Watanabe Selena【EterLuna】", "talent", "UCM53Oe2gLMAAmW2bt_a6DtA"),  
+        ],
+    },
+    "magisona": {
+        "label":   "MagiSona",
+        "color":   "#8338ec",
+        "desc":    "An agency which highlights the magical and fun experience of VTubing.",
+        "channels": [
+            ("MagiSona", "org", "UCytdUc5bQvLLceAK9KbCKKg"),  
+            ("Reika Ayasa 【MagiSona】", "talent", "UCuzc9EAaSymkjmc4oZ9idzw"),  
+            ("Lyra Azalea【MagiSona】", "talent", "UCWAdYE-5usbzNYhi_vLDSfA"),  
+            ("ioFiel Feliz Ch.【MagiSona】", "talent", "UCs4ZMNzilmO3yncwQaRYZiw"),  
+        ],
+    },
+    "lav-idn": {
+        "label":   "LAV IDN",
+        "color":   "#9Ff86c0",
+        "desc":    "Developing agency with talents and affiliates system.",
+        "channels": [
+            ("Limitless Actress Virtual", "org", "UCggn9-ggn4aJplrvlgiSVeQ"),  
+            ("Tachibana Mirai Ch. 【LAV】", "talent", "UC8YJreYPp3rnoLYOSGvwAAw"),  
+            ("Akane Nanase Ch. 【LAV】", "talent", "UCV1iD5TIQZnK33Y7Q4y84IA"),  
+            ("Kanata Reina Ch.【LAV】", "talent", "UC7mf0CkU3-8ulUiVVleVnhg"),  
+        ],
+    },
 }
 
 # Build reverse lookup: channel_name → (org_slug, org)
