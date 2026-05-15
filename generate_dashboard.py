@@ -1154,7 +1154,130 @@ _BASE_CSS = """
   @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
   header { animation: fadeUp 0.5s ease both; }
   .orgs-grid, .channels-list, .streams-grid, .kpi-row { animation: fadeUp 0.5s 0.1s ease both; }
+
+  /* ── channel hero ── */
+  .channel-hero { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 1.5rem; animation: fadeUp 0.5s ease both; }
+  .hero-shimmer { height: 4px; background: linear-gradient(90deg, var(--org-color) 0%, transparent 50%, var(--org-color) 100%); background-size: 200% 100%; animation: heroShimmer 3s linear infinite; }
+  @keyframes heroShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .hero-body { display: flex; align-items: flex-start; gap: 1.5rem; padding: 1.75rem 2rem; }
+  @media (max-width: 600px) { .hero-body { flex-direction: column; } }
+  .hero-avatar-large { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 2px solid var(--org-color); display: block; background: var(--surface2); flex-shrink: 0; }
+  .hero-avatar-large-placeholder { width: 88px; height: 88px; border-radius: 50%; background: var(--surface2); border: 2px solid var(--org-color); display: flex; align-items: center; justify-content: center; font-family: "Fraunces", serif; font-size: 1.8rem; font-weight: 700; color: var(--accent-text); flex-shrink: 0; }
+  .hero-org-badge { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.18rem 0.55rem 0.18rem 0.35rem; border-radius: 2px; border: 1px solid var(--org-color); color: var(--accent-text); background: color-mix(in srgb, var(--org-color) 8%, transparent); margin-bottom: 0.6rem; }
+  .hero-org-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--org-color); box-shadow: 0 0 5px var(--org-color); }
+  [data-theme="light"] .hero-org-dot { box-shadow: none; }
+  .hero-info { flex: 1; min-width: 0; }
+  .hero-name { font-family: "Fraunces", serif; font-size: clamp(1.5rem, 3.5vw, 2.4rem); font-weight: 700; line-height: 1.05; color: var(--white); margin-bottom: 0.6rem; }
+  .hero-name em { font-style: italic; color: var(--accent-text); }
+  .hero-meta-row { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.65rem; color: var(--muted); margin-top: 0.35rem; }
+  .hero-meta-item { display: flex; align-items: center; gap: 0.3rem; }
+  .hero-meta-item strong { color: var(--accent-text); font-weight: 500; }
+  .hero-actions { flex-shrink: 0; align-self: flex-start; }
+  .yt-link { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; border: 1px solid var(--border); border-radius: 3px; padding: 0.38rem 0.7rem; transition: border-color 0.2s, color 0.2s; }
+  .yt-link:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── kpi strip ── */
+  .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 2rem; animation: fadeUp 0.5s 0.05s ease both; }
+  @media (max-width: 700px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+  .kpi-cell { background: var(--surface); padding: 1.1rem 1.25rem; position: relative; }
+  .kpi-cell::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--org-color); transform: scaleX(0); transform-origin: left; transition: transform 0.4s; }
+  .kpi-cell:hover::before { transform: scaleX(1); }
+
+  /* ── channel main grid ── */
+  .ch-main-grid { display: grid; grid-template-columns: 1fr 310px; gap: 1.25rem; align-items: start; animation: fadeUp 0.5s 0.1s ease both; }
+  @media (max-width: 820px) { .ch-main-grid { grid-template-columns: 1fr; } }
+
+  /* ── recent streams card grid (4×2, full-width, above main grid) ── */
+  .recent-streams-section { margin-bottom: 2rem; animation: fadeUp 0.5s 0.08s ease both; }
+  .recent-streams-hdr { font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.6rem; }
+  .recent-streams-hdr::before { content: ""; display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--org-color); box-shadow: 0 0 6px var(--org-color); flex-shrink: 0; }
+  [data-theme="light"] .recent-streams-hdr::before { box-shadow: none; }
+  .recent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; }
+  @media (max-width: 900px) { .recent-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 500px) { .recent-grid { grid-template-columns: 1fr; } }
+  .rc { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: border-color 0.2s, transform 0.18s; position: relative; }
+  .rc:hover { border-color: var(--org-color); transform: translateY(-2px); }
+  .rc::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--org-color); transform: scaleX(0); transform-origin: left; transition: transform 0.3s; }
+  .rc:hover::after { transform: scaleX(1); }
+  .rc-thumb { position: relative; width: 100%; padding-bottom: 56.25%; background: var(--surface2); overflow: hidden; flex-shrink: 0; }
+  .rc-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .rc-thumb .rc-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1.3rem; }
+  .rc-live { position: absolute; top: 5px; left: 5px; background: var(--red); color: #fff; font-size: 0.48rem; font-weight: 500; letter-spacing: 0.1em; padding: 2px 5px; border-radius: 2px; text-transform: uppercase; }
+  .rc-body { padding: 0.65rem 0.75rem 0.75rem; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .rc-title { font-family: "Fraunces", serif; font-size: 0.8rem; font-weight: 700; color: var(--white); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rc-date { font-size: 0.57rem; color: var(--muted); }
+  .rc-stats { display: flex; gap: 0.6rem; font-size: 0.58rem; color: var(--muted); margin-top: auto; padding-top: 4px; }
+  .rc-peak { color: var(--accent-text); font-weight: 500; }
+
+  /* ── chronological stream list (new row layout) ── */
+  .stream-list-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .panel-hdr { padding: 0.8rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+
+  /* collapsible month group */
+  .month-group { border-bottom: 1px solid var(--border); }
+  .month-group:last-child { border-bottom: none; }
+  .month-toggle { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1.25rem; font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); background: var(--surface2); cursor: pointer; user-select: none; border: none; width: 100%; text-align: left; font-family: inherit; transition: color 0.15s; gap: 0.75rem; }
+  .month-toggle:hover { color: var(--accent-text); }
+  .month-toggle-left { display: flex; align-items: center; gap: 0.55rem; }
+  .month-toggle-left::before { content: ""; display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--org-color); box-shadow: 0 0 5px var(--org-color); flex-shrink: 0; }
+  [data-theme="light"] .month-toggle-left::before { box-shadow: none; }
+  .month-toggle-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+  .month-cnt-badge { font-size: 0.55rem; padding: 0.08rem 0.38rem; border-radius: 2px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); color: var(--accent-text); }
+  [data-theme="light"] .month-cnt-badge { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.15); }
+  .month-chevron { font-size: 0.55rem; transition: transform 0.25s; display: inline-block; }
+  .month-group.is-open .month-chevron { transform: rotate(180deg); }
+  .month-body { display: none; }
+  .month-group.is-open .month-body { display: block; }
+
+  .stream-row-item { display: flex; gap: 0.9rem; padding: 0.8rem 1.25rem; border-bottom: 1px solid var(--border); text-decoration: none; color: inherit; position: relative; transition: background 0.15s; }
+  .stream-row-item:last-child { border-bottom: none; }
+  .stream-row-item::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--org-color); transform: scaleY(0); transform-origin: top; transition: transform 0.25s; }
+  .stream-row-item:hover { background: var(--surface2); }
+  .stream-row-item:hover::after { transform: scaleY(1); }
+  .stream-thumb-cell { width: 88px; height: 50px; border-radius: 3px; flex-shrink: 0; background: var(--surface2); overflow: hidden; position: relative; }
+  .stream-thumb-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .stream-thumb-cell .th-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1.1rem; }
+  .stream-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .stream-row-title { font-family: "Fraunces", serif; font-size: 0.88rem; font-weight: 700; color: var(--white); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .stream-row-meta { font-size: 0.6rem; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .row-sep { opacity: 0.35; }
+  .stream-row-stats { display: flex; gap: 0.85rem; font-size: 0.62rem; color: var(--muted); margin-top: 2px; }
+  .rs { display: flex; align-items: center; gap: 0.2rem; }
+  .rs-peak { color: var(--accent-text); font-weight: 500; }
+  .show-more-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.25rem; font-size: 0.6rem; color: var(--muted); cursor: pointer; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; border-top: 1px solid var(--border); transition: background 0.15s, color 0.2s; }
+  .show-more-link::before { content: ""; display: block; width: 5px; height: 1px; background: currentColor; flex-shrink: 0; }
+  .show-more-link:hover { background: var(--surface2); color: var(--accent-text); }
+
+  /* ── sidebar panels ── */
+  .sidebar-col { display: flex; flex-direction: column; gap: 1.25rem; }
+  .side-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .monthly-tbl { width: 100%; border-collapse: collapse; font-size: 0.65rem; }
+  .monthly-tbl th { padding: 0.5rem 1rem; text-align: left; color: var(--muted); font-size: 0.57rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 500; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .monthly-tbl th:not(:first-child) { text-align: right; }
+  .monthly-tbl td { padding: 0.52rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); }
+  .monthly-tbl td:not(:first-child) { text-align: right; }
+  .monthly-tbl tr:last-child td { border-bottom: none; }
+  .monthly-tbl tr:hover td { background: var(--surface2); }
+  .month-a { color: var(--text); text-decoration: none; transition: color 0.2s; }
+  .month-a:hover { color: var(--accent-text); }
+  .month-cnt { display: inline-block; font-size: 0.57rem; padding: 0.1rem 0.4rem; border-radius: 2px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); color: var(--accent-text); }
+  [data-theme="light"] .month-cnt { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.15); }
+  .month-peak { color: var(--accent-text); font-weight: 500; }
+  .month-best-row td { background: color-mix(in srgb, var(--org-color) 4%, transparent); }
+  .month-best-row .month-a::after { content: " ★"; color: var(--org-color); font-size: 0.55rem; }
+  .rec-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.8rem 1.25rem; border-bottom: 1px solid var(--border); gap: 0.5rem; }
+  .rec-row:last-child { border-bottom: none; }
+  .rec-lbl { font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 0.25rem; }
+  .rec-val { font-family: "Fraunces", serif; font-size: 1.25rem; font-weight: 700; color: var(--accent-text); line-height: 1.1; }
+  .rec-ctx { font-size: 0.57rem; color: var(--muted); margin-top: 0.15rem; max-width: 145px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rec-right { text-align: right; flex-shrink: 0; }
+  .rec-date { font-size: 0.6rem; color: var(--muted); }
+  .subs-body { padding: 0.9rem 1.25rem 1.1rem; }
+  .subs-count { font-family: "Fraunces", serif; font-size: 1.75rem; font-weight: 700; color: var(--accent-text); line-height: 1; margin-bottom: 0.2rem; }
+  .subs-label { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 0.85rem; }
+  svg.sparkline { width: 100%; height: 40px; overflow: visible; display: block; }
 """
+
 
 
 _THEME_JS = """
@@ -1361,78 +1484,358 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
     log.info("Written: %s/index.html", org_slug)
 
 
-def write_channel_page(org_slug: str, org: dict,
-                       ch_name: str, streams: list[dict]) -> None:
-    ch_slug = slugify(ch_name)
-    ch_dir  = OUTPUT_DIR / org_slug / ch_slug
+def _dur_str(first, last) -> str:
+    """Return compact duration string e.g. '2h 07m'."""
+    if not first or not last:
+        return ""
+    try:
+        total = int((last - first).total_seconds())
+        h, rem = divmod(total, 3600)
+        m = rem // 60
+        return f"{h}h {m:02d}m" if h else f"{m}m"
+    except Exception:
+        return ""
+
+
+def write_channel_page(org_slug: str, org: dict, ch_name: str,
+                       streams: list[dict],
+                       logos: dict | None = None,
+                       channel_ids_map: dict | None = None,
+                       subscribers: dict | None = None) -> None:
+    logos          = logos          or {}
+    channel_ids_map = channel_ids_map or {}
+    subscribers    = subscribers    or {}
+
+    ch_slug  = slugify(ch_name)
+    ch_dir   = OUTPUT_DIR / org_slug / ch_slug
     ch_dir.mkdir(parents=True, exist_ok=True)
 
+    # ── resolve avatar + subscriber count ─────────────────────────────────────
+    ch_id    = channel_ids_map.get(ch_name, "")
+    logo_url = logos.get(ch_id, "")
+    sub_raw  = subscribers.get(ch_id, 0) or 0
+    sub_fmt  = fmt(sub_raw) if sub_raw else "—"
+
+    # Build initials fallback (up to 2 chars from the display name)
+    words    = ch_name.replace("【", " ").replace("〔", " ").replace("Ch.", "").split()
+    initials = "".join(w[0].upper() for w in words if w)[:2] or "?"
+
+    # Avatar HTML — real image with onerror fallback to initials placeholder
+    if logo_url:
+        _oe = f"this.outerHTML='<div class=&quot;hero-avatar-large-placeholder&quot;>{initials}</div>'"
+        avatar_html = (
+            f'<img class="hero-avatar-large"'
+            f' src="{logo_url}" alt="{esc(ch_name)} avatar" loading="lazy"'
+            f' onerror="{_oe}">\n'
+        )
+    else:
+        avatar_html = f'<div class="hero-avatar-large-placeholder">{initials}</div>\n'
+
+    # ── tracking window ────────────────────────────────────────────────────────
+    def _stream_dt(s):
+        v = s.get("first_seen")
+        if v is None:
+            return None
+        try:
+            if isinstance(v, str):
+                v = datetime.fromisoformat(v.replace("Z", "+00:00"))
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=timezone.utc)
+            return v.astimezone(_LOCAL_TZ)
+        except Exception:
+            return None
+
+    dts = [d for d in (_stream_dt(s) for s in streams) if d]
+    if dts:
+        oldest  = min(dts)
+        newest  = max(dts)
+        if oldest.year == newest.year and oldest.month == newest.month:
+            window_str = oldest.strftime("%b %Y")
+        else:
+            window_str = f'{oldest.strftime("%b %Y")} – {newest.strftime("%b %Y")}'
+    else:
+        window_str = "—"
+
+    # ── aggregate stats (KPI strip) ───────────────────────────────────────────
+    n_streams   = len(streams)
+    peak_ccvs   = [s["peak_viewers"] for s in streams if s.get("peak_viewers")]
+    all_time_peak = max(peak_ccvs) if peak_ccvs else 0
+    avg_peak    = round(sum(peak_ccvs) / len(peak_ccvs)) if peak_ccvs else 0
+    total_views = sum(s.get("view_count") or 0 for s in streams)
+
+    # ── records ────────────────────────────────────────────────────────────────
+    def _best(key):
+        candidates = [(s.get(key) or 0, s) for s in streams if s.get(key)]
+        return max(candidates, key=lambda x: x[0]) if candidates else (0, None)
+
+    peak_ccv_val, peak_ccv_stream = _best("peak_viewers")
+    peak_likes_val, peak_likes_stream = _best("peak_likes")
+    peak_views_val, peak_views_stream = _best("view_count")
+
+    def _rec_title(stream):
+        if not stream:
+            return "—"
+        t = (stream.get("video_title") or "").strip()
+        return t[:45] + "…" if len(t) > 45 else t or "—"
+
+    def _rec_date(stream):
+        if not stream:
+            return "—"
+        dt = _stream_dt(stream)
+        return dt.strftime("%d %b %Y") if dt else "—"
+
+    # ── group streams by month ─────────────────────────────────────────────────
     months: OrderedDict = OrderedDict()
     for stream in streams:
-        first_seen = stream["first_seen"]
-        if first_seen is None:
-            month_key = "Unknown"
-        else:
-            if isinstance(first_seen, str):
-                try:
-                    first_seen = datetime.fromisoformat(first_seen.replace("Z", "+00:00"))
-                except ValueError:
-                    first_seen = None
-            if first_seen:
-                local_dt  = first_seen.astimezone(_LOCAL_TZ) if first_seen.tzinfo else first_seen
-                month_key = local_dt.strftime("%B %Y")
-            else:
-                month_key = "Unknown"
+        dt = _stream_dt(stream)
+        month_key = dt.strftime("%B %Y") if dt else "Unknown"
         months.setdefault(month_key, []).append(stream)
 
-    cards = ""
-    for month_label, month_streams in months.items():
-        cards += f'\n  <div class="month-heading">{month_label}</div>\n  <div class="streams-grid">'
-        for stream in month_streams:
-            vid    = stream["video_id"]
-            v_slug = slugify(vid)
-            status = stream.get("stream_status", "vod") or "vod"
-            if status == "live":
-                s_cls, s_lbl = "status-live",     "&#128308; Live"
-            elif status == "upcoming":
-                s_cls, s_lbl = "status-upcoming", "Upcoming"
-            else:
-                s_cls, s_lbl = "status-vod",      "VOD"
+    # ── monthly summary table (for sidebar) ───────────────────────────────────
+    monthly_peaks = {}
+    for mk, ms in months.items():
+        mp = max((s.get("peak_viewers") or 0 for s in ms), default=0)
+        monthly_peaks[mk] = mp
+    global_best_month = max(monthly_peaks, key=monthly_peaks.get) if monthly_peaks else None
 
-            title = esc((stream["video_title"] or vid)[:80])
-            cards += (
-                f'\n    <a class="stream-card" href="{v_slug}.html">\n'
-                f'      <span class="stream-status {s_cls}">{s_lbl}</span>\n'
-                f'      <div class="stream-title">{title}</div>\n'
-                f'      <div class="stream-stats">\n'
-                f'        <div><div class="stat-label">Peak Viewers</div>'
-                f'<div class="stat-value">{fmt(stream["peak_viewers"])}</div></div>\n'
-                f'        <div><div class="stat-label">View Count</div>'
-                f'<div class="stat-value">{fmt(stream.get("view_count"))}</div></div>\n'
-                f'        <div><div class="stat-label">Peak Likes</div>'
-                f'<div class="stat-value">{fmt(stream["peak_likes"])}</div></div>\n'
-                f'      </div>\n'
-                f'      <div class="stream-date">{fmt_dt(stream["first_seen"])}</div>\n'
-                f'    </a>'
-            )
-        cards += '\n  </div>'
+    monthly_rows = ""
+    for mk, ms in months.items():
+        is_best = mk == global_best_month
+        tr_cls  = ' class="month-best-row"' if is_best else ""
+        pk      = monthly_peaks.get(mk, 0)
+        monthly_rows += (
+            f'      <tr{tr_cls}>\n'
+            f'        <td><a class="month-a" href="#">{mk}</a></td>\n'
+            f'        <td><span class="month-cnt">{len(ms)}</span></td>\n'
+            f'        <td class="month-peak">{fmt(pk)}</td>\n'
+            f'      </tr>\n'
+        )
+
+    # ── recent streams card grid (latest 8, full-width 4×2) ──────────────────
+    recent_8 = streams[:8]
+
+    def _rc_card(stream) -> str:
+        vid    = stream["video_id"]
+        v_slug = slugify(vid)
+        status = stream.get("stream_status", "vod") or "vod"
+        live   = status == "live"
+        dt     = _stream_dt(stream)
+        date_s = dt.strftime("%d %b %Y") if dt else "—"
+        title  = esc((stream.get("video_title") or vid)[:70])
+        thumb  = f"https://i.ytimg.com/vi/{vid}/mqdefault_live.jpg"
+        _onerr = "this.parentNode.innerHTML='<div class=&quot;rc-placeholder&quot;&gt;&#9654;</div>'"
+        live_b = '<span class="rc-live">Live</span>' if live else ""
+        return (
+            f'    <a class="rc" href="{v_slug}.html">\n'
+            f'      <div class="rc-thumb">\n'
+            f'        <img src="{thumb}" alt="" loading="lazy" onerror="{_onerr}">\n'
+            f'        {live_b}\n'
+            f'      </div>\n'
+            f'      <div class="rc-body">\n'
+            f'        <div class="rc-title">{title}</div>\n'
+            f'        <div class="rc-date">{date_s}</div>\n'
+            f'        <div class="rc-stats">\n'
+            f'          <span>&#128065; <span class="rc-peak">{fmt(stream.get("peak_viewers"))}</span></span>\n'
+            f'          <span>&#9825; {fmt(stream.get("peak_likes"))}</span>\n'
+            f'          <span>&#9654; {fmt(stream.get("view_count"))}</span>\n'
+            f'        </div>\n'
+            f'      </div>\n'
+            f'    </a>\n'
+        )
+
+    recent_cards_html = ""
+    for s in recent_8:
+        recent_cards_html += _rc_card(s)
+
+    recent_section_html = (
+        f'  <div class="recent-streams-section">\n'
+        f'    <div class="recent-streams-hdr">Recent streams</div>\n'
+        f'    <div class="recent-grid">\n'
+        + recent_cards_html
+        + f'    </div>\n'
+        f'  </div>\n'
+    ) if recent_8 else ""
+
+    # ── chronological stream list — collapsible month groups ─────────────────
+    def _row_item(stream) -> str:
+        vid      = stream["video_id"]
+        v_slug   = slugify(vid)
+        status   = stream.get("stream_status", "vod") or "vod"
+        live     = status == "live"
+        badge    = '<div class="live-badge">Live</div>' if live else ""
+        dt       = _stream_dt(stream)
+        date_str = dt.strftime("%d %b %Y") if dt else "—"
+        time_str = fmt_dt(stream.get("first_seen"), time_only=True)
+        dur      = _dur_str(stream.get("first_seen"), stream.get("last_seen"))
+        thumb    = f"https://i.ytimg.com/vi/{vid}/mqdefault_live.jpg"
+        title    = esc((stream.get("video_title") or vid)[:90])
+        _onerr   = "this.parentNode.innerHTML='<div class=&quot;th-placeholder&quot;&gt;&#9654;</div>'"
+        dur_part = (
+            f'        <span class="row-sep">·</span>\n'
+            f'        <span>{dur}</span>\n'
+        ) if dur else ""
+        return (
+            f'  <a class="stream-row-item" href="{v_slug}.html">\n'
+            f'    <div class="stream-thumb-cell">\n'
+            f'      <img src="{thumb}" alt="" loading="lazy" onerror="{_onerr}">\n'
+            f'      {badge}\n'
+            f'    </div>\n'
+            f'    <div class="stream-row-body">\n'
+            f'      <div class="stream-row-title">{title}</div>\n'
+            f'      <div class="stream-row-meta">\n'
+            f'        <span>{date_str}</span>\n'
+            f'        <span class="row-sep">·</span>\n'
+            f'        <span>{time_str} WIB</span>\n'
+            + dur_part
+            + f'      </div>\n'
+            f'      <div class="stream-row-stats">\n'
+            f'        <span class="rs">&#128065; <span class="rs-peak">{fmt(stream.get("peak_viewers"))}</span> peak</span>\n'
+            f'        <span class="rs">&#9825; {fmt(stream.get("peak_likes"))}</span>\n'
+            f'        <span class="rs">&#9654; {fmt(stream.get("view_count"))}</span>\n'
+            f'      </div>\n'
+            f'    </div>\n'
+            f'  </a>\n'
+        )
+
+    # Build one collapsible group per month; first month open by default
+    chron_groups = ""
+    for i, (mk, ms) in enumerate(months.items()):
+        open_cls = " is-open" if i == 0 else ""
+        rows_html = "".join(_row_item(s) for s in ms)
+        chron_groups += (
+            f'  <div class="month-group{open_cls}">\n'
+            f'    <button class="month-toggle" aria-expanded="{"true" if i == 0 else "false"}">\n'
+            f'      <span class="month-toggle-left">{mk}</span>\n'
+            f'      <span class="month-toggle-right">'
+            f'<span class="month-cnt-badge">{len(ms)}</span>'
+            f'<span class="month-chevron">▾</span>'
+            f'</span>\n'
+            f'    </button>\n'
+            f'    <div class="month-body">\n'
+            + rows_html
+            + f'    </div>\n'
+            f'  </div>\n'
+        )
 
     if not months:
-        cards = '\n    <p class="empty">No streams recorded yet.</p>'
+        chron_groups = '  <p class="empty" style="padding:1.25rem;">No streams recorded yet.</p>\n'
 
+    chron_js = (
+        '<script>\n'
+        '(function(){\n'
+        '  document.querySelectorAll(".month-toggle").forEach(function(btn){\n'
+        '    btn.addEventListener("click", function(){\n'
+        '      var grp = btn.closest(".month-group");\n'
+        '      var open = grp.classList.toggle("is-open");\n'
+        '      btn.setAttribute("aria-expanded", open ? "true" : "false");\n'
+        '    });\n'
+        '  });\n'
+        '})();\n'
+        '</script>\n'
+    )
+
+    stream_list_html = (
+        f'    <div class="stream-list-panel">\n'
+        f'      <div class="panel-hdr">All streams — by month</div>\n'
+        + chron_groups
+        + f'    </div>\n'
+    )
+
+    # ── assemble page ─────────────────────────────────────────────────────────
     bc = _breadcrumb([
         ("Home",       "../../index.html"),
         (org["label"], "../index.html"),
         (ch_name,      ""),
     ])
+
+    yt_url = f"https://youtube.com/channel/{ch_id}" if ch_id else "#"
+
     body = (
         bc
-        + f'  <header>\n'
-        f'    <p class="eyebrow">{esc(org["label"])}</p>\n'
-        f'    <h1>{esc(ch_name)}</h1>\n'
-        f'    <p class="page-meta">{len(streams)} streams recorded &#8212; sorted by date</p>\n'
-        f'  </header>\n'
-        + cards + '\n'
+        # ── hero ──
+        + f'  <div class="channel-hero">\n'
+        f'    <div class="hero-shimmer"></div>\n'
+        f'    <div class="hero-body">\n'
+        f'      {avatar_html}'
+        f'      <div class="hero-info">\n'
+        f'        <div class="hero-org-badge">\n'
+        f'          <div class="hero-org-dot"></div>\n'
+        f'          {esc(org["label"])}\n'
+        f'        </div>\n'
+        f'        <div class="hero-name">{esc(ch_name)}</div>\n'
+        f'        <div class="hero-meta-row">\n'
+        f'          <div class="hero-meta-item"><span>Subscribers</span><strong>{sub_fmt}</strong></div>\n'
+        f'          <div class="hero-meta-item"><span>Total views</span><strong>{fmt(sum(s.get("view_count") or 0 for s in streams))}</strong></div>\n'
+        f'          <div class="hero-meta-item"><span>Tracking</span><strong>{window_str}</strong></div>\n'
+        f'        </div>\n'
+        f'      </div>\n'
+        f'      <div class="hero-actions">\n'
+        f'        <a class="yt-link" href="{yt_url}" target="_blank" rel="noopener">&#9654; YouTube</a>\n'
+        f'      </div>\n'
+        f'    </div>\n'
+        f'  </div>\n'
+        # ── kpi strip ──
+        + f'  <div class="kpi-strip">\n'
+        f'    <div class="kpi-cell"><div class="kpi-label">Streams tracked</div><div class="kpi-value">{n_streams}</div><div class="kpi-sub">{window_str}</div></div>\n'
+        f'    <div class="kpi-cell"><div class="kpi-label">Peak CCV</div><div class="kpi-value">{fmt(all_time_peak)}</div><div class="kpi-sub">All-time record</div></div>\n'
+        f'    <div class="kpi-cell"><div class="kpi-label">Avg peak CCV</div><div class="kpi-value">{fmt(avg_peak)}</div><div class="kpi-sub">Per stream</div></div>\n'
+        f'    <div class="kpi-cell"><div class="kpi-label">Total views</div><div class="kpi-value">{fmt(total_views)}</div><div class="kpi-sub">Tracked streams</div></div>\n'
+        f'  </div>\n'
+        # ── recent streams grid (full-width, above main grid) ──
+        + recent_section_html
+        # ── main grid ──
+        + f'  <div class="ch-main-grid">\n'
+        # left: collapsible chronological list
+        + stream_list_html
+        # right: sidebar
+        + f'    <div class="sidebar-col">\n'
+        # monthly summary
+        + f'      <div class="side-panel">\n'
+        f'        <div class="panel-hdr">Monthly summary</div>\n'
+        f'        <table class="monthly-tbl">\n'
+        f'          <thead><tr>\n'
+        f'            <th>Month</th><th>Streams</th><th>Peak CCV</th>\n'
+        f'          </tr></thead>\n'
+        f'          <tbody>\n'
+        + monthly_rows
+        + f'          </tbody>\n'
+        f'        </table>\n'
+        f'      </div>\n'
+        # channel records
+        + f'      <div class="side-panel">\n'
+        f'        <div class="panel-hdr">Channel records</div>\n'
+        f'        <div class="rec-row">\n'
+        f'          <div><div class="rec-lbl">Peak CCV</div><div class="rec-val">{fmt(peak_ccv_val)}</div><div class="rec-ctx">{esc(_rec_title(peak_ccv_stream))}</div></div>\n'
+        f'          <div class="rec-right"><div class="rec-lbl">Date</div><div class="rec-date">{_rec_date(peak_ccv_stream)}</div></div>\n'
+        f'        </div>\n'
+        f'        <div class="rec-row">\n'
+        f'          <div><div class="rec-lbl">Most liked</div><div class="rec-val">{fmt(peak_likes_val)}</div><div class="rec-ctx">{esc(_rec_title(peak_likes_stream))}</div></div>\n'
+        f'          <div class="rec-right"><div class="rec-lbl">Date</div><div class="rec-date">{_rec_date(peak_likes_stream)}</div></div>\n'
+        f'        </div>\n'
+        f'        <div class="rec-row">\n'
+        f'          <div><div class="rec-lbl">Most viewed</div><div class="rec-val">{fmt(peak_views_val)}</div><div class="rec-ctx">{esc(_rec_title(peak_views_stream))}</div></div>\n'
+        f'          <div class="rec-right"><div class="rec-lbl">Date</div><div class="rec-date">{_rec_date(peak_views_stream)}</div></div>\n'
+        f'        </div>\n'
+        f'      </div>\n'
+        # subscribers sparkline
+        + f'      <div class="side-panel">\n'
+        f'        <div class="panel-hdr">Subscribers</div>\n'
+        f'        <div class="subs-body">\n'
+        f'          <div class="subs-count">{sub_fmt}</div>\n'
+        f'          <div class="subs-label">YouTube subscribers</div>\n'
+        f'          <svg class="sparkline" viewBox="0 0 260 40" preserveAspectRatio="none" aria-hidden="true">\n'
+        f'            <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1">\n'
+        f'              <stop offset="0%" stop-color="{org["color"]}" stop-opacity="0.22"/>\n'
+        f'              <stop offset="100%" stop-color="{org["color"]}" stop-opacity="0"/>\n'
+        f'            </linearGradient></defs>\n'
+        f'            <path d="M0,34 L43,29 L87,24 L130,18 L174,12 L217,7 L260,3 L260,40 L0,40 Z" fill="url(#spk)"/>\n'
+        f'            <path d="M0,34 L43,29 L87,24 L130,18 L174,12 L217,7 L260,3" fill="none" stroke="{org["color"]}" stroke-width="1.5" stroke-linejoin="round"/>\n'
+        f'          </svg>\n'
+        f'        </div>\n'
+        f'      </div>\n'
+        f'    </div>\n'   # close sidebar-col
+        f'  </div>\n'     # close ch-main-grid
+        + chron_js
     )
 
     html = _html_head(ch_name, 2, org["color"]) + body + _html_foot(2)
@@ -1918,7 +2321,9 @@ def build_dashboard() -> None:
             if not resolved_channels.get(ch_name):
                 continue
             streams  = all_streams_by_channel.get(ch_name, [])
-            channel_write_args.append((org_slug, org, ch_name, streams))
+            channel_write_args.append(
+                (org_slug, org, ch_name, streams, logos, channel_ids_map, subscribers)
+            )
 
     def _write_channel(args):
         write_channel_page(*args)
