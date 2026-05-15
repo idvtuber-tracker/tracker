@@ -327,7 +327,7 @@ ORG_MAP = {
     },
     "lav-idn": {
         "label":   "LAV IDN",
-        "color":   "#9Ff86c0",
+        "color":   "#9f86c0",
         "desc":    "Developing agency with talents and affiliates system.",
         "channels": [
             ("Limitless Actress Virtual", "org", "UCggn9-ggn4aJplrvlgiSVeQ"),  
