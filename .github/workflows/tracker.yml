@@ -71,6 +71,14 @@ jobs:
       PYTHONUTF8:           "1"
       PYTHONIOENCODING:     "utf-8"
 
+      # ── Discord notifications ────────────────────────────────────────
+      # DISCORD_WEBHOOK is used by tracker.py directly (not just the YAML
+      # steps below) to send slow-cycle warnings from inside the 6-hour run.
+      # SLOW_CYCLE_THRESHOLD_SEC sets how many seconds a single poll cycle
+      # must exceed before a warning is sent. Default: 60s.
+      DISCORD_WEBHOOK:           ${{ secrets.DISCORD_WEBHOOK }}
+      SLOW_CYCLE_THRESHOLD_SEC:  "60"
+
     steps:
       - name: Cancel queued duplicate runs
         shell: powershell
