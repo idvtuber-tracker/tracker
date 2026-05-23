@@ -1,6 +1,5 @@
 """
 generate_dashboard.py
-
 Pulls livestream analytics from PostgreSQL and generates a 4-level
 static HTML dashboard:
   index.html                       <- org cards
@@ -301,6 +300,7 @@ ORG_MAP = {
             ("GRAVT", "org", "UCKnLF98-xHPQMwtIlXnAmkQ"),  
             ("Akemi Ch. 猫町アケミ【GRAVT】【AKA Virtual】", "talent", "UC61iJVuFVS4YsnPkZe5EmXg"),  
             ("Ave Kanehoshii【GRAVT】【AKA Virtual】", "talent", "UCdrbNcRAy424_FFWsY1A6og"),  
+            ("Reynard Blanc Ch.『 Re:Memories 』", "talent", "UCoUFv7APM1XOo4TUaWbRekw"),  
             ("daem【GRAVT】", "talent", "UCiJVUvvDMYHof7P5lt9NU3g"),   
         ],
     },
@@ -1045,10 +1045,12 @@ _BASE_CSS = """
   .breadcrumb .sep { color: var(--border); }
   .breadcrumb .current { color: var(--accent-text); }
 
-  /* headings */
+  /* ── headings — shared scale used on every level ── */
   .eyebrow {
     font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase;
     color: var(--accent-text); margin-bottom: 0.6rem;
+    /* level-1 (index) uses the full accent colour;
+       lower levels inherit --org-color via --accent-text automatically */
   }
   h1 {
     font-family: 'Fraunces', serif;
@@ -1056,7 +1058,15 @@ _BASE_CSS = """
     font-weight: 700; line-height: 1.0; color: var(--white); margin-bottom: 0.5rem;
   }
   h1 em { font-style: italic; color: var(--accent-text); }
-  .page-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.75rem; }
+  /* page-meta sits directly under every h1; identical treatment everywhere */
+  .page-meta {
+    font-size: 0.72rem; color: var(--muted); margin-top: 0.75rem;
+    letter-spacing: 0.02em; line-height: 1.6;
+  }
+
+  /* ── section labels (used as sub-headings inside page body) ── */
+  /* .section-title already defined below; .panel-hdr is its inline-panel twin */
+  /* Keep both the same visual weight so scanning a page feels consistent */
 
   /* org cards */
   .orgs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 3rem; }
@@ -1191,7 +1201,7 @@ _BASE_CSS = """
   .kpi-grid .kpi:nth-child(-n+2)::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--org-color); }
   .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1.5rem; margin-bottom: 2.5rem; }
   .chart-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; gap: 0.75rem; }
-  .chart-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin: 0; }
+  .chart-title { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin: 0; font-weight: 500; }
   .chart-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
   .chart-btn {
     font-family: "DM Mono", monospace; font-size: 0.6rem; letter-spacing: 0.08em;
@@ -1202,10 +1212,17 @@ _BASE_CSS = """
   .chart-btn:hover { border-color: var(--org-color); color: var(--accent-text); }
   .chart-hint { font-size: 0.58rem; color: var(--muted); opacity: 0.6; margin-top: 0.5rem; text-align: right; }
   .chart-wrap { position: relative; height: 320px; }
-  .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  /* section-title and panel-hdr share identical typographic treatment so
+     sub-headings read consistently whether inside a card, a panel, or free-floating */
+  .section-title,
+  .panel-hdr {
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--muted); font-weight: 500;
+  }
+  .section-title { margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-bottom: 3rem; }
   .data-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted); font-weight: 500; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
-  .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(30,30,46,0.5); color: var(--text); }
+  .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text); }
   .data-table tr:hover td { background: var(--surface); }
   .data-table .num { text-align: right; color: var(--accent-text); font-weight: 500; }
   .data-table .ts  { color: var(--muted); }
@@ -1214,9 +1231,21 @@ _BASE_CSS = """
   .pill-upcoming { background: rgba(79,195,247,0.10); color: var(--blue); border: 1px solid var(--blue); }
   .generated { text-align: center; color: var(--muted); font-size: 0.7rem; margin-top: 3rem; }
 
-  footer { margin-top: 5rem; padding-top: 2rem; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; font-size: 0.7rem; color: var(--muted); }
+  footer {
+    margin-top: 5rem;
+    padding: 1.75rem 2rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);           /* distinct from page bg in both themes */
+    border-radius: 6px;
+    display: flex; flex-wrap: wrap;
+    justify-content: space-between; gap: 1rem;
+    font-size: 0.7rem; color: var(--muted);
+  }
   footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
   footer a:hover { color: var(--accent-text); }
+  footer .footer-links { display: flex; gap: 1.25rem; flex-wrap: wrap; align-items: center; }
+  footer .footer-sep { opacity: 0.35; }
+  /* light-mode footer is already handled by --surface and --border vars */
 
   @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
   header { animation: fadeUp 0.5s ease both; }
@@ -1256,7 +1285,7 @@ _BASE_CSS = """
 
   /* ── recent streams card grid (4×2, full-width, above main grid) ── */
   .recent-streams-section { margin-bottom: 2rem; animation: fadeUp 0.5s 0.08s ease both; }
-  .recent-streams-hdr { font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.6rem; }
+  .recent-streams-hdr { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.6rem; font-weight: 500; }
   .recent-streams-hdr::before { content: ""; display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--org-color); box-shadow: 0 0 6px var(--org-color); flex-shrink: 0; }
   [data-theme="light"] .recent-streams-hdr::before { box-shadow: none; }
   .recent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; }
@@ -1278,12 +1307,13 @@ _BASE_CSS = """
 
   /* ── chronological stream list (new row layout) ── */
   .stream-list-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-  .panel-hdr { padding: 0.8rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  /* panel-hdr font already merged with .section-title above */
+  .panel-hdr { padding: 0.8rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 
   /* collapsible month group */
   .month-group { border-bottom: 1px solid var(--border); }
   .month-group:last-child { border-bottom: none; }
-  .month-toggle { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1.25rem; font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); background: var(--surface2); cursor: pointer; user-select: none; border: none; width: 100%; text-align: left; font-family: inherit; transition: color 0.15s; gap: 0.75rem; }
+  .month-toggle { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1.25rem; font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--surface2); cursor: pointer; user-select: none; border: none; width: 100%; text-align: left; font-family: inherit; transition: color 0.15s; gap: 0.75rem; }
   .month-toggle:hover { color: var(--accent-text); }
   .month-toggle-left { display: flex; align-items: center; gap: 0.55rem; }
   .month-toggle-left::before { content: ""; display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--org-color); box-shadow: 0 0 5px var(--org-color); flex-shrink: 0; }
@@ -1419,13 +1449,13 @@ def _html_foot(depth: int) -> str:
     return (
         f'\n  <footer>\n'
         f'    <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>\n'
-        f'    <span>\n'
+        f'    <nav class="footer-links">\n'
         f'      <a href="{rel}index.html">Home</a>\n'
-        f'      &nbsp;&middot;&nbsp;\n'
+        f'      <span class="footer-sep">·</span>\n'
         f'      <a href="{rel}privacy.html">Privacy Policy</a>\n'
-        f'      &nbsp;&middot;&nbsp;\n'
+        f'      <span class="footer-sep">·</span>\n'
         f'      <a href="{rel}terms.html">Terms of Use</a>\n'
-        f'    </span>\n'
+        f'    </nav>\n'
         f'  </footer>\n'
         f'</div>\n'
         f'{_THEME_JS}\n'
@@ -1473,7 +1503,7 @@ def write_index(total_streams: int, total_channels: int, generated_at: str) -> N
         f'Generated: {generated_at} &nbsp;&#183;&nbsp; '
         f'{total_streams} streams &nbsp;&#183;&nbsp; '
         f'{total_channels} channels &nbsp;&#183;&nbsp; '
-        f'9 organisations</p>\n'
+        f'{len(ORG_MAP)} organisations</p>\n'
         f'      </div>\n'
         f'      <div class="theme-toggle" style="padding-top:0.5rem;">{_TOGGLE_HTML}</div>\n'
         f'    </div>\n'
