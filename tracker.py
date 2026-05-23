@@ -48,6 +48,8 @@ AIVEN_DATABASE_URL   = os.environ.get("AIVEN_DATABASE_URL")          # postgres 
 CSV_OUTPUT_PATH      = os.environ.get("CSV_OUTPUT_PATH", "analytics.csv")
 POLL_INTERVAL_SEC          = int(os.environ.get("POLL_INTERVAL_SEC", "60"))
 STREAM_POLL_SEC            = int(os.environ.get("STREAM_POLL_SEC", "30"))
+SLOW_CYCLE_THRESHOLD_SEC   = int(os.environ.get("SLOW_CYCLE_THRESHOLD_SEC", "60"))
+DISCORD_WEBHOOK            = os.environ.get("DISCORD_WEBHOOK", "")
 MAX_HISTORY_POINTS         = int(os.environ.get("MAX_HISTORY_POINTS", "60"))   # chart window
 # How close to its scheduled start time an upcoming stream must be before
 # it enters the fast-poll cycle (check_upcoming_went_live every 30s).
@@ -456,6 +458,49 @@ def _get_dashboard_clone_dir() -> str:
             pass
     # Fallback: place the clone as a sibling of the current working directory.
     return os.path.normpath(os.path.join(os.getcwd(), "..", "dashboard-deploy"))
+
+
+def _notify_slow_cycle(elapsed: float, cycle_num: int) -> None:
+    """Post a Discord warning when a single poll cycle exceeds SLOW_CYCLE_THRESHOLD_SEC.
+
+    Called from run() immediately after the cycle timing log line so it
+    fires during the 6-hour run, not at the end of it. The webhook URL is
+    read from DISCORD_WEBHOOK env var (same secret used by tracker.yml).
+    Silently skips if the webhook URL is not configured.
+    """
+    if not DISCORD_WEBHOOK:
+        return
+    try:
+        body = {
+            "content": "@here",
+            "embeds": [{
+                "title": "[SLOW] Cycle exceeded threshold",
+                "description": (
+                    f"A poll cycle took **{elapsed:.1f}s** "
+                    f"(threshold: {SLOW_CYCLE_THRESHOLD_SEC}s). "
+                    "This may indicate network latency, DB slowness, "
+                    "or dashboard generation taking longer than expected."
+                ),
+                "color": 16776960,   # yellow (#FFFF00)
+                "fields": [
+                    {"name": "Elapsed",   "value": f"{elapsed:.1f}s",          "inline": True},
+                    {"name": "Threshold", "value": f"{SLOW_CYCLE_THRESHOLD_SEC}s", "inline": True},
+                    {"name": "Cycle #",   "value": str(cycle_num),             "inline": True},
+                ],
+                "footer": {"text": "IDVTuber Tracker"},
+            }],
+        }
+        requests.post(
+            DISCORD_WEBHOOK,
+            json=body,
+            timeout=10,
+        )
+        log.warning(
+            "Slow cycle alert sent to Discord: %.1fs elapsed (threshold %ds).",
+            elapsed, SLOW_CYCLE_THRESHOLD_SEC,
+        )
+    except Exception as e:
+        log.warning("Could not send slow-cycle Discord notification: %s", e)
 
 
 def deploy_dashboard() -> None:
@@ -1029,6 +1074,7 @@ def run() -> None:
     last_deploy_time  = datetime.now(timezone.utc)
     DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))
     channel_poll_counter = 0
+    cycle_num = 0
 
     log.info("Scanning for streams…")
 
@@ -1150,13 +1196,16 @@ def run() -> None:
         # live or how long the dashboard regeneration takes.
         elapsed = (datetime.now(timezone.utc) - cycle_start).total_seconds()
         remaining = max(0.0, STREAM_POLL_SEC - elapsed)
+        cycle_num += 1
         log.info(
-            "Cycle: %.1fs work + %.1fs sleep = %.1fs total | "
+            "Cycle %d: %.1fs work + %.1fs sleep = %.1fs total | "
             "Next channel scan in %ds",
-            elapsed, remaining, elapsed + remaining,
+            cycle_num, elapsed, remaining, elapsed + remaining,
             (max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC) - channel_poll_counter)
             * STREAM_POLL_SEC,
         )
+        if elapsed > SLOW_CYCLE_THRESHOLD_SEC:
+            _notify_slow_cycle(elapsed, cycle_num)
         time.sleep(remaining)
 
     log.info("Tracker stopped.")
