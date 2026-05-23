@@ -300,7 +300,6 @@ ORG_MAP = {
             ("GRAVT", "org", "UCKnLF98-xHPQMwtIlXnAmkQ"),  
             ("Akemi Ch. 猫町アケミ【GRAVT】【AKA Virtual】", "talent", "UC61iJVuFVS4YsnPkZe5EmXg"),  
             ("Ave Kanehoshii【GRAVT】【AKA Virtual】", "talent", "UCdrbNcRAy424_FFWsY1A6og"),  
-            ("Reynard Blanc Ch.『 Re:Memories 』", "talent", "UCoUFv7APM1XOo4TUaWbRekw"),  
             ("daem【GRAVT】", "talent", "UCiJVUvvDMYHof7P5lt9NU3g"),   
         ],
     },
