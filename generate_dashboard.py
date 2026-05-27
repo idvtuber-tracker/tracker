@@ -1,5 +1,6 @@
 """
 generate_dashboard.py
+
 Pulls livestream analytics from PostgreSQL and generates a 4-level
 static HTML dashboard:
   index.html                       <- org cards
@@ -192,17 +193,6 @@ ORG_MAP = {
             ("CANCNCN -Ezacancan", "talent", "UC31csAlk6YaJffLT3qPvEZg"), 
         ],
     },
-    "sandaiva": {
-        "label":   "SANDAiVA",
-        "color":   "#e879f9",
-        "desc":    "A three-member Indonesian VTuber idol unit.",
-        "channels": [
-            ("SANDAiVA【AKA Virtual】", "org", "UCHiV8178uHAj6a6KxrYiEdQ"),  
-            ("Raveanne【AKA Virtual】", "talent", "UCmNeOjitXbWHg_CDNGrwoHw"),  
-            ("njess 【AKA Virtual】 ", "talent", "UC_AGUYW4usybdi-WTZQcYxg"),  
-            ("Quiver Rannette Ch.【AKA Virtual】", "talent", "UCGx0t5bUkm-rY3jKSRolY1w"),  
-        ],
-    },
     "versa": {
         "label":   "VERSA",
         "color":   "#38bdf8",
@@ -333,6 +323,88 @@ ORG_MAP = {
             ("Tachibana Mirai Ch. 【LAV】", "talent", "UC8YJreYPp3rnoLYOSGvwAAw"),  
             ("Akane Nanase Ch. 【LAV】", "talent", "UCV1iD5TIQZnK33Y7Q4y84IA"),  
             ("Kanata Reina Ch.【LAV】", "talent", "UC7mf0CkU3-8ulUiVVleVnhg"),  
+        ],
+    },
+    "arvi-media": {
+        "label":   "ARVI Media",
+        "color":   "#e31837",
+        "desc":    "Part of Area Media, a digital idol bridging entertainment and community through live streams, creative content, and authentic fan interactions.",
+        "channels": [
+            ("Aika Sakuraba Ch. 【ARVI】", "talent", "UCW6ZmofKJm_Rnwyq1brysmg"),  
+            ("Makotoshi Ch.", "talent", "UCgcsnZ6-ys_Fr9wEX6sz5xg"),  
+            ("Navarra Clementia", "talent", "UCAa31OBocBS80q2x4meCSUw"),  
+        ],
+    },
+    "hrcome": {
+        "label":   "HRCOME",
+        "color":   "#ff8c00",
+        "desc":    "Upstart VTuber agency with focuses on digital entertainment, virtual talents development and management.",
+        "channels": [
+            ("HRCOME - VTuber Group", "org", "UCEiB89eUXCpv0q48G1yNhQA"),  
+            ("TETRANOVA Official", "org", "UCgptYrQ8oOVt9JWQIbI7CoA"),  
+            ("Netazura Rasy【HRCOME】", "talent", "UCnOu9hYTSozQoR3aR3MW_eA"),  
+            ("RawnVinyl【HRCOME】", "talent", "UC32cBlC2xcp2_RwPDCsSRPA"),  
+            ("Yuno Ni Royco【HRCOME】", "talent", "UCxtomvr4EC_kXYOj2MABrkw"),  
+            ("RoroKaili Yumi【HRCOME】", "talent", "UC1zP61yu4aOl5MR6bgjxMyA"),  
+            ("Viera Aori【HRCOME】", "talent", "UCey9e7qTJl7ONRG-7po5QgA"),  
+            ("Hana Aranya【HRCOME】", "talent", "UCZBsVlJM5tUyRg-JcG-KpMQ"),  
+            ("Chikage Nox 【HRCOME】", "talent", "UCBrW_wylHbf_wdkx7VeTOsA"),  
+        ],
+    },
+    "laeta": {
+        "label":   "LAETA",
+        "color":   "#00b4d8",
+        "desc":    "Small Indonesian VTuber agency and creative group.",
+        "channels": [
+            ("LAETA Official", "org", "UCv8p8YZ5uyFho4TAXLm3WQg"),  
+            ("Mila Dragon【LAETA】", "talent", "UCy-330LSZFXB_nPXgviKg8g"),  
+            ("Airi Airintika【LAETA】", "talent", "UCnlFvQbfsH2RFUAihZxIRGg"),  
+            ("Sevina Reina【LAETA】", "talent", "UCdj5dtnp5WEdwuASQvcQfZA"),  
+            ("Shiraishi Oriel【LAETA】", "talent", "UCksATXnF-u3-XMjsEI3-_Gw"),  
+            ("Althea Antonia 【LAETA】", "talent", "UCh1hZ_Zvv3anRNH8Nh-N2WA"),  
+            ("Mizuky Okami 【LAETA】", "talent", "UCKsbx_QJzQewq8uA4q6OaWQ"),  
+        ],
+    },
+    "kanau-virtual": {
+        "label":   "KANAU Virtual",
+        "color":   "#8a2be2",
+        "desc":    "Part of KANAU media which focuses on  virtual talent dan creative project.",
+        "channels": [
+            ("KANAU Virtual", "org", "UCA4f6J2G6GsIrWHUmrAqSVg"),  
+            ("Ryuzaki Ayato Ch. #WorstGenesis", "talent", "UC6POMkx3rS3K8gdTvxhKy6A"),  
+            ("Luii Lafete【KANAU Virtual】", "talent", "UCtT8ko5dvjrQIT5f_kzLTeg"),  
+            ("Nela Mellifera【KANAU Virtual】", "talent", "UCyTGiO76s55eu97NczLTXBg"),  
+            ("fein 【KANAU Virtual】", "talent", "UCBu6WKvgy5OA3ffxfw4i0dA"),  
+            ("Noazumi Ch.【KANAU Virtual】", "talent", "UCtxtfcx9hfmAUwUdcY4O0dQ"),  
+            ("Zoelyn Belenncia 【KANAU Virtual】", "talent", "UCWgJUCk3-3OBgKUFTCYc5RA"),  
+        ],
+    },
+    "asobu-production": {
+        "label":   "Asobu Production",
+        "color":   "#ffd700",
+        "desc":    "A virtual agency where imagination and creativity has no limit.",
+        "channels": [
+            ("Asobu Production", "org", "UC5JyQVwWF6kRvRM3pFTKUcg"),  
+            ("Keira Nakayura【ASOBU】", "talent", "UC5ve05mzKKh2s28DBoGMk1Q"),  
+            ("Hakuro Nakayoshi 【ASOBU】", "talent", "UC8OpiVNM2MkfTEr_cNFkidA"),  
+            ("Mo Xiao Mei【ASOBU】", "talent", "UCu8OmWUWMHD_uW2jkYwBWfQ"),  
+            ("Namazu Reire【ASOBU】", "talent", "UCOXAPlV_XxMbfZelSbHc0IQ"),  
+            ("Lyra Monphelia 【ASOBU】", "talent", "UC6cGmy7IqsY6z3Ng6tOFWFA"),  
+        ],
+    },
+    "snowvalley-agency": {
+        "label":   "SnowValley Agency",
+        "color":   "#a0c4ff",
+        "desc":    "Independent creative group who operates with the motto 'Together We Entertain the World with Laughter and Joy'.",
+        "channels": [
+            ("SnowValley Agency", "org", "UCJrlIe6-YsZEZ-WhWpkQ8xQ"),  
+            ("Alicia Ravenna Ch. •SnowValley", "talent", "UC2LODZvn-QQupykmwxey4zA"),  
+            ("Tuti Hanna Ch. •SnowValley", "talent", "UCigj-FBk5US8xWxgStdNw_A"),  
+            ("Shayla Meyjiera Ch •SnowValley", "talent", "UCNyZthXc-DusXe_A89XOdUQ"),  
+            ("Serein Venetia Ch. •SnowValley", "talent", "UCTQjwoiIQQ9giaeJS2WMTFw"),  
+            ("Celina Olystia Ch •SnowValley", "talent", "UCPAOc_fgQeTjHMAni8rx-Cw"),  
+            ("Shine Naira Ch. •SnowValley", "talent", "UC9ik6MJGi3esadK15ioS6FA"),  
+            ("Naona Neon Ch. •SnowValley", "talent", "UCIW8RtcLw4WiG1ul2dTaryA"),  
         ],
     },
 }
@@ -1246,6 +1318,74 @@ _BASE_CSS = """
   footer .footer-sep { opacity: 0.35; }
   /* light-mode footer is already handled by --surface and --border vars */
 
+
+  /* ── nav bar ── */
+  .site-nav { position: sticky; top: 0; z-index: 200; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 2rem; }
+  .site-nav-logo { font-family: "Fraunces", serif; font-size: 0.95rem; font-weight: 700; color: var(--white); text-decoration: none; flex-shrink: 0; }
+  .site-nav-logo em { font-style: italic; color: var(--accent-text); }
+  .nav-pill { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.6rem; padding: 0.2rem 0.55rem; border: 1px solid var(--border); border-radius: 99px; color: var(--muted); white-space: nowrap; }
+  .nav-pill strong { color: var(--text); font-weight: 500; }
+  .nav-live-pill { border-color: rgba(34,197,94,.4); background: rgba(34,197,94,.06); color: #16a34a; }
+  .nav-live-dot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+  [data-theme="light"] .nav-live-pill { color: #15803d; }
+  .nav-spacer { flex: 1; }
+  .nav-search-wrap { position: relative; display: flex; align-items: center; }
+  .nav-search { font-family: "DM Mono", monospace; font-size: 0.65rem; padding: 0.28rem 0.75rem 0.28rem 1.8rem; border: 1px solid var(--border); border-radius: 99px; background: var(--surface2); color: var(--text); width: 200px; transition: border-color 0.2s, width 0.2s; outline: none; }
+  .nav-search:focus { border-color: var(--org-color); width: 260px; }
+  .nav-search::placeholder { color: var(--muted); }
+  .nav-search-icon { position: absolute; left: 0.55rem; font-size: 0.75rem; color: var(--muted); pointer-events: none; }
+
+  /* ── stats bar (index page) ── */
+  .stats-bar { display: flex; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .stat-pill-bar { display: flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; font-size: 0.62rem; color: var(--muted); }
+  .stat-pill-bar strong { color: var(--text); font-weight: 500; }
+  .filter-strip { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; }
+  .filter-lbl { font-size: 0.6rem; color: var(--muted); margin-right: 0.2rem; }
+  .filter-chip { padding: 0.22rem 0.65rem; font-size: 0.6rem; border: 1px solid var(--border); border-radius: 99px; background: transparent; color: var(--muted); cursor: pointer; font-family: inherit; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .filter-chip:hover, .filter-chip.active { background: var(--surface2); color: var(--accent-text); border-color: var(--org-color); }
+
+  /* ── redesigned org cards ── */
+  .org-accent-bar { height: 3px; background: var(--org-color); border-radius: 0; }
+  .org-card-body { padding: 1rem 1.25rem 1.1rem; }
+  .org-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; gap: 0.5rem; }
+  .org-card-title { font-family: "Fraunces", serif; font-size: 1.1rem; font-weight: 700; color: var(--white); line-height: 1.2; }
+  .org-card-desc { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.85rem; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .org-card-stats { display: flex; gap: 1rem; }
+  .ocs { font-size: 0.62rem; color: var(--muted); display: flex; align-items: center; gap: 0.25rem; }
+  .ocs strong { color: var(--accent-text); font-weight: 500; }
+  .live-badge-sm { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.55rem; letter-spacing: 0.08em; padding: 0.15rem 0.45rem; border-radius: 99px; background: rgba(34,197,94,.12); color: #16a34a; border: 1px solid rgba(34,197,94,.3); flex-shrink: 0; white-space: nowrap; }
+  .live-dot-sm { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+  [data-theme="light"] .live-badge-sm { color: #15803d; }
+
+  /* ── org hero ── */
+  .org-hero { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 1.5rem; animation: fadeUp 0.5s ease both; }
+  .org-hero-accent { height: 4px; background: var(--org-color); }
+  .org-hero-body { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; padding: 1.4rem 1.75rem; flex-wrap: wrap; }
+  .org-hero-info { flex: 1; min-width: 0; }
+  .org-hero-name { font-family: "Fraunces", serif; font-size: 1.6rem; font-weight: 700; color: var(--white); margin-bottom: 0.3rem; }
+  .org-hero-desc { font-size: 0.75rem; color: var(--muted); max-width: 560px; line-height: 1.6; margin-bottom: 0.85rem; }
+  .org-hero-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .ohs { text-align: center; }
+  .ohs-val { font-family: "Fraunces", serif; font-size: 1.4rem; font-weight: 700; color: var(--accent-text); line-height: 1.1; }
+  .ohs-lbl { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* ── sort/filter strip ── */
+  .sort-strip { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .sort-lbl { font-size: 0.6rem; color: var(--muted); }
+  .sort-chip { padding: 0.22rem 0.65rem; font-size: 0.6rem; border: 1px solid var(--border); border-radius: 99px; background: transparent; color: var(--muted); cursor: pointer; font-family: inherit; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .sort-chip:hover { background: var(--surface2); color: var(--text); }
+  .sort-chip.active { background: var(--surface2); color: var(--accent-text); border-color: var(--org-color); }
+
+  /* ── channel card redesign ── */
+  .ch-card-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.65rem; }
+  .ch-card-name-wrap { min-width: 0; }
+  .ch-card-name { font-family: "Fraunces", serif; font-size: 0.88rem; font-weight: 700; color: var(--white); line-height: 1.25; }
+  .ch-card-role { font-size: 0.58rem; color: var(--muted); margin-top: 0.1rem; }
+  .ch-card-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+  .ch-stat-cell { background: var(--surface2); border-radius: 3px; padding: 0.4rem 0.6rem; }
+  .ch-stat-cell-lbl { font-size: 0.55rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .ch-stat-cell-val { font-size: 0.82rem; font-weight: 500; color: var(--text); }
+
   @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
   header { animation: fadeUp 0.5s ease both; }
   .orgs-grid, .channels-list, .streams-grid, .kpi-row { animation: fadeUp 0.5s 0.1s ease both; }
@@ -1439,12 +1579,119 @@ def _html_head(title: str, depth: int, org_color: str = "#e8ff47",
         f'{_FONTS}\n'
         f'{extra_scripts}\n'
         f'<style>\n{_BASE_CSS}\n  :root {{ --org-color: {org_color}; }}\n</style>\n'
-        f'</head>\n<body>\n<div class="page">\n'
+        f'</head>\n<body>\n'
+        f'<nav class="site-nav">\n'
+        f'  <a class="site-nav-logo" href="{"../" * depth}index.html">IDVTuber <em>Tracker</em></a>\n'
+        f'  <span class="nav-spacer"></span>\n'
+        + (f'  <div class="nav-search-wrap">\n'
+           f'    <span class="nav-search-icon">&#128269;</span>\n'
+           f'    <input class="nav-search" id="navSearch" type="search" '
+           f'placeholder="Search organisations…" autocomplete="off">\n'
+           f'  </div>\n' if depth == 0 else '')
+        + f'  {_TOGGLE_HTML}\n'
+        f'</nav>\n'
+        f'<div class="page">\n'
     )
 
 
-def _html_foot(depth: int) -> str:
+# ── Page-specific JS snippets ────────────────────────────────────────────────
+# INDEX_JS: search input filters org cards live; filter chips toggle active state.
+_INDEX_JS = """
+<script>
+(function () {
+  var grid  = document.querySelector('.orgs-grid');
+  var inp   = document.getElementById('navSearch');
+  var chips = document.querySelectorAll('.filter-chip');
+  var mode  = 'all';    // 'all' | 'az'
+
+  function applyFilter() {
+    var q = inp ? inp.value.trim().toLowerCase() : '';
+    var cards = grid ? grid.querySelectorAll('.org-card') : [];
+    cards.forEach(function (c) {
+      var name = (c.getAttribute('data-name') || '').toLowerCase();
+      var show = q === '' || name.includes(q);
+      c.style.display = show ? '' : 'none';
+    });
+  }
+
+  function applySort() {
+    if (!grid) return;
+    var cards = Array.from(grid.querySelectorAll('.org-card'));
+    if (mode === 'az') {
+      cards.sort(function (a, b) {
+        return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
+      });
+      cards.forEach(function (c) { grid.appendChild(c); });
+    }
+    // 'all' = default document order (no re-sort needed on page load)
+  }
+
+  if (inp) {
+    inp.addEventListener('input', applyFilter);
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chips.forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      mode = chip.textContent.trim() === 'A–Z' ? 'az' : 'all';
+      applySort();
+      applyFilter();
+    });
+  });
+})();
+</script>"""
+
+# ORG_JS: sort chips re-order channel cards by the selected metric.
+_ORG_JS = """
+<script>
+(function () {
+  var grid  = document.querySelector('.channels-grid');
+  var chips = document.querySelectorAll('.sort-chip');
+  if (!grid || !chips.length) return;
+
+  function getVal(card, attr) {
+    return parseFloat(card.getAttribute(attr) || '0') || 0;
+  }
+
+  function sortCards(key) {
+    var cards = Array.from(grid.querySelectorAll('.channel-card'));
+    cards.sort(function (a, b) {
+      if (key === 'az') {
+        return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
+      }
+      var map = { 'subs': 'data-subs', 'peak': 'data-peak', 'streams': 'data-streams' };
+      return getVal(b, map[key]) - getVal(a, map[key]);
+    });
+    cards.forEach(function (c) { grid.appendChild(c); });
+  }
+
+  var keyMap = {
+    'Subscribers': 'subs',
+    'Peak CCV':    'peak',
+    'Streams':     'streams',
+    'A–Z':   'az',
+  };
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chips.forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      var key = keyMap[chip.textContent.trim()] || 'subs';
+      sortCards(key);
+    });
+  });
+})();
+</script>"""
+
+
+def _html_foot(depth: int, page_type: str = '') -> str:
     rel = "../" * depth
+    extra_js = ''
+    if page_type == 'index':
+        extra_js = _INDEX_JS + '\n'
+    elif page_type == 'org':
+        extra_js = _ORG_JS + '\n'
     return (
         f'\n  <footer>\n'
         f'    <span>&#169; 2026 IDVTuber Tracker &#8212; Non-commercial fan project</span>\n'
@@ -1458,7 +1705,8 @@ def _html_foot(depth: int) -> str:
         f'  </footer>\n'
         f'</div>\n'
         f'{_THEME_JS}\n'
-        f'</body>\n</html>'
+        + extra_js
+        + f'</body>\n</html>'
     )
 
 
@@ -1471,111 +1719,189 @@ def _breadcrumb(crumbs: list[tuple[str, str]]) -> str:
             parts.append(f'<a href="{href}">{esc(label)}</a>')
         if i < len(crumbs) - 1:
             parts.append('<span class="sep">&#8250;</span>')
-    return '<nav class="breadcrumb">' + " ".join(parts) + _TOGGLE_HTML + "</nav>\n"
+    return '<nav class="breadcrumb">' + " ".join(parts) + "</nav>\n"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE WRITERS  (unchanged from original — all logic preserved)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def write_index(total_streams: int, total_channels: int, generated_at: str) -> None:
+def write_index(total_streams: int, total_channels: int, generated_at: str,
+                stream_counts: dict | None = None,
+                all_streams_by_channel: dict | None = None) -> None:
+    stream_counts          = stream_counts or {}
+    all_streams_by_channel = all_streams_by_channel or {}
+
+    # ── per-org stats: stream count and peak CCV ──────────────────────────────
+    def _org_stats(org):
+        n_str = sum(stream_counts.get(e[0], 0) for e in org["channels"])
+        peak  = 0
+        for e in org["channels"]:
+            for s in all_streams_by_channel.get(e[0], []):
+                v = s.get("peak_viewers") or 0
+                if v > peak:
+                    peak = v
+        return n_str, peak
+
+    # ── build org cards ───────────────────────────────────────────────────────
     org_cards = ""
     for org_slug, org in ORG_MAP.items():
         n_ch = len(org["channels"])
+        n_streams, peak = _org_stats(org)
+        peak_str = fmt(peak) if peak else "—"
         org_cards += (
             f'\n    <a class="org-card" href="{org_slug}/index.html"'
-            f' style="--org-color:{org["color"]}">\n'
-            f'      <div class="org-dot"></div>\n'
-            f'      <div class="org-title">{esc(org["label"])}</div>\n'
-            f'      <div class="org-desc">{esc(org["desc"])}</div>\n'
-            f'      <div class="org-stat"><strong>{n_ch}</strong> channels tracked</div>\n'
+            f' style="--org-color:{org["color"]}"'
+            f' data-name="{esc(org["label"])}"'
+            f' data-streams="{n_streams}" data-peak="{peak}">\n'
+            f'      <div class="org-accent-bar"></div>\n'
+            f'      <div class="org-card-body">\n'
+            f'        <div class="org-card-top">\n'
+            f'          <div class="org-card-title">{esc(org["label"])}</div>\n'
+            f'        </div>\n'
+            f'        <div class="org-card-desc">{esc(org["desc"])}</div>\n'
+            f'        <div class="org-card-stats">\n'
+            f'          <span class="ocs">&#128100; <strong>{n_ch}</strong></span>\n'
+            f'          <span class="ocs">&#9654; <strong>{n_streams}</strong></span>\n'
+            f'          <span class="ocs">&#128065; <strong>{peak_str}</strong> peak</span>\n'
+            f'        </div>\n'
+            f'      </div>\n'
             f'    </a>'
         )
 
     body = (
         f'  <header>\n'
-        f'    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">\n'
-        f'      <div>\n'
-        f'        <p class="eyebrow">IDVTuber Tracker &#8212; Live Analytics</p>\n'
-        f'        <h1>Stream <em>Overview</em></h1>\n'
-        f'        <p class="page-meta">'
-        f'Generated: {generated_at} &nbsp;&#183;&nbsp; '
-        f'{total_streams} streams &nbsp;&#183;&nbsp; '
-        f'{total_channels} channels &nbsp;&#183;&nbsp; '
-        f'{len(ORG_MAP)} organisations</p>\n'
-        f'      </div>\n'
-        f'      <div class="theme-toggle" style="padding-top:0.5rem;">{_TOGGLE_HTML}</div>\n'
-        f'    </div>\n'
+        f'    <p class="eyebrow">IDVTuber Tracker &#8212; Live Analytics</p>\n'
+        f'    <h1>Stream <em>Overview</em></h1>\n'
+        f'    <p class="page-meta">Generated: {generated_at}</p>\n'
         f'  </header>\n'
+        f'  <div class="stats-bar">\n'
+        f'    <span class="stat-pill-bar">&#127981; <strong>{len(ORG_MAP)}</strong> organisations</span>\n'
+        f'    <span class="stat-pill-bar">&#128100; <strong>{total_channels}</strong> channels</span>\n'
+        f'    <span class="stat-pill-bar">&#9654; <strong>{total_streams}</strong> streams recorded</span>\n'
+        f'  </div>\n'
+        f'  <div class="filter-strip">\n'
+        f'    <span class="filter-lbl">Filter:</span>\n'
+        f'    <span class="filter-chip" style="background:var(--surface2);color:var(--accent-text);border-color:var(--org-color)">All</span>\n'
+        f'    <span class="filter-chip">A&#8211;Z</span>\n'
+        f'  </div>\n'
         f'  <div class="orgs-grid">{org_cards}\n  </div>\n'
     )
 
-    html = _html_head("Stream Analytics", 0) + body + _html_foot(0)
+    html = _html_head("Stream Analytics", 0) + body + _html_foot(0, 'index')
     (OUTPUT_DIR / "index.html").write_text(html, encoding="utf-8")
     log.info("Written: index.html")
-
 
 def write_org_page(org_slug: str, org: dict, stream_counts: dict,
                    logos: dict[str, str] | None = None,
                    channel_ids_map: dict[str, str] | None = None,
-                   subscribers: dict[str, int] | None = None) -> None:
+                   subscribers: dict[str, int] | None = None,
+                   all_streams_by_channel: dict | None = None) -> None:
     org_dir = OUTPUT_DIR / org_slug
     org_dir.mkdir(exist_ok=True)
-    logos           = logos or {}
-    channel_ids_map = channel_ids_map or {}
-    subscribers     = subscribers or {}
+    logos                  = logos or {}
+    channel_ids_map        = channel_ids_map or {}
+    subscribers            = subscribers or {}
+    all_streams_by_channel = all_streams_by_channel or {}
 
+    # ── aggregate org-level stats for hero ────────────────────────────────────
+    total_org_streams = sum(stream_counts.get(e[0], 0) for e in org["channels"])
+    peak_all = 0
+    for e in org["channels"]:
+        for s in all_streams_by_channel.get(e[0], []):
+            v = s.get("peak_viewers") or 0
+            if v > peak_all:
+                peak_all = v
+    total_subs = 0
+    for e in org["channels"]:
+        ch_id = channel_ids_map.get(e[0], "")
+        total_subs += subscribers.get(ch_id, 0) or 0
+
+    # ── channel cards ─────────────────────────────────────────────────────────
     cards = ""
     for entry in org["channels"]:
         ch_name   = entry[0]
         ch_type   = entry[1]
         ch_slug   = slugify(ch_name)
-        badge     = "ORG CH" if ch_type == "org" else "TALENT"
         n_str     = stream_counts.get(ch_name, 0)
         ch_id     = channel_ids_map.get(ch_name, "")
         logo_url  = logos.get(ch_id, "")
-        sub_count = subscribers.get(ch_id)
+        sub_count = subscribers.get(ch_id, 0) or 0
 
+        # per-channel peak CCV
+        ch_peak = 0
+        ch_avg  = 0
+        ch_streams = all_streams_by_channel.get(ch_name, [])
+        peaks = [s.get("peak_viewers") or 0 for s in ch_streams if s.get("peak_viewers")]
+        if peaks:
+            ch_peak = max(peaks)
+            ch_avg  = round(sum(peaks) / len(peaks))
+
+        # avatar
+        words    = ch_name.replace("【", " ").replace("〔", " ").replace("Ch.", "").split()
+        initials = "".join(w[0].upper() for w in words if w)[:2] or "?"
         if logo_url:
-            avatar_html = f'<img class="channel-avatar" src="{logo_url}" alt="{esc(ch_name)}" referrerpolicy="no-referrer" loading="lazy">'
+            _oe = f"this.outerHTML='<div class=&quot;channel-avatar-placeholder&quot;>{initials}</div>'"
+            avatar_html = (
+                f'<img class="channel-avatar" src="{logo_url}" alt="" '
+                f'loading="lazy" referrerpolicy="no-referrer" onerror="{_oe}">'
+            )
         else:
-            initial = ch_name[0].upper()
-            avatar_html = f'<div class="channel-avatar-placeholder">{initial}</div>'
+            avatar_html = f'<div class="channel-avatar-placeholder">{initials}</div>'
 
-        stats_html = (
-            f'<div class="channel-card-stats">'
-            f'<div class="stat-row">'
-            f'<span class="stat-label">Subscribers</span>'
-            f'<span class="stat-value highlight">{fmt_subs(sub_count)}</span>'
-            f'</div>'
-            f'<div class="stat-row">'
-            f'<span class="stat-label">Streams</span>'
-            f'<span class="stat-value">{n_str} stream{"s" if n_str != 1 else ""}</span>'
-            f'</div>'
-            f'</div>'
-        )
+        role_lbl = "Org Channel" if ch_type == "org" else "Talent"
 
         cards += (
-            f'\n    <a class="channel-card" href="{ch_slug}/index.html">\n'
-            f'      {avatar_html}\n'
-            f'      <span class="channel-badge">{badge}</span>\n'
-            f'      <div class="channel-card-name">{esc(ch_name)}</div>\n'
-            f'      {stats_html}\n'
+            f'\n    <a class="channel-card" href="{ch_slug}/index.html"'
+            f' data-name="{esc(ch_name)}" data-subs="{sub_count}"'
+            f' data-streams="{n_str}" data-peak="{ch_peak}" data-avg="{ch_avg}">\n'
+            f'      <div class="ch-card-top">\n'
+            f'        {avatar_html}\n'
+            f'        <div class="ch-card-name-wrap">\n'
+            f'          <div class="ch-card-name">{esc(ch_name)}</div>\n'
+            f'          <div class="ch-card-role">{role_lbl}</div>\n'
+            f'        </div>\n'
+            f'      </div>\n'
+            f'      <div class="ch-card-stat-grid">\n'
+            f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Subscribers</div><div class="ch-stat-cell-val">{fmt_subs(sub_count)}</div></div>\n'
+            f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Streams</div><div class="ch-stat-cell-val">{n_str}</div></div>\n'
+            f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Peak CCV</div><div class="ch-stat-cell-val">{fmt(ch_peak) if ch_peak else "—"}</div></div>\n'
+            f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Avg CCV</div><div class="ch-stat-cell-val">{fmt(ch_avg) if ch_avg else "—"}</div></div>\n'
+            f'      </div>\n'
             f'    </a>'
         )
 
     bc = _breadcrumb([("Home", "../index.html"), (org["label"], "")])
     body = (
         bc
-        + f'  <header>\n'
-        f'    <p class="eyebrow">{esc(org["label"])}</p>\n'
-        f'    <h1>{esc(org["label"])}</h1>\n'
-        f'    <p class="page-meta">{len(org["channels"])} channels &#8212; select a channel to view streams</p>\n'
-        f'  </header>\n'
+        # org hero
+        + f'  <div class="org-hero">\n'
+        f'    <div class="org-hero-accent"></div>\n'
+        f'    <div class="org-hero-body">\n'
+        f'      <div class="org-hero-info">\n'
+        f'        <div class="org-hero-name">{esc(org["label"])}</div>\n'
+        f'        <div class="org-hero-desc">{esc(org["desc"])}</div>\n'
+        f'        <div class="org-hero-stats">\n'
+        f'          <div class="ohs"><div class="ohs-val">{len(org["channels"])}</div><div class="ohs-lbl">Channels</div></div>\n'
+        f'          <div class="ohs"><div class="ohs-val">{total_org_streams}</div><div class="ohs-lbl">Streams</div></div>\n'
+        f'          <div class="ohs"><div class="ohs-val">{fmt(peak_all) if peak_all else "—"}</div><div class="ohs-lbl">Peak CCV</div></div>\n'
+        f'          <div class="ohs"><div class="ohs-val">{fmt_subs(total_subs)}</div><div class="ohs-lbl">Combined subs</div></div>\n'
+        f'        </div>\n'
+        f'      </div>\n'
+        f'    </div>\n'
+        f'  </div>\n'
+        # sort strip
+        + f'  <div class="sort-strip">\n'
+        f'    <span class="sort-lbl">Sort by:</span>\n'
+        f'    <span class="sort-chip active">Subscribers</span>\n'
+        f'    <span class="sort-chip">Peak CCV</span>\n'
+        f'    <span class="sort-chip">Streams</span>\n'
+        f'    <span class="sort-chip">A&#8211;Z</span>\n'
+        f'  </div>\n'
         f'  <div class="channels-grid">{cards}\n  </div>\n'
     )
 
-    html = _html_head(org["label"], 1, org["color"]) + body + _html_foot(1)
+    html = _html_head(org["label"], 1, org["color"]) + body + _html_foot(1, 'org')
     (org_dir / "index.html").write_text(html, encoding="utf-8")
     log.info("Written: %s/index.html", org_slug)
 
@@ -1885,7 +2211,7 @@ def write_channel_page(org_slug: str, org: dict, ch_name: str,
         + stream_list_html
         # right: sidebar
         + f'    <div class="sidebar-col">\n'
-        # monthly summary
+        # 1. monthly summary
         + f'      <div class="side-panel">\n'
         f'        <div class="panel-hdr">Monthly summary</div>\n'
         f'        <table class="monthly-tbl">\n'
@@ -1897,7 +2223,15 @@ def write_channel_page(org_slug: str, org: dict, ch_name: str,
         + f'          </tbody>\n'
         f'        </table>\n'
         f'      </div>\n'
-        # channel records
+        # 2. current subscribers (count only, no graph)
+        + f'      <div class="side-panel">\n'
+        f'        <div class="panel-hdr">Subscribers</div>\n'
+        f'        <div class="subs-body">\n'
+        f'          <div class="subs-count">{sub_fmt}</div>\n'
+        f'          <div class="subs-label">YouTube subscribers</div>\n'
+        f'        </div>\n'
+        f'      </div>\n'
+        # 3. channel records
         + f'      <div class="side-panel">\n'
         f'        <div class="panel-hdr">Channel records</div>\n'
         f'        <div class="rec-row">\n'
@@ -1911,22 +2245,6 @@ def write_channel_page(org_slug: str, org: dict, ch_name: str,
         f'        <div class="rec-row">\n'
         f'          <div><div class="rec-lbl">Most viewed</div><div class="rec-val">{fmt(peak_views_val)}</div><div class="rec-ctx">{esc(_rec_title(peak_views_stream))}</div></div>\n'
         f'          <div class="rec-right"><div class="rec-lbl">Date</div><div class="rec-date">{_rec_date(peak_views_stream)}</div></div>\n'
-        f'        </div>\n'
-        f'      </div>\n'
-        # subscribers sparkline
-        + f'      <div class="side-panel">\n'
-        f'        <div class="panel-hdr">Subscribers</div>\n'
-        f'        <div class="subs-body">\n'
-        f'          <div class="subs-count">{sub_fmt}</div>\n'
-        f'          <div class="subs-label">YouTube subscribers</div>\n'
-        f'          <svg class="sparkline" viewBox="0 0 260 40" preserveAspectRatio="none" aria-hidden="true">\n'
-        f'            <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1">\n'
-        f'              <stop offset="0%" stop-color="{org["color"]}" stop-opacity="0.22"/>\n'
-        f'              <stop offset="100%" stop-color="{org["color"]}" stop-opacity="0"/>\n'
-        f'            </linearGradient></defs>\n'
-        f'            <path d="M0,34 L43,29 L87,24 L130,18 L174,12 L217,7 L260,3 L260,40 L0,40 Z" fill="url(#spk)"/>\n'
-        f'            <path d="M0,34 L43,29 L87,24 L130,18 L174,12 L217,7 L260,3" fill="none" stroke="{org["color"]}" stroke-width="1.5" stroke-linejoin="round"/>\n'
-        f'          </svg>\n'
         f'        </div>\n'
         f'      </div>\n'
         f'    </div>\n'   # close sidebar-col
@@ -2440,7 +2758,8 @@ def build_dashboard() -> None:
         write_org_page(*args)
 
     org_write_args = [
-        (org_slug, org, stream_counts, logos, channel_ids_map, subscribers)
+        (org_slug, org, stream_counts, logos, channel_ids_map, subscribers,
+         all_streams_by_channel)
         for org_slug, org in ORG_MAP.items()
     ]
     with ThreadPoolExecutor(max_workers=min(8, len(org_write_args))) as pool:
@@ -2455,7 +2774,8 @@ def build_dashboard() -> None:
 
     # ── always regenerate index ───────────────────────────────────────────────
     generated_at = _now_local().strftime("%Y-%m-%d %H:%M WIB")
-    write_index(total_streams, total_channels, generated_at)
+    write_index(total_streams, total_channels, generated_at,
+                stream_counts, all_streams_by_channel)
 
     # ── persist manifest ──────────────────────────────────────────────────────
     save_manifest(manifest)
