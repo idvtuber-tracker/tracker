@@ -190,7 +190,7 @@ ORG_MAP = {
             ("Istmodius【MagniV】", "talent", "UCpe6USwJgyctDpWQhzVBeVQ"),  
             ("Funin Mamori【MagniV】", "talent", "UCO6ngsu6Bx1SnJgL1iLyafA"), 
             ("Shiru 【MagniV】", "talent", "UCYE181HONC3O7Iul62aAoYg"), 
-            ("CANCNCN -Ezacancan", "talent", "UC31csAlk6YaJffLT3qPvEZg"), 
+            ("CANCNCN -Ezacancan-【MagniV】", "talent", "UC31csAlk6YaJffLT3qPvEZg"), 
         ],
     },
     "versa": {
@@ -405,6 +405,16 @@ ORG_MAP = {
             ("Celina Olystia Ch •SnowValley", "talent", "UCPAOc_fgQeTjHMAni8rx-Cw"),  
             ("Shine Naira Ch. •SnowValley", "talent", "UC9ik6MJGi3esadK15ioS6FA"),  
             ("Naona Neon Ch. •SnowValley", "talent", "UCIW8RtcLw4WiG1ul2dTaryA"),  
+        ],
+    },
+    "evren-community": {
+        "label":   "EVREN Community",
+        "color":   "#d7b576",
+        "desc":    "Indonesian Vtuber community that operates based on passion.",
+        "channels": [
+            ("EVREN", "org", "UCC4a8ZZH9G85ZSGOSTFxmVA"),  
+            ("Lyanna Chernovskaya", "talent", "UCQO6uKa81T5-e9HzUHjS9DA"),  
+            ("Nariya Blanche", "talent", "UCYWs6Tvqs6k1EjZMK27r7fA"),  
         ],
     },
 }
