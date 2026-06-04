@@ -126,6 +126,7 @@ ORG_MAP = {
             ("Ellise Youka【Yorukaze】",          "talent", "UCE5Mvtoy8GiPtsv5sLUKlgg"),
             ("WanTaps Ch.【Yorukaze】",           "talent", "UC7CpE_gbbvNBkUFMHWeUMpA"),
             ("Wintergea Ch. ゲア 【Yorukaze】",   "talent", "UCv9P--tuUkAxpZaTowy7h9Q"),
+            ("Crystallyn Caparina",   "talent", "UCyVT2GRTAWyUjdjTsHhIy6w"),
         ],
     },
     "prism-nova": {
@@ -191,6 +192,7 @@ ORG_MAP = {
             ("Funin Mamori【MagniV】", "talent", "UCO6ngsu6Bx1SnJgL1iLyafA"), 
             ("Shiru 【MagniV】", "talent", "UCYE181HONC3O7Iul62aAoYg"), 
             ("CANCNCN -Ezacancan-【MagniV】", "talent", "UC31csAlk6YaJffLT3qPvEZg"), 
+            ("Mosa", "talent", "UCkYmpSIAkPgNg4wBeNn9JAA"), 
         ],
     },
     "versa": {
@@ -233,7 +235,6 @@ ORG_MAP = {
             ("Fuyumi Celestia【MAHA5】", "talent", "UCge_6FJHyeOCxRtWCmaVTAQ"),  
         ],
     },
-    "eon-of-stars": {
         "label":   "Eon of Stars",
         "color":   "#818cf8",
         "desc":    "An Indonesian indie male VTuber group providing high-quality boyfriend experience.",
@@ -290,6 +291,7 @@ ORG_MAP = {
             ("GRAVT", "org", "UCKnLF98-xHPQMwtIlXnAmkQ"),  
             ("Akemi Ch. 猫町アケミ【GRAVT】【AKA Virtual】", "talent", "UC61iJVuFVS4YsnPkZe5EmXg"),  
             ("Ave Kanehoshii【GRAVT】【AKA Virtual】", "talent", "UCdrbNcRAy424_FFWsY1A6og"),  
+            ("Reynard Blanc Ch.『 Re:Memories 』", "talent", "UCoUFv7APM1XOo4TUaWbRekw"),  
             ("daem【GRAVT】", "talent", "UCiJVUvvDMYHof7P5lt9NU3g"),   
         ],
     },
@@ -332,7 +334,8 @@ ORG_MAP = {
         "channels": [
             ("Aika Sakuraba Ch. 【ARVI】", "talent", "UCW6ZmofKJm_Rnwyq1brysmg"),  
             ("Makotoshi Ch.", "talent", "UCgcsnZ6-ys_Fr9wEX6sz5xg"),  
-            ("Navarra Clementia", "talent", "UCAa31OBocBS80q2x4meCSUw"),  
+            ("Navarra Clementia", "talent", "UCAa31OBocBS80q2x4meCSUw"),
+            ("Ringo Soda", "talent", "UCHTj4RRPQjba2GekeJKvB_w"),  
         ],
     },
     "hrcome": {
@@ -1670,7 +1673,7 @@ _ORG_JS = """
       if (key === 'az') {
         return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
       }
-      var map = { 'subs': 'data-subs', 'peak': 'data-peak', 'streams': 'data-streams' };
+      var map = { 'subs': 'data-subs', 'peak': 'data-peak', 'likes': 'data-likes', 'streams': 'data-streams' };
       return getVal(b, map[key]) - getVal(a, map[key]);
     });
     cards.forEach(function (c) { grid.appendChild(c); });
@@ -1679,6 +1682,7 @@ _ORG_JS = """
   var keyMap = {
     'Subscribers': 'subs',
     'Peak CCV':    'peak',
+    'Peak Likes':  'likes',
     'Streams':     'streams',
     'A–Z':   'az',
   };
@@ -1839,13 +1843,15 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
         sub_count = subscribers.get(ch_id, 0) or 0
 
         # per-channel peak CCV
-        ch_peak = 0
-        ch_avg  = 0
+        ch_peak  = 0
+        ch_likes = 0
         ch_streams = all_streams_by_channel.get(ch_name, [])
         peaks = [s.get("peak_viewers") or 0 for s in ch_streams if s.get("peak_viewers")]
         if peaks:
             ch_peak = max(peaks)
-            ch_avg  = round(sum(peaks) / len(peaks))
+        likes = [s.get("peak_likes") or 0 for s in ch_streams if s.get("peak_likes")]
+        if likes:
+            ch_likes = max(likes)
 
         # avatar
         words    = ch_name.replace("【", " ").replace("〔", " ").replace("Ch.", "").split()
@@ -1864,7 +1870,7 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
         cards += (
             f'\n    <a class="channel-card" href="{ch_slug}/index.html"'
             f' data-name="{esc(ch_name)}" data-subs="{sub_count}"'
-            f' data-streams="{n_str}" data-peak="{ch_peak}" data-avg="{ch_avg}">\n'
+            f' data-streams="{n_str}" data-peak="{ch_peak}" data-likes="{ch_likes}">\n'
             f'      <div class="ch-card-top">\n'
             f'        {avatar_html}\n'
             f'        <div class="ch-card-name-wrap">\n'
@@ -1876,7 +1882,7 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
             f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Subscribers</div><div class="ch-stat-cell-val">{fmt_subs(sub_count)}</div></div>\n'
             f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Streams</div><div class="ch-stat-cell-val">{n_str}</div></div>\n'
             f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Peak CCV</div><div class="ch-stat-cell-val">{fmt(ch_peak) if ch_peak else "—"}</div></div>\n'
-            f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Avg CCV</div><div class="ch-stat-cell-val">{fmt(ch_avg) if ch_avg else "—"}</div></div>\n'
+            f'        <div class="ch-stat-cell"><div class="ch-stat-cell-lbl">Peak Likes</div><div class="ch-stat-cell-val">{fmt(ch_likes) if ch_likes else "—"}</div></div>\n'
             f'      </div>\n'
             f'    </a>'
         )
@@ -1905,6 +1911,7 @@ def write_org_page(org_slug: str, org: dict, stream_counts: dict,
         f'    <span class="sort-lbl">Sort by:</span>\n'
         f'    <span class="sort-chip active">Subscribers</span>\n'
         f'    <span class="sort-chip">Peak CCV</span>\n'
+        f'    <span class="sort-chip">Peak Likes</span>\n'
         f'    <span class="sort-chip">Streams</span>\n'
         f'    <span class="sort-chip">A&#8211;Z</span>\n'
         f'  </div>\n'
