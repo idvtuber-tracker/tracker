@@ -192,7 +192,6 @@ ORG_MAP = {
             ("Funin Mamori【MagniV】", "talent", "UCO6ngsu6Bx1SnJgL1iLyafA"), 
             ("Shiru 【MagniV】", "talent", "UCYE181HONC3O7Iul62aAoYg"), 
             ("CANCNCN -Ezacancan-【MagniV】", "talent", "UC31csAlk6YaJffLT3qPvEZg"), 
-            ("Mosa", "talent", "UCkYmpSIAkPgNg4wBeNn9JAA"), 
         ],
     },
     "versa": {
@@ -235,6 +234,7 @@ ORG_MAP = {
             ("Fuyumi Celestia【MAHA5】", "talent", "UCge_6FJHyeOCxRtWCmaVTAQ"),  
         ],
     },
+    "eon-of-stars": {
         "label":   "Eon of Stars",
         "color":   "#818cf8",
         "desc":    "An Indonesian indie male VTuber group providing high-quality boyfriend experience.",
@@ -291,7 +291,6 @@ ORG_MAP = {
             ("GRAVT", "org", "UCKnLF98-xHPQMwtIlXnAmkQ"),  
             ("Akemi Ch. 猫町アケミ【GRAVT】【AKA Virtual】", "talent", "UC61iJVuFVS4YsnPkZe5EmXg"),  
             ("Ave Kanehoshii【GRAVT】【AKA Virtual】", "talent", "UCdrbNcRAy424_FFWsY1A6og"),  
-            ("Reynard Blanc Ch.『 Re:Memories 』", "talent", "UCoUFv7APM1XOo4TUaWbRekw"),  
             ("daem【GRAVT】", "talent", "UCiJVUvvDMYHof7P5lt9NU3g"),   
         ],
     },
