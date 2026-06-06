@@ -102,39 +102,6 @@ jobs:
           }
           Write-Host "Done cancelling duplicates."
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          repository: idvtuber-tracker/tracker
-          token: ${{ secrets.GH_PAT }}
-
-      - name: Force git remote URL with PAT
-        shell: powershell
-        run: |
-          $pat  = "${{ secrets.GH_PAT }}"
-          $repo = "${{ github.repository }}"
-          git remote set-url origin "https://x-access-token:$($pat)@github.com/$repo.git"
-          git config --global credential.helper store
-          $line = "https://x-access-token:$($pat)@github.com"
-          Set-Content -Path "$env:USERPROFILE\.git-credentials" -Value $line -Encoding UTF8
-          Write-Host "Remote URL and credentials set."
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install dependencies
-        shell: powershell
-        run: pip install -r requirements.txt
-
-      # id is required so the Discord steps below can inspect this step's outcome.
-      - name: Run tracker
-        id: run_tracker
-        shell: powershell
-        run: python tracker.py
-
       - name: Clean up old workflow runs
         if: always()
         shell: powershell
@@ -180,6 +147,40 @@ jobs:
           Write-Host "Cleanup complete. Deleted $deleted run(s) that hit the 6-hour wall."
 
       # id is required so the Discord step below can inspect this step's outcome.
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: idvtuber-tracker/tracker
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Force git remote URL with PAT
+        shell: powershell
+        run: |
+          $pat  = "${{ secrets.GH_PAT }}"
+          $repo = "${{ github.repository }}"
+          git remote set-url origin "https://x-access-token:$($pat)@github.com/$repo.git"
+          git config --global credential.helper store
+          $line = "https://x-access-token:$($pat)@github.com"
+          Set-Content -Path "$env:USERPROFILE\.git-credentials" -Value $line -Encoding UTF8
+          Write-Host "Remote URL and credentials set."
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        shell: powershell
+        run: pip install -r requirements.txt
+
+      # id is required so the Discord steps below can inspect this step's outcome.
+      - name: Run tracker
+        id: run_tracker
+        shell: powershell
+        run: python tracker.py
+
       - name: Restart workflow
         id: restart
         if: always()
