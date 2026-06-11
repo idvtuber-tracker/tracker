@@ -21,13 +21,14 @@ This project consists of three main scripts working in concert:
 ```
 GitHub Actions (self-hosted Windows runner)
     │
-    ├── tracker.py  (runs every ~5 min)
-    │       │
-    │       ├── YouTube Data API v3  (activities.list, videos.list)
-    │       ├── Supabase PostgreSQL     (per-channel tables)
-    │       ├── analytics.csv        (local fallback)
-    │       └── generate_dashboard.py (subprocess, called each cycle)
-    │
+    └── tracker.py  (runs every ~6 hours, automatically restarted)
+            │
+            ├── YouTube Data API v3  (activities.list, videos.list)
+            ├── Supabase PostgreSQL     (per-channel tables)
+            ├── analytics.csv        (local fallback)
+            └── generate_dashboard.py (subprocess, called each cycle)
+     
+GitHub Actions (Github-hosted Linux runner)
     ├── generate_dashboard.py
     │       │
     │       ├── Supabase PostgreSQL     (reads all channel tables)
