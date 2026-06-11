@@ -247,7 +247,7 @@ The tracker is designed to run on a **self-hosted Windows runner**. Add reposito
 | `GH_PAT` | ✅ (for dashboard push) |
 | `DASHBOARD_REPO` | Recommended |
 
-The tracker workflow runs on a cron schedule (minimum 5-minute interval on GitHub). Each run installs dependencies, executes `tracker.py`, collects analytics, regenerates the dashboard, and pushes the output to the dashboard repo — triggering a GitHub Pages deployment via a `repository_dispatch` event.
+The tracker workflow runs on a endless loops of 6 hours session with the self-hosted runner that can be triggered manually and only stops in the event of error and the auto-restart unable to connect to the runner. Each run installs dependencies, executes `tracker.py`, collects analytics, regenerates the dashboard, and pushes the output to the dashboard repo — triggering a GitHub Pages deployment via a `repository_dispatch` event.
 
 The archiver workflow runs daily on an `ubuntu-latest` runner, checking out the `idvt-history` repo, running `archiver.py`, and committing any newly archived streams back to the history repo.
 
