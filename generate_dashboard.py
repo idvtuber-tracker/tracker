@@ -332,7 +332,8 @@ ORG_MAP = {
             ("Aika Sakuraba Ch. 【ARVI】", "talent", "UCW6ZmofKJm_Rnwyq1brysmg"),  
             ("Makotoshi Ch.", "talent", "UCgcsnZ6-ys_Fr9wEX6sz5xg"),  
             ("Navarra Clementia", "talent", "UCAa31OBocBS80q2x4meCSUw"),
-            ("Ringo Soda", "talent", "UCHTj4RRPQjba2GekeJKvB_w"),  
+            ("Ringo Soda", "talent", "UCHTj4RRPQjba2GekeJKvB_w"),
+            ("Suou Ono Ch.【ARVI】", "talent", "UCZoZhv9PkSryZSN4-WVi0nA"),    
         ],
     },
     "hrcome": {
@@ -1613,7 +1614,7 @@ _INDEX_JS = """
   var grid  = document.querySelector('.orgs-grid');
   var inp   = document.getElementById('navSearch');
   var chips = document.querySelectorAll('.filter-chip');
-  var mode  = 'all';    // 'all' | 'az'
+  var mode  = 'all';    // 'all' | 'az' | 'peak'
 
   function applyFilter() {
     var q = inp ? inp.value.trim().toLowerCase() : '';
@@ -1633,6 +1634,13 @@ _INDEX_JS = """
         return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
       });
       cards.forEach(function (c) { grid.appendChild(c); });
+    } else if (mode === 'peak') {
+      cards.sort(function (a, b) {
+        var pa = parseFloat(a.getAttribute('data-peak') || '0') || 0;
+        var pb = parseFloat(b.getAttribute('data-peak') || '0') || 0;
+        return pb - pa;   // descending — highest peak viewers first
+      });
+      cards.forEach(function (c) { grid.appendChild(c); });
     }
     // 'all' = default document order (no re-sort needed on page load)
   }
@@ -1645,7 +1653,14 @@ _INDEX_JS = """
     chip.addEventListener('click', function () {
       chips.forEach(function (c) { c.classList.remove('active'); });
       chip.classList.add('active');
-      mode = chip.textContent.trim() === 'A–Z' ? 'az' : 'all';
+      var label = chip.textContent.trim();
+      if (label === 'A–Z') {
+        mode = 'az';
+      } else if (label === 'Peak Viewers') {
+        mode = 'peak';
+      } else {
+        mode = 'all';
+      }
       applySort();
       applyFilter();
     });
@@ -1796,6 +1811,7 @@ def write_index(total_streams: int, total_channels: int, generated_at: str,
         f'    <span class="filter-lbl">Filter:</span>\n'
         f'    <span class="filter-chip" style="background:var(--surface2);color:var(--accent-text);border-color:var(--org-color)">All</span>\n'
         f'    <span class="filter-chip">A&#8211;Z</span>\n'
+        f'    <span class="filter-chip">Peak Viewers</span>\n'
         f'  </div>\n'
         f'  <div class="orgs-grid">{org_cards}\n  </div>\n'
     )
