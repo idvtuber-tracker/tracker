@@ -1,6 +1,5 @@
 """
 generate_dashboard.py
-
 Pulls livestream analytics from PostgreSQL and generates a 4-level
 static HTML dashboard:
   index.html                       <- org cards
@@ -266,7 +265,6 @@ ORG_MAP = {
             ("Doh Chen ah [ UVER ID ]", "talent", "UCNYi3CluU99__mhU014xpYg"),  
             ("Gi Hwa Young [ UVER ID ]", "talent", "UCzOX836IOW8jpzIM6LYyjfA"),
             ("Aira Lunagrandia [ UVER ID ]", "talent", "UCFJ7A3461hnv_mcgsEojAGw"),  
-            ("Minoguchi Romulus Ch. [ UVER ID ]", "talent", "UCKl29eeVHAv9ZZHa09mAweA"),  
             ("Norn Haira〔UVER ID〕", "talent", "UCjev0yMRo4XoJRNN9boGlfw"),  
             ("Isabella Naemi. Ch. ★ [ UVER ID ]", "talent", "UCcMzPa8mDNFvfwZ2qmuk7Zw"),  
         ],
@@ -392,6 +390,7 @@ ORG_MAP = {
             ("Mo Xiao Mei【ASOBU】", "talent", "UCu8OmWUWMHD_uW2jkYwBWfQ"),  
             ("Namazu Reire【ASOBU】", "talent", "UCOXAPlV_XxMbfZelSbHc0IQ"),  
             ("Lyra Monphelia 【ASOBU】", "talent", "UC6cGmy7IqsY6z3Ng6tOFWFA"),  
+            ("Kalani Rainash 【ASOBU】", "talent", "UCM41EWO7hDMfA3pTAWEXmXw"),  
         ],
     },
     "snowvalley-agency": {
@@ -416,7 +415,7 @@ ORG_MAP = {
         "channels": [
             ("EVREN", "org", "UCC4a8ZZH9G85ZSGOSTFxmVA"),  
             ("Lyanna Chernovskaya", "talent", "UCQO6uKa81T5-e9HzUHjS9DA"),  
-            ("Nariya Blanche", "talent", "UCYWs6Tvqs6k1EjZMK27r7fA"),  
+            ("Amami Yoruna", "talent", "UCYWs6Tvqs6k1EjZMK27r7fA"),  
         ],
     },
 }
