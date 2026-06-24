@@ -854,41 +854,65 @@ def check_upcoming_went_live(video_ids: list[str]) -> dict[str, str]:
 def get_video_analytics(video_id: str) -> Optional[dict]:
     """
     Fetch liveStreamingDetails + statistics for a single video.
+
+    NOTE: Prefer get_bulk_video_analytics() when fetching multiple streams
+    in the same cycle — it batches up to 50 IDs per API call instead of
+    issuing one call per stream.
+    """
+    result = get_bulk_video_analytics([video_id])
+    return result.get(video_id)
+
+
+def get_bulk_video_analytics(video_ids: list[str]) -> dict[str, dict]:
+    """
+    Fetch liveStreamingDetails + statistics for up to N videos in batches
+    of 50 (the videos.list API maximum).
+
+    Returns a dict of {video_id: analytics_dict}. Missing IDs (deleted,
+    private, or returned no items) are simply absent from the result.
+
+    Replaces the old per-stream get_video_analytics() loop in run() —
+    100 live streams → 2 API calls instead of 100.
     Rotates to the next API key automatically on a 403 quota error.
     """
+    if not video_ids:
+        return {}
     global youtube
-    for attempt in range(len(YOUTUBE_API_KEYS)):
-        try:
-            resp = youtube.videos().list(
-                part="liveStreamingDetails,statistics,snippet",
-                id=video_id,
-            ).execute()
-            items = resp.get("items", [])
-            if not items:
-                return None
-            item  = items[0]
-            stats = item.get("statistics", {})
-            live  = item.get("liveStreamingDetails", {})
-            return {
-                "concurrent_viewers": int(live.get("concurrentViewers", 0) or 0),
-                "view_count":         int(stats.get("viewCount", 0) or 0),
-                "like_count":         int(stats.get("likeCount", 0) or 0),
-                "comment_count":      int(stats.get("commentCount", 0) or 0),
-                "scheduled_start":    live.get("scheduledStartTime"),
-                "actual_start":       live.get("actualStartTime"),
-            }
-
-        except HttpError as e:
-            if e.resp.status == 403:
-                log.warning("403 on get_video_analytics (key index %d): %s", _key_index, e)
-                if not _mark_exhausted():
-                    return None   # all keys exhausted
-                youtube = _build_client(_current_key())
-                continue          # retry with new key
-            log.error("videos API error for %s: %s", video_id, e)
-            return None
-
-    return None
+    results: dict[str, dict] = {}
+    for i in range(0, len(video_ids), 50):
+        batch = video_ids[i:i + 50]
+        for attempt in range(len(YOUTUBE_API_KEYS)):
+            try:
+                resp = youtube.videos().list(
+                    part="liveStreamingDetails,statistics,snippet",
+                    id=",".join(batch),
+                ).execute()
+                for item in resp.get("items", []):
+                    vid   = item["id"]
+                    stats = item.get("statistics", {})
+                    live  = item.get("liveStreamingDetails", {})
+                    results[vid] = {
+                        "concurrent_viewers": int(live.get("concurrentViewers", 0) or 0),
+                        "view_count":         int(stats.get("viewCount", 0) or 0),
+                        "like_count":         int(stats.get("likeCount", 0) or 0),
+                        "comment_count":      int(stats.get("commentCount", 0) or 0),
+                        "scheduled_start":    live.get("scheduledStartTime"),
+                        "actual_start":       live.get("actualStartTime"),
+                    }
+                break   # batch succeeded — move to next batch
+            except HttpError as e:
+                if e.resp.status == 403:
+                    log.warning(
+                        "403 on get_bulk_video_analytics (key index %d): %s",
+                        _key_index, e,
+                    )
+                    if not _mark_exhausted():
+                        return results   # all keys exhausted — return what we have
+                    youtube = _build_client(_current_key())
+                    continue             # retry this batch with the new key
+                log.error("videos API error in bulk fetch: %s", e)
+                break   # non-quota error — skip this batch, move on
+    return results
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -928,16 +952,19 @@ signal.signal(signal.SIGINT,  _handle_signal)
 signal.signal(signal.SIGTERM, _handle_signal)
 
 
-def collect_and_store(stream: dict, table: str) -> None:
-    """Fetch analytics for one live stream and persist them.
-    Dashboard regeneration is intentionally NOT called here — it is called
-    once per cycle in run() after all streams are processed, so the
-    subprocess overhead is paid once regardless of how many streams are live.
+def collect_and_store(stream: dict, table: str, analytics: dict) -> None:
+    """Apply pre-fetched analytics for one live stream and persist to CSV + history.
+
+    analytics must be a dict as returned by get_bulk_video_analytics() for
+    this stream's video_id.  The caller (run()) fetches analytics for all
+    live streams in one batched API call before invoking this function, so
+    no additional HTTP requests are made here.
+
+    Dashboard regeneration and DB writes are intentionally NOT done here —
+    they are handled once per cycle in run() after all streams are processed,
+    paying those fixed costs only once regardless of how many streams are live.
     """
-    video_id  = stream["video_id"]
-    analytics = get_video_analytics(video_id)
-    if analytics is None:
-        return
+    video_id = stream["video_id"]
 
     stream.update(analytics)
     stream["collected_at"] = datetime.now(timezone.utc).isoformat()
@@ -1072,13 +1099,23 @@ def run() -> None:
         channel_tables: dict[str, str] = {}
 
     last_deploy_time  = datetime.now(timezone.utc)
+    last_regen_time   = datetime.now(timezone.utc)
     DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))
+    # How often to regenerate the dashboard (seconds). Default 120s — every
+    # 4th cycle at STREAM_POLL_SEC=30. Set lower for more frequent updates,
+    # higher to reduce subprocess overhead during busy periods.
+    REGEN_INTERVAL_SEC  = int(os.environ.get("REGEN_INTERVAL_SEC", "120"))
     channel_poll_counter = 0
     cycle_num = 0
 
     log.info("Scanning for streams…")
 
     while _running:
+        # cycle_start is placed at the very top of the loop body so that ALL
+        # work — including the channel scan and upcoming check — is counted
+        # in elapsed time and slow-cycle alerts are accurate.
+        cycle_start = datetime.now(timezone.utc)
+
         try:
             # ── activities.list channel scan (every POLL_INTERVAL_SEC) ────
             if channel_poll_counter == 0:
@@ -1101,7 +1138,7 @@ def run() -> None:
 
             channel_poll_counter = (channel_poll_counter + 1) % max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC)
 
-            # ── Fix A: upcoming→live fast detection (every cycle, 1 unit/vid)
+            # ── upcoming→live fast detection (every cycle, 1 unit/vid) ────
             # Only fast-poll streams whose scheduled start is within
             # UPCOMING_POLL_WINDOW_SEC of now. Streams scheduled hours away
             # are left to the normal activities.list scan — polling them
@@ -1116,7 +1153,6 @@ def run() -> None:
                     continue
                 sched = s.get("scheduled_start")
                 if sched is None:
-                    # No schedule info — include as safe fallback
                     upcoming_ids.append(vid)
                     continue
                 try:
@@ -1151,20 +1187,40 @@ def run() -> None:
                       e, STREAM_POLL_SEC)
             time.sleep(STREAM_POLL_SEC)
             continue
-        
-        cycle_start = datetime.now(timezone.utc)
+
         active_streams: list[dict] = list(known_streams.values())
 
-        # ── Step 1: collect analytics for every live stream ───────────────
-        # collect_and_store() now saves to CSV and records to history but
-        # does NOT write to DB or regenerate the dashboard — those happen
-        # below in a single batch, paying their fixed costs only once.
+        # ── Step 1: bulk-fetch analytics for all live streams in one go ───
+        # get_bulk_video_analytics() batches up to 50 IDs per videos.list
+        # call, so 100 live streams costs 2 API calls instead of 100.
+        live_streams = [s for s in active_streams if s["stream_status"] == "live"]
+        live_ids     = [s["video_id"] for s in live_streams]
+        bulk_analytics: dict[str, dict] = {}
+        if live_ids:
+            bulk_analytics = get_bulk_video_analytics(live_ids)
+            log.info(
+                "Bulk analytics fetched: %d live stream(s), %d result(s) returned "
+                "(%d API call(s)).",
+                len(live_ids), len(bulk_analytics),
+                (len(live_ids) + 49) // 50,
+            )
+
+        # ── Step 2: apply analytics, write CSV + history ──────────────────
         db_batch: list[tuple[dict, str]] = []
         any_live = False
         for stream in active_streams:
             if stream["stream_status"] == "live":
+                analytics = bulk_analytics.get(stream["video_id"])
+                if analytics is None:
+                    # Video may have been deleted or made private mid-stream;
+                    # skip this stream for this cycle rather than inserting zeros.
+                    log.warning(
+                        "No analytics returned for live stream %s (%s) — skipping.",
+                        stream["video_id"], stream.get("channel_name", ""),
+                    )
+                    continue
                 table = channel_tables.get(stream["channel_id"])
-                collect_and_store(stream, table)
+                collect_and_store(stream, table, analytics)
                 if table:
                     db_batch.append((stream, table))
                 any_live = True
@@ -1173,15 +1229,22 @@ def run() -> None:
                 stream.setdefault("like_count", 0)
                 stream.setdefault("comment_count", 0)
 
-        # ── Step 2: flush all DB rows in one connection ───────────────────
+        # ── Step 3: flush all DB rows in one connection ───────────────────
         if db_batch:
             save_many_to_db(db_batch)
 
-        # ── Step 3: regenerate dashboard once per cycle ───────────────────
+        # ── Step 4: regenerate dashboard (throttled by REGEN_INTERVAL_SEC) ─
+        # Previously ran every cycle while any stream was live. With 50-100
+        # active streams that meant a blocking subprocess call (up to 120s
+        # timeout) every 30s, which was a major contributor to slow cycles.
+        # Now gated to at most once per REGEN_INTERVAL_SEC (default 120s).
         if any_live:
-            regenerate_dashboard()
+            now = datetime.now(timezone.utc)
+            if (now - last_regen_time).total_seconds() >= REGEN_INTERVAL_SEC:
+                regenerate_dashboard()
+                last_regen_time = now
 
-        # ── Step 4: deploy (throttled) ────────────────────────────────────
+        # ── Step 5: deploy (throttled by DEPLOY_INTERVAL_SEC) ────────────
         if any_live:
             now = datetime.now(timezone.utc)
             if (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC:
@@ -1190,11 +1253,11 @@ def run() -> None:
 
         log_active_streams(active_streams)
 
-        # ── Step 5: sleep only the remaining time ─────────────────────────
+        # ── Step 6: sleep only the remaining time ─────────────────────────
         # Subtract the time already spent on work so the total cycle length
         # stays close to STREAM_POLL_SEC regardless of how many streams are
         # live or how long the dashboard regeneration takes.
-        elapsed = (datetime.now(timezone.utc) - cycle_start).total_seconds()
+        elapsed   = (datetime.now(timezone.utc) - cycle_start).total_seconds()
         remaining = max(0.0, STREAM_POLL_SEC - elapsed)
         cycle_num += 1
         log.info(
