@@ -1152,14 +1152,15 @@ def run() -> None:
     log.info("Scanning for streams…")
 
     while _running:
-        # cycle_start is placed at the very top of the loop body so that ALL
-        # work — including the channel scan and upcoming check — is counted
-        # in elapsed time and slow-cycle alerts are accurate.
-        cycle_start = datetime.now(timezone.utc)
-
         try:
             # ── activities.list channel scan (every POLL_INTERVAL_SEC) ────
+            # Timed separately from the rest of the cycle. The scan is a long
+            # sequential HTTP loop (up to 2 minutes for 209 channels) and is
+            # excluded from the slow-cycle elapsed window so the alert only
+            # fires for problems in the analytics/DB/dashboard work, not for
+            # the expected scan cost.
             if channel_poll_counter == 0:
+                scan_start = datetime.now(timezone.utc)
                 discovered: dict[str, dict] = {}
                 for ch in CHANNEL_IDS:
                     for s in find_live_videos(ch):
@@ -1176,8 +1177,18 @@ def run() -> None:
                     if vid not in discovered:
                         log.info("Stream ended: %s", vid)
                 known_streams = discovered
+                scan_elapsed = (datetime.now(timezone.utc) - scan_start).total_seconds()
+                log.info(
+                    "Channel scan completed: %d channel(s), %d stream(s) found in %.1fs.",
+                    len(CHANNEL_IDS), len(known_streams), scan_elapsed,
+                )
 
             channel_poll_counter = (channel_poll_counter + 1) % max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC)
+
+            # cycle_start is set AFTER the channel scan so that scan latency
+            # (which is expected and unavoidable) does not count toward the
+            # slow-cycle threshold. The scan timing is logged separately above.
+            cycle_start = datetime.now(timezone.utc)
 
             # ── upcoming→live fast detection (every cycle, 1 unit/vid) ────
             # Only fast-poll streams whose scheduled start is within
@@ -1310,7 +1321,7 @@ def run() -> None:
             (max(1, POLL_INTERVAL_SEC // STREAM_POLL_SEC) - channel_poll_counter)
             * STREAM_POLL_SEC,
         )
-        if elapsed > SLOW_CYCLE_THRESHOLD_SEC:
+        if elapsed > SLOW_CYCLE_THRESHOLD_SEC and cycle_num > 1:
             _notify_slow_cycle(elapsed, cycle_num)
         time.sleep(remaining)
 
