@@ -17,6 +17,7 @@ import logging
 import signal
 import sys
 import shutil
+import threading
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -1079,6 +1080,46 @@ def ensure_all_channel_tables(existing: dict[str, str]) -> dict[str, str]:
     return result
 
 
+# ── Background dashboard worker ───────────────────────────────────────────────
+# regenerate_dashboard() and deploy_dashboard() are both blocking subprocesses
+# that together can take 55–130s on regen+deploy cycles.  Running them in a
+# daemon thread means the main poll loop is never stalled waiting for git push
+# to finish.
+#
+# _dashboard_lock prevents a second regen/deploy from starting while a previous
+# one is still in progress (e.g. if a cycle fires while git push is retrying).
+# This is safe because both functions are stateless w.r.t. the main loop —
+# they read from the dashboard/ output directory, which the main loop never
+# writes to itself.
+_dashboard_lock = threading.Lock()
+
+
+def _run_dashboard_in_background(do_deploy: bool) -> None:
+    """
+    Launch regenerate_dashboard() (and optionally deploy_dashboard()) in a
+    daemon thread so the main poll loop is never blocked by subprocess work.
+
+    If the lock is already held (a previous regen/deploy is still running),
+    this cycle's request is skipped and a warning is logged rather than
+    queuing up a second concurrent run.
+    """
+    def _worker():
+        if not _dashboard_lock.acquire(blocking=False):
+            log.warning(
+                "Dashboard regen/deploy skipped — previous run still in progress."
+            )
+            return
+        try:
+            regenerate_dashboard()
+            if do_deploy:
+                deploy_dashboard()
+        finally:
+            _dashboard_lock.release()
+
+    t = threading.Thread(target=_worker, name="dashboard-worker", daemon=True)
+    t.start()
+
+
 def run() -> None:
     log.info("Tracker starting. Monitoring channels: %s", CHANNEL_IDS)
     if AIVEN_DATABASE_URL:
@@ -1233,27 +1274,29 @@ def run() -> None:
         if db_batch:
             save_many_to_db(db_batch)
 
-        # ── Step 4: regenerate dashboard (throttled by REGEN_INTERVAL_SEC) ─
-        # Previously ran every cycle while any stream was live. With 50-100
-        # active streams that meant a blocking subprocess call (up to 120s
-        # timeout) every 30s, which was a major contributor to slow cycles.
-        # Now gated to at most once per REGEN_INTERVAL_SEC (default 120s).
+        # ── Step 4: regenerate + deploy dashboard (non-blocking) ──────────
+        # Both regenerate_dashboard() and deploy_dashboard() are blocking
+        # subprocesses (regen ~40s, deploy ~15s).  Running them in a daemon
+        # thread means this cycle's elapsed time only reflects actual poll
+        # work, not git-push latency.
+        #
+        # The deploy flag is determined here (in the main thread) using the
+        # timestamps, then passed to the worker.  last_regen_time and
+        # last_deploy_time are updated immediately so that subsequent cycles
+        # don't double-fire even if the worker hasn't finished yet.
         if any_live:
             now = datetime.now(timezone.utc)
-            if (now - last_regen_time).total_seconds() >= REGEN_INTERVAL_SEC:
-                regenerate_dashboard()
+            regen_due  = (now - last_regen_time).total_seconds()  >= REGEN_INTERVAL_SEC
+            deploy_due = (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC
+            if regen_due:
                 last_regen_time = now
-
-        # ── Step 5: deploy (throttled by DEPLOY_INTERVAL_SEC) ────────────
-        if any_live:
-            now = datetime.now(timezone.utc)
-            if (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC:
-                deploy_dashboard()
-                last_deploy_time = now
+                if deploy_due:
+                    last_deploy_time = now
+                _run_dashboard_in_background(do_deploy=deploy_due)
 
         log_active_streams(active_streams)
 
-        # ── Step 6: sleep only the remaining time ─────────────────────────
+        # ── Step 5: sleep only the remaining time ─────────────────────────
         # Subtract the time already spent on work so the total cycle length
         # stays close to STREAM_POLL_SEC regardless of how many streams are
         # live or how long the dashboard regeneration takes.
