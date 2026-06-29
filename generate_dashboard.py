@@ -2751,16 +2751,15 @@ def build_dashboard() -> None:
         options="-c search_path=public -c statement_timeout=30000",
     )
 
-    # SQLite in WAL mode is safe for concurrent reads from multiple threads.
-    # Re-use a single shared history connection instead of opening one per
-    # worker; reads don't need serialisation so this is safe.
-    _shared_hist = get_history_conn()
-
     def _write_one_stream(args):
         org_slug, org, ch_name, table, stream = args
+        # Borrow a pg connection from the pool — no TLS handshake per worker.
         t_conn = _pg_pool.getconn()
+        # sqlite3 connection objects cannot be shared across threads (Python
+        # enforces this regardless of WAL mode), so each worker opens its own.
+        t_hist = get_history_conn()
         try:
-            enriched, ts = _enrich_stream(stream, t_conn, table, _shared_hist)
+            enriched, ts = _enrich_stream(stream, t_conn, table, t_hist)
             write_stream_page(org_slug, org, ch_name, enriched, ts)
             return enriched["video_id"], {
                 "org_slug":     org_slug,
@@ -2771,6 +2770,8 @@ def build_dashboard() -> None:
             }
         finally:
             _pg_pool.putconn(t_conn)
+            if t_hist:
+                t_hist.close()
 
     # _enrich_stream issues DB queries; use threads so the GIL releases during
     # network I/O and multiple timeseries fetches overlap.
@@ -2784,8 +2785,6 @@ def build_dashboard() -> None:
                 log.error("Stream page generation failed: %s", exc)
 
     _pg_pool.closeall()
-    if _shared_hist:
-        _shared_hist.close()
 
     # ── regenerate dirty channel pages only (partial) ─────────────────────────
     # OPT: Previously ALL channel pages were rewritten on every run regardless
