@@ -38,7 +38,6 @@ def _now_local() -> datetime:
 
 import psycopg2
 import psycopg2.extras
-import psycopg2.pool
 
 try:
     from googleapiclient.discovery import build as yt_build
@@ -56,7 +55,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── config ────────────────────────────────────────────────────────────────────
-AIVEN_DATABASE_URL = os.environ.get("AIVEN_DATABASE_URL", "")
+AIVEN_DATABASE_URL = os.environ.get("DATABASE_URL", "") or os.environ.get("AIVEN_DATABASE_URL", "")
 OUTPUT_DIR         = Path(os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard"))
 HISTORY_DB_PATH    = os.environ.get(
     "HISTORY_DB_PATH",
@@ -478,11 +477,17 @@ def save_manifest(manifest: dict) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def get_conn():
-    return psycopg2.connect(
-        AIVEN_DATABASE_URL,
-        sslmode="require",
-        options="-c search_path=public -c statement_timeout=30000",
-    )
+    # Connects via PgBouncer (port 6543) which is required on Supabase to
+    # avoid exhausting the 60-connection direct Postgres limit (port 5432).
+    # PgBouncer runs in transaction-pooling mode so the options= kwarg on
+    # psycopg2.connect() is silently dropped — SET commands must be issued
+    # explicitly on the connection after it is opened instead.
+    conn = psycopg2.connect(AIVEN_DATABASE_URL, sslmode="require")
+    with conn.cursor() as cur:
+        cur.execute("SET search_path = public")
+        cur.execute("SET statement_timeout = 30000")
+    conn.commit()
+    return conn
 
 
 def get_channel_rows(conn) -> list[dict]:
@@ -2738,40 +2743,56 @@ def build_dashboard() -> None:
     run_ts = _now_local().strftime("%Y-%m-%d %H:%M WIB")
 
     # ── generate dirty stream pages (parallel) ────────────────────────────────
-    # OPT: Use a ThreadedConnectionPool so workers borrow an already-open
-    # connection rather than paying a full TLS handshake per stream.
-    # maxconn is aligned with max_workers so every thread can get a slot
-    # without blocking; the upper bound keeps us under Aiven's connection limit.
-    _STREAM_WORKERS = min(32, max(1, len(dirty_work)))
-    _pg_pool = psycopg2.pool.ThreadedConnectionPool(
-        minconn=1,
-        maxconn=_STREAM_WORKERS,
-        dsn=AIVEN_DATABASE_URL,
-        sslmode="require",
-        options="-c search_path=public -c statement_timeout=30000",
-    )
+    # Worker count is capped at 8 to avoid overwhelming Supabase/PgBouncer
+    # with too many simultaneous connection attempts.  Logs showed that at 32
+    # workers all connections arrive in a ~1 s burst which PgBouncer rejects
+    # with SSL errors even on fresh connections.  8 concurrent workers is a
+    # safe ceiling that keeps throughput high while staying within limits.
+    _STREAM_WORKERS = min(8, max(1, len(dirty_work)))
 
     def _write_one_stream(args):
+        import time as _time
         org_slug, org, ch_name, table, stream = args
-        # Borrow a pg connection from the pool — no TLS handshake per worker.
-        t_conn = _pg_pool.getconn()
-        # sqlite3 connection objects cannot be shared across threads (Python
-        # enforces this regardless of WAL mode), so each worker opens its own.
-        t_hist = get_history_conn()
-        try:
-            enriched, ts = _enrich_stream(stream, t_conn, table, t_hist)
-            write_stream_page(org_slug, org, ch_name, enriched, ts)
-            return enriched["video_id"], {
-                "org_slug":     org_slug,
-                "ch_slug":      slugify(ch_name),
-                "ch_name":      ch_name,
-                "status":       enriched.get("stream_status") or "vod",
-                "generated_at": run_ts,
-            }
-        finally:
-            _pg_pool.putconn(t_conn)
-            if t_hist:
-                t_hist.close()
+        # Retry up to 3 times with exponential backoff on OperationalError.
+        # Under high concurrency PgBouncer occasionally rejects a connection;
+        # waiting before retrying gives it time to recover.
+        for attempt in range(3):
+            t_conn = None
+            t_hist = None
+            try:
+                t_conn = get_conn()
+                t_hist = get_history_conn()
+                enriched, ts = _enrich_stream(stream, t_conn, table, t_hist)
+                write_stream_page(org_slug, org, ch_name, enriched, ts)
+                return enriched["video_id"], {
+                    "org_slug":     org_slug,
+                    "ch_slug":      slugify(ch_name),
+                    "ch_name":      ch_name,
+                    "status":       enriched.get("stream_status") or "vod",
+                    "generated_at": run_ts,
+                }
+            except psycopg2.OperationalError as exc:
+                if attempt < 2:
+                    wait = 2 ** attempt  # 1 s, then 2 s
+                    log.warning(
+                        "Connection error on stream %s (attempt %d/3), "
+                        "retrying in %ds: %s",
+                        stream.get("video_id", "?"), attempt + 1, wait, exc,
+                    )
+                    _time.sleep(wait)
+                    continue
+                raise
+            finally:
+                try:
+                    if t_conn:
+                        t_conn.close()
+                except Exception:
+                    pass
+                try:
+                    if t_hist:
+                        t_hist.close()
+                except Exception:
+                    pass
 
     # _enrich_stream issues DB queries; use threads so the GIL releases during
     # network I/O and multiple timeseries fetches overlap.
@@ -2783,8 +2804,6 @@ def build_dashboard() -> None:
                 manifest[vid] = entry
             except Exception as exc:
                 log.error("Stream page generation failed: %s", exc)
-
-    _pg_pool.closeall()
 
     # ── regenerate dirty channel pages only (partial) ─────────────────────────
     # OPT: Previously ALL channel pages were rewritten on every run regardless
