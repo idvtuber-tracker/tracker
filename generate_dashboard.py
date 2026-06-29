@@ -38,6 +38,7 @@ def _now_local() -> datetime:
 
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 
 try:
     from googleapiclient.discovery import build as yt_build
@@ -2737,15 +2738,29 @@ def build_dashboard() -> None:
     run_ts = _now_local().strftime("%Y-%m-%d %H:%M WIB")
 
     # ── generate dirty stream pages (parallel) ────────────────────────────────
-    # Both psycopg2 and sqlite3 connections are NOT thread-safe — they must not
-    # be shared across threads.  Each worker opens its own short-lived
-    # connections and closes them before returning.
+    # OPT: Use a ThreadedConnectionPool so workers borrow an already-open
+    # connection rather than paying a full TLS handshake per stream.
+    # maxconn is aligned with max_workers so every thread can get a slot
+    # without blocking; the upper bound keeps us under Aiven's connection limit.
+    _STREAM_WORKERS = min(32, max(1, len(dirty_work)))
+    _pg_pool = psycopg2.pool.ThreadedConnectionPool(
+        minconn=1,
+        maxconn=_STREAM_WORKERS,
+        dsn=AIVEN_DATABASE_URL,
+        sslmode="require",
+        options="-c search_path=public -c statement_timeout=30000",
+    )
+
+    # SQLite in WAL mode is safe for concurrent reads from multiple threads.
+    # Re-use a single shared history connection instead of opening one per
+    # worker; reads don't need serialisation so this is safe.
+    _shared_hist = get_history_conn()
+
     def _write_one_stream(args):
         org_slug, org, ch_name, table, stream = args
-        t_conn = get_conn()
-        t_hist = get_history_conn()
+        t_conn = _pg_pool.getconn()
         try:
-            enriched, ts = _enrich_stream(stream, t_conn, table, t_hist)
+            enriched, ts = _enrich_stream(stream, t_conn, table, _shared_hist)
             write_stream_page(org_slug, org, ch_name, enriched, ts)
             return enriched["video_id"], {
                 "org_slug":     org_slug,
@@ -2755,14 +2770,11 @@ def build_dashboard() -> None:
                 "generated_at": run_ts,
             }
         finally:
-            t_conn.close()
-            if t_hist:
-                t_hist.close()
+            _pg_pool.putconn(t_conn)
 
     # _enrich_stream issues DB queries; use threads so the GIL releases during
     # network I/O and multiple timeseries fetches overlap.
-    max_workers = min(8, max(1, len(dirty_work)))
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+    with ThreadPoolExecutor(max_workers=_STREAM_WORKERS) as pool:
         futures = [pool.submit(_write_one_stream, item) for item in dirty_work]
         for fut in as_completed(futures):
             try:
@@ -2771,14 +2783,25 @@ def build_dashboard() -> None:
             except Exception as exc:
                 log.error("Stream page generation failed: %s", exc)
 
-    # ── regenerate channel pages (parallel) ──────────────────────────────────
+    _pg_pool.closeall()
+    if _shared_hist:
+        _shared_hist.close()
+
+    # ── regenerate dirty channel pages only (partial) ─────────────────────────
+    # OPT: Previously ALL channel pages were rewritten on every run regardless
+    # of whether their content changed.  Now only channels that had a new or
+    # previously-live stream (i.e. are in dirty_channels) are regenerated.
+    # Clean channels — whose stream list and counts are identical to the last
+    # run — are left untouched.
     channel_write_args = []
     for org_slug, org in ORG_MAP.items():
         for entry in org["channels"]:
             ch_name = entry[0]
             if not resolved_channels.get(ch_name):
                 continue
-            streams  = all_streams_by_channel.get(ch_name, [])
+            if ch_name not in dirty_channels:
+                continue  # nothing changed for this channel — skip
+            streams = all_streams_by_channel.get(ch_name, [])
             channel_write_args.append(
                 (org_slug, org, ch_name, streams, logos, channel_ids_map, subscribers)
             )
@@ -2786,18 +2809,27 @@ def build_dashboard() -> None:
     def _write_channel(args):
         write_channel_page(*args)
 
-    with ThreadPoolExecutor(max_workers=min(8, max(1, len(channel_write_args)))) as pool:
-        futs = [pool.submit(_write_channel, a) for a in channel_write_args]
-        for fut in as_completed(futs):
-            try:
-                fut.result()
-            except Exception as exc:
-                log.error("Channel page generation failed: %s", exc)
+    # OPT: Channel writes are pure CPU/disk (no DB I/O inside write_channel_page)
+    # so we can use a larger pool without risking DB connection exhaustion.
+    if channel_write_args:
+        with ThreadPoolExecutor(max_workers=min(32, len(channel_write_args))) as pool:
+            futs = [pool.submit(_write_channel, a) for a in channel_write_args]
+            for fut in as_completed(futs):
+                try:
+                    fut.result()
+                except Exception as exc:
+                    log.error("Channel page generation failed: %s", exc)
 
     channels_written = len(channel_write_args)
-    log.info("Channel pages written: %d", channels_written)
+    log.info("Channel pages written: %d (skipped %d clean channel(s)).",
+             channels_written,
+             sum(1 for org in ORG_MAP.values()
+                 for e in org["channels"]
+                 if resolved_channels.get(e[0]) and e[0] not in dirty_channels))
 
-    # ── regenerate org pages (parallel) ──────────────────────────────────────
+    # ── regenerate dirty org pages only (partial) ─────────────────────────────
+    # OPT: Same principle as channel pages — only orgs that contain at least one
+    # new or previously-live stream are rebuilt.
     def _write_org(args):
         write_org_page(*args)
 
@@ -2805,16 +2837,20 @@ def build_dashboard() -> None:
         (org_slug, org, stream_counts, logos, channel_ids_map, subscribers,
          all_streams_by_channel)
         for org_slug, org in ORG_MAP.items()
+        if org_slug in dirty_orgs  # skip orgs with no changes
     ]
-    with ThreadPoolExecutor(max_workers=min(8, len(org_write_args))) as pool:
-        futs = [pool.submit(_write_org, a) for a in org_write_args]
-        for fut in as_completed(futs):
-            try:
-                fut.result()
-            except Exception as exc:
-                log.error("Org page generation failed: %s", exc)
+    if org_write_args:
+        with ThreadPoolExecutor(max_workers=min(32, len(org_write_args))) as pool:
+            futs = [pool.submit(_write_org, a) for a in org_write_args]
+            for fut in as_completed(futs):
+                try:
+                    fut.result()
+                except Exception as exc:
+                    log.error("Org page generation failed: %s", exc)
 
-    log.info("Org pages written: %d", len(ORG_MAP))
+    orgs_written = len(org_write_args)
+    log.info("Org pages written: %d (skipped %d clean org(s)).",
+             orgs_written, len(ORG_MAP) - orgs_written)
 
     # ── always regenerate index ───────────────────────────────────────────────
     generated_at = _now_local().strftime("%Y-%m-%d %H:%M WIB")
@@ -2828,12 +2864,12 @@ def build_dashboard() -> None:
     if hist:
         hist.close()
 
-    pages_written = len(dirty_video_ids) + channels_written + len(ORG_MAP) + 1
+    pages_written = len(dirty_video_ids) + channels_written + orgs_written + 1
     log.info(
         "Dashboard complete — %d page(s) written "
         "(%d stream, %d channel, %d org, 1 index) out of %d total streams.",
         pages_written,
-        len(dirty_video_ids), channels_written, len(ORG_MAP),
+        len(dirty_video_ids), channels_written, orgs_written,
         total_streams
     )
 
