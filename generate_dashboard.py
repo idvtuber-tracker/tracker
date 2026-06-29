@@ -270,7 +270,7 @@ ORG_MAP = {
         ],
     },
     "crims-on": {
-        "label":   "CRIMS:On",
+        "label":   "CRIMS:on",
         "color":   "#d90429",
         "desc":    "Circle of friends with different background who shares one passion towards content creators scene.",
         "channels": [
@@ -417,6 +417,19 @@ ORG_MAP = {
             ("EVREN", "org", "UCC4a8ZZH9G85ZSGOSTFxmVA"),  
             ("Lyanna Chernovskaya", "talent", "UCQO6uKa81T5-e9HzUHjS9DA"),  
             ("Amami Yoruna", "talent", "UCYWs6Tvqs6k1EjZMK27r7fA"),  
+        ],
+    },
+    "vilitera": {
+        "label":   "VILITERA",
+        "color":   "#c0392b",
+        "desc":    "Indonesia's established, multi-generational VTuber agencies.",
+        "channels": [
+            ("VILITERA", "org", "UCH1YNlsGKODuxk1vJpMVACA"),  
+            ("Mahiru Rui Ch. VILITERA-ID", "talent", "UCr82gewKlAE5faJwsJSnKfg"),  
+            ("Erishia Hearn Ch. VILITERA-ID", "talent", "UCDoXlj0lBza5i2cUe5QJIBw"),  
+            ("Letto Allenka Ch. VILITERA-ID", "talent", "UChJY-3LOgt37f28WrUaKgkA"),  
+            ("Francine Pavlova Ch. VILITERA-ID", "talent", "UCxvm3GRDZylYX_cFOC78pww"),  
+            ("Amon Gauri Ch. VILITERA-ID", "talent", "UCCH2-H6NfX58KUW_5eW_85Q"),  
         ],
     },
 }
