@@ -51,6 +51,13 @@ STREAM_POLL_SEC            = int(os.environ.get("STREAM_POLL_SEC", "30"))
 SLOW_CYCLE_THRESHOLD_SEC   = int(os.environ.get("SLOW_CYCLE_THRESHOLD_SEC", "60"))
 DISCORD_WEBHOOK            = os.environ.get("DISCORD_WEBHOOK", "")
 MAX_HISTORY_POINTS         = int(os.environ.get("MAX_HISTORY_POINTS", "60"))   # chart window
+# How many consecutive cycles a live stream can return no analytics at all
+# (deleted, private, transient API gap) before we give up on it without
+# writing a closing row. A stream that ends normally is detected via
+# actualEndTime instead and writes its closing "vod" row immediately,
+# regardless of this tolerance — this constant only covers the genuinely
+# ambiguous "no data returned" case.
+ANALYTICS_MISS_TOLERANCE   = int(os.environ.get("ANALYTICS_MISS_TOLERANCE", "3"))
 # How close to its scheduled start time an upcoming stream must be before
 # it enters the fast-poll cycle (check_upcoming_went_live every 30s).
 # Streams outside this window are left to the normal activities.list scan.
@@ -695,6 +702,11 @@ def get_bulk_video_analytics(video_ids: list[str]) -> dict[str, dict]:
                         "comment_count":      int(stats.get("commentCount", 0) or 0),
                         "scheduled_start":    live.get("scheduledStartTime"),
                         "actual_start":       live.get("actualStartTime"),
+                        # actualEndTime is set by YouTube the moment a livestream
+                        # ends — this is the reliable signal for "stream finished
+                        # normally", used below to write a closing vod row instead
+                        # of silently dropping the stream with no final status.
+                        "actual_end":         live.get("actualEndTime"),
                     }
                 break   # batch succeeded — move to next batch
             except HttpError as e:
@@ -1049,19 +1061,78 @@ def run() -> None:
             )
 
         # ── Step 2: apply analytics, write CSV + history ──────────────────
+        # A live stream can stop appearing as "live" for two different
+        # reasons, and they must be handled differently:
+        #   1. It genuinely ended — YouTube sets actualEndTime on
+        #      liveStreamingDetails the moment broadcast stops. This is the
+        #      reliable signal. We write ONE final row with
+        #      stream_status="vod" so the stream's last DB row correctly
+        #      reflects that it finished, instead of being silently
+        #      abandoned mid-"live" forever (which previously caused every
+        #      dashboard/archiver script reading this data to treat it as
+        #      still live indefinitely).
+        #   2. Analytics are simply missing this cycle (deleted, made
+        #      private, transient API hiccup) — actualEndTime is also absent
+        #      in this case. We tolerate a few consecutive misses (in case
+        #      it's transient) before giving up and dropping the stream
+        #      without writing a closing row, since we have no reliable way
+        #      to know its final stats.
         db_batch: list[tuple[dict, str]] = []
         any_live = False
+        ended_video_ids: list[str] = []
+
         for stream in active_streams:
             if stream["stream_status"] == "live":
-                analytics = bulk_analytics.get(stream["video_id"])
-                if analytics is None:
-                    # Video may have been deleted or made private mid-stream;
-                    # skip this stream for this cycle rather than inserting zeros.
-                    log.warning(
-                        "No analytics returned for live stream %s (%s) — skipping.",
-                        stream["video_id"], stream.get("channel_name", ""),
+                video_id  = stream["video_id"]
+                analytics = bulk_analytics.get(video_id)
+
+                if analytics is not None and analytics.get("actual_end"):
+                    # Stream ended normally — write one final closing row
+                    # with stream_status="vod" using whatever final stats
+                    # YouTube returned in this same response, then stop
+                    # tracking it. This is the row that was previously
+                    # never written.
+                    table = channel_tables.get(stream["channel_id"])
+                    stream.update(analytics)
+                    stream["stream_status"]   = "vod"
+                    stream["collected_at"]    = datetime.now(timezone.utc).isoformat()
+                    if table:
+                        db_batch.append((dict(stream), table))
+                    log.info(
+                        "Stream ended: %s — %s (closing vod row written)",
+                        stream.get("channel_name", ""), video_id,
                     )
+                    ended_video_ids.append(video_id)
                     continue
+
+                if analytics is None:
+                    # No data at all this cycle — could be deleted/private,
+                    # or a transient API gap. Tolerate a few misses before
+                    # giving up, in case it's transient.
+                    miss_count = stream.get("_analytics_miss_count", 0) + 1
+                    stream["_analytics_miss_count"] = miss_count
+                    if miss_count < ANALYTICS_MISS_TOLERANCE:
+                        log.warning(
+                            "No analytics returned for live stream %s (%s) — "
+                            "miss %d/%d, will retry.",
+                            video_id, stream.get("channel_name", ""),
+                            miss_count, ANALYTICS_MISS_TOLERANCE,
+                        )
+                        continue
+                    # Exhausted tolerance — give up without a closing row,
+                    # since we have no final stats to write. This stream's
+                    # last DB row will remain "live"; the backfill loop's
+                    # staleness handling (or a future archiver pass) is the
+                    # backstop for this rarer case.
+                    log.warning(
+                        "No analytics for live stream %s (%s) after %d "
+                        "consecutive misses — dropping without closing row.",
+                        video_id, stream.get("channel_name", ""), miss_count,
+                    )
+                    ended_video_ids.append(video_id)
+                    continue
+
+                stream.pop("_analytics_miss_count", None)
                 table = channel_tables.get(stream["channel_id"])
                 collect_and_store(stream, table, analytics)
                 if table:
@@ -1071,6 +1142,9 @@ def run() -> None:
                 stream.setdefault("concurrent_viewers", 0)
                 stream.setdefault("like_count", 0)
                 stream.setdefault("comment_count", 0)
+
+        for vid in ended_video_ids:
+            known_streams.pop(vid, None)
 
         # ── Step 3: flush all DB rows in one connection ───────────────────
         if db_batch:
