@@ -55,7 +55,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── config ────────────────────────────────────────────────────────────────────
-AIVEN_DATABASE_URL = os.environ.get("DATABASE_URL", "") or os.environ.get("AIVEN_DATABASE_URL", "")
+AIVEN_DATABASE_URL = os.environ.get("AIVEN_DATABASE_URL", "")
 OUTPUT_DIR         = Path(os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard"))
 HISTORY_DB_PATH    = os.environ.get(
     "HISTORY_DB_PATH",
@@ -477,17 +477,11 @@ def save_manifest(manifest: dict) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def get_conn():
-    # Connects via PgBouncer (port 6543) which is required on Supabase to
-    # avoid exhausting the 60-connection direct Postgres limit (port 5432).
-    # PgBouncer runs in transaction-pooling mode so the options= kwarg on
-    # psycopg2.connect() is silently dropped — SET commands must be issued
-    # explicitly on the connection after it is opened instead.
-    conn = psycopg2.connect(AIVEN_DATABASE_URL, sslmode="require")
-    with conn.cursor() as cur:
-        cur.execute("SET search_path = public")
-        cur.execute("SET statement_timeout = 30000")
-    conn.commit()
-    return conn
+    return psycopg2.connect(
+        AIVEN_DATABASE_URL,
+        sslmode="require",
+        options="-c search_path=public -c statement_timeout=30000",
+    )
 
 
 def get_channel_rows(conn) -> list[dict]:
@@ -2743,60 +2737,32 @@ def build_dashboard() -> None:
     run_ts = _now_local().strftime("%Y-%m-%d %H:%M WIB")
 
     # ── generate dirty stream pages (parallel) ────────────────────────────────
-    # Worker count is capped at 8 to avoid overwhelming Supabase/PgBouncer
-    # with too many simultaneous connection attempts.  Logs showed that at 32
-    # workers all connections arrive in a ~1 s burst which PgBouncer rejects
-    # with SSL errors even on fresh connections.  8 concurrent workers is a
-    # safe ceiling that keeps throughput high while staying within limits.
-    _STREAM_WORKERS = min(8, max(1, len(dirty_work)))
-
+    # Both psycopg2 and sqlite3 connections are NOT thread-safe — they must not
+    # be shared across threads.  Each worker opens its own short-lived
+    # connections and closes them before returning.
     def _write_one_stream(args):
-        import time as _time
         org_slug, org, ch_name, table, stream = args
-        # Retry up to 3 times with exponential backoff on OperationalError.
-        # Under high concurrency PgBouncer occasionally rejects a connection;
-        # waiting before retrying gives it time to recover.
-        for attempt in range(3):
-            t_conn = None
-            t_hist = None
-            try:
-                t_conn = get_conn()
-                t_hist = get_history_conn()
-                enriched, ts = _enrich_stream(stream, t_conn, table, t_hist)
-                write_stream_page(org_slug, org, ch_name, enriched, ts)
-                return enriched["video_id"], {
-                    "org_slug":     org_slug,
-                    "ch_slug":      slugify(ch_name),
-                    "ch_name":      ch_name,
-                    "status":       enriched.get("stream_status") or "vod",
-                    "generated_at": run_ts,
-                }
-            except psycopg2.OperationalError as exc:
-                if attempt < 2:
-                    wait = 2 ** attempt  # 1 s, then 2 s
-                    log.warning(
-                        "Connection error on stream %s (attempt %d/3), "
-                        "retrying in %ds: %s",
-                        stream.get("video_id", "?"), attempt + 1, wait, exc,
-                    )
-                    _time.sleep(wait)
-                    continue
-                raise
-            finally:
-                try:
-                    if t_conn:
-                        t_conn.close()
-                except Exception:
-                    pass
-                try:
-                    if t_hist:
-                        t_hist.close()
-                except Exception:
-                    pass
+        t_conn = get_conn()
+        t_hist = get_history_conn()
+        try:
+            enriched, ts = _enrich_stream(stream, t_conn, table, t_hist)
+            write_stream_page(org_slug, org, ch_name, enriched, ts)
+            return enriched["video_id"], {
+                "org_slug":     org_slug,
+                "ch_slug":      slugify(ch_name),
+                "ch_name":      ch_name,
+                "status":       enriched.get("stream_status") or "vod",
+                "generated_at": run_ts,
+            }
+        finally:
+            t_conn.close()
+            if t_hist:
+                t_hist.close()
 
     # _enrich_stream issues DB queries; use threads so the GIL releases during
     # network I/O and multiple timeseries fetches overlap.
-    with ThreadPoolExecutor(max_workers=_STREAM_WORKERS) as pool:
+    max_workers = min(8, max(1, len(dirty_work)))
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = [pool.submit(_write_one_stream, item) for item in dirty_work]
         for fut in as_completed(futures):
             try:
@@ -2805,21 +2771,14 @@ def build_dashboard() -> None:
             except Exception as exc:
                 log.error("Stream page generation failed: %s", exc)
 
-    # ── regenerate dirty channel pages only (partial) ─────────────────────────
-    # OPT: Previously ALL channel pages were rewritten on every run regardless
-    # of whether their content changed.  Now only channels that had a new or
-    # previously-live stream (i.e. are in dirty_channels) are regenerated.
-    # Clean channels — whose stream list and counts are identical to the last
-    # run — are left untouched.
+    # ── regenerate channel pages (parallel) ──────────────────────────────────
     channel_write_args = []
     for org_slug, org in ORG_MAP.items():
         for entry in org["channels"]:
             ch_name = entry[0]
             if not resolved_channels.get(ch_name):
                 continue
-            if ch_name not in dirty_channels:
-                continue  # nothing changed for this channel — skip
-            streams = all_streams_by_channel.get(ch_name, [])
+            streams  = all_streams_by_channel.get(ch_name, [])
             channel_write_args.append(
                 (org_slug, org, ch_name, streams, logos, channel_ids_map, subscribers)
             )
@@ -2827,27 +2786,18 @@ def build_dashboard() -> None:
     def _write_channel(args):
         write_channel_page(*args)
 
-    # OPT: Channel writes are pure CPU/disk (no DB I/O inside write_channel_page)
-    # so we can use a larger pool without risking DB connection exhaustion.
-    if channel_write_args:
-        with ThreadPoolExecutor(max_workers=min(32, len(channel_write_args))) as pool:
-            futs = [pool.submit(_write_channel, a) for a in channel_write_args]
-            for fut in as_completed(futs):
-                try:
-                    fut.result()
-                except Exception as exc:
-                    log.error("Channel page generation failed: %s", exc)
+    with ThreadPoolExecutor(max_workers=min(8, max(1, len(channel_write_args)))) as pool:
+        futs = [pool.submit(_write_channel, a) for a in channel_write_args]
+        for fut in as_completed(futs):
+            try:
+                fut.result()
+            except Exception as exc:
+                log.error("Channel page generation failed: %s", exc)
 
     channels_written = len(channel_write_args)
-    log.info("Channel pages written: %d (skipped %d clean channel(s)).",
-             channels_written,
-             sum(1 for org in ORG_MAP.values()
-                 for e in org["channels"]
-                 if resolved_channels.get(e[0]) and e[0] not in dirty_channels))
+    log.info("Channel pages written: %d", channels_written)
 
-    # ── regenerate dirty org pages only (partial) ─────────────────────────────
-    # OPT: Same principle as channel pages — only orgs that contain at least one
-    # new or previously-live stream are rebuilt.
+    # ── regenerate org pages (parallel) ──────────────────────────────────────
     def _write_org(args):
         write_org_page(*args)
 
@@ -2855,20 +2805,16 @@ def build_dashboard() -> None:
         (org_slug, org, stream_counts, logos, channel_ids_map, subscribers,
          all_streams_by_channel)
         for org_slug, org in ORG_MAP.items()
-        if org_slug in dirty_orgs  # skip orgs with no changes
     ]
-    if org_write_args:
-        with ThreadPoolExecutor(max_workers=min(32, len(org_write_args))) as pool:
-            futs = [pool.submit(_write_org, a) for a in org_write_args]
-            for fut in as_completed(futs):
-                try:
-                    fut.result()
-                except Exception as exc:
-                    log.error("Org page generation failed: %s", exc)
+    with ThreadPoolExecutor(max_workers=min(8, len(org_write_args))) as pool:
+        futs = [pool.submit(_write_org, a) for a in org_write_args]
+        for fut in as_completed(futs):
+            try:
+                fut.result()
+            except Exception as exc:
+                log.error("Org page generation failed: %s", exc)
 
-    orgs_written = len(org_write_args)
-    log.info("Org pages written: %d (skipped %d clean org(s)).",
-             orgs_written, len(ORG_MAP) - orgs_written)
+    log.info("Org pages written: %d", len(ORG_MAP))
 
     # ── always regenerate index ───────────────────────────────────────────────
     generated_at = _now_local().strftime("%Y-%m-%d %H:%M WIB")
@@ -2882,12 +2828,12 @@ def build_dashboard() -> None:
     if hist:
         hist.close()
 
-    pages_written = len(dirty_video_ids) + channels_written + orgs_written + 1
+    pages_written = len(dirty_video_ids) + channels_written + len(ORG_MAP) + 1
     log.info(
         "Dashboard complete — %d page(s) written "
         "(%d stream, %d channel, %d org, 1 index) out of %d total streams.",
         pages_written,
-        len(dirty_video_ids), channels_written, orgs_written,
+        len(dirty_video_ids), channels_written, len(ORG_MAP),
         total_streams
     )
 
