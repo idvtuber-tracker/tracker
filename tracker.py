@@ -16,7 +16,6 @@ import json
 import logging
 import signal
 import sys
-import shutil
 import threading
 from datetime import datetime, timezone
 from typing import Optional
@@ -408,57 +407,19 @@ def save_many_to_db(rows: list[tuple[dict, str]]) -> None:
             pass
 
 # ══════════════════════════════════════════════════════════════════════════════
-# DASHBOARD REGENERATION
+# DASHBOARD DEPLOY TRIGGER
 # ══════════════════════════════════════════════════════════════════════════════
+# NOTE: tracker.py no longer runs generate_dashboard.py locally. Previously
+# this module ran a full local regeneration (regenerate_dashboard(), removed)
+# every REGEN_INTERVAL_SEC, then separately pushed the pre-rendered output to
+# the dashboard repo and dispatched a Pages deploy that regenerated everything
+# AGAIN on the ubuntu runner. That meant every live cycle paid for two full
+# dashboard builds. Generation now happens exactly once, inside the dashboard
+# repo's own GitHub Actions workflows (generate_live.py / generate_backfill.py
+# via deploy_dashboard_live.yml / deploy_dashboard_backfill.yml). tracker.py's
+# only remaining job is to fire the repository_dispatch trigger below.
 
 import subprocess
-
-def regenerate_dashboard() -> None:
-    """Trigger dashboard regeneration as a subprocess."""
-    try:
-        result = subprocess.run(
-            ["python", "generate_dashboard.py"],
-            capture_output=True, text=True, timeout=120
-        )
-        if result.returncode == 0:
-            log.info("Dashboard regenerated successfully.")
-        else:
-            log.error("Dashboard generation failed:\n%s", result.stderr)
-    except subprocess.TimeoutExpired:
-        log.error("Dashboard generation timed out.")
-    except Exception as e:
-        log.error("Dashboard generation error: %s", e)
-
-
-def _get_dashboard_clone_dir() -> str:
-    """
-    Return a stable path for the dashboard repo clone that persists across
-    workflow runs on the self-hosted Windows runner.
-
-    We place it one level above RUNNER_WORKSPACE (i.e. next to the tracker
-    checkout) so it survives the fresh checkout that happens at the start of
-    every run and is never inside the workspace that Actions wipes.
-
-    Layout on disk (example):
-        C:\\actions-runner\\_work\\tracker\\           ← RUNNER_WORKSPACE/../
-            tracker\\                                  ← tracker checkout (cwd)
-            dashboard-deploy\\                         ← dashboard clone  ← HERE
-    """
-    workspace = os.environ.get("RUNNER_WORKSPACE", "")
-    if workspace:
-        parent = os.path.normpath(os.path.join(workspace, ".."))
-        candidate = os.path.join(parent, "dashboard-deploy")
-        # Verify the parent is writable before committing to this path.
-        try:
-            test = os.path.join(parent, ".write_test")
-            with open(test, "w") as f:
-                f.write("x")
-            os.remove(test)
-            return candidate
-        except Exception:
-            pass
-    # Fallback: place the clone as a sibling of the current working directory.
-    return os.path.normpath(os.path.join(os.getcwd(), "..", "dashboard-deploy"))
 
 
 def _notify_slow_cycle(elapsed: float, cycle_num: int) -> None:
@@ -506,225 +467,60 @@ def _notify_slow_cycle(elapsed: float, cycle_num: int) -> None:
 
 def deploy_dashboard() -> None:
     """
-    Push the freshly-generated dashboard/ folder to the dedicated dashboard
-    repo (DASHBOARD_REPO), then fire a repository_dispatch event on that repo
-    to trigger GitHub Pages deployment via deploy_dashboard.yml.
+    Fire a repository_dispatch event on DASHBOARD_REPO to trigger the live-loop
+    GitHub Actions workflow (deploy_dashboard_live.yml), which now does ALL
+    dashboard generation and deployment itself by running generate_live.py
+    directly against the database on the ubuntu runner.
 
-    Why a separate clone instead of operating on the tracker's own git repo:
-      The tracker repo no longer contains dashboard/ at all — it only holds
-      tracker.py, generate_dashboard.py, requirements.txt, and workflows.
-      Pushing dashboard output into a separate repo keeps concerns clean:
-        • tracker repo  → source code + CI history
-        • dashboard repo → only the generated HTML/CSS/JS, deployed to Pages
-
-    Why fetch+reset instead of pull --rebase (same reasoning as before):
-      The ubuntu-based deploy_dashboard.yml workflow may commit manifest.json
-      back to the dashboard repo between two tracker pushes. A rebase would
-      replay the tracker commit on top of remote and hit merge conflicts.
-      fetch+reset --hard always aligns HEAD with remote before we add our
-      new files, guaranteeing a clean fast-forward push every time.
+    Previously this function also cloned the dashboard repo, copied tracker's
+    own locally pre-rendered dashboard/ folder into it, committed, and pushed
+    before dispatching. That meant the dashboard was fully generated twice per
+    deploy cycle — once here on the Windows self-hosted runner (via the now-
+    removed regenerate_dashboard()), and again inside the GH Actions workflow
+    itself. Removing the local generation entirely and leaving this function
+    as a thin trigger eliminates that duplicated work; the workflow's own
+    generate_live.py is now the single source of truth for dashboard output.
     """
-    dashboard_dir  = os.environ.get("DASHBOARD_OUTPUT_DIR", "dashboard")
     pat            = os.environ.get("GH_PAT", "")
     # DASHBOARD_REPO is the slug of the separate repo that hosts GitHub Pages,
-    # e.g. "idvtuber-tracker/dashboard".  Falls back to the tracker repo so
-    # the old single-repo behaviour is preserved when the env var is absent.
+    # e.g. "idvtuber-tracker/dashboard".
     dashboard_repo = os.environ.get("DASHBOARD_REPO", "").strip()
-    tracker_repo   = os.environ.get("GITHUB_REPOSITORY", "").strip()
-
-    if not dashboard_repo:
-        # Backward-compat: no DASHBOARD_REPO set → push into the tracker repo
-        # exactly as before.  Log a warning so it's visible in the run log.
-        log.warning(
-            "DASHBOARD_REPO is not set — falling back to pushing dashboard/ "
-            "into the tracker repo (%s).  Set DASHBOARD_REPO in tracker.yml "
-            "to enable the split-repo workflow.", tracker_repo
-        )
-        dashboard_repo = tracker_repo
 
     if not pat:
-        log.error("GH_PAT is not set — cannot push dashboard.")
+        log.error("GH_PAT is not set — cannot dispatch dashboard deploy.")
         return
     if not dashboard_repo:
-        log.error("Neither DASHBOARD_REPO nor GITHUB_REPOSITORY is set — cannot push dashboard.")
+        log.error("DASHBOARD_REPO is not set — cannot dispatch dashboard deploy.")
         return
 
-    repo_url  = f"https://x-access-token:{pat}@github.com/{dashboard_repo}.git"
-    clone_dir = _get_dashboard_clone_dir()
-    src_dir   = os.path.join(os.getcwd(), dashboard_dir)
-
-    log.info("Dashboard deploy → repo: %s  clone_dir: %s", dashboard_repo, clone_dir)
-
+    headers = {
+        "Authorization":        f"Bearer {pat}",
+        "Accept":               "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type":         "application/json",
+    }
+    payload = json.dumps({
+        "event_type": "deploy-dashboard",
+        "client_payload": {"triggered_by": "tracker"}
+    })
     try:
-        # ── Step 1: get the dashboard repo onto disk ──────────────────────
-        # If a previous run already cloned it, fast-update via fetch+reset.
-        # Otherwise clone fresh.  Using --depth=1 keeps the clone lean.
-        if os.path.isdir(os.path.join(clone_dir, ".git")):
-            log.info("Dashboard clone already exists — updating.")
-            fetch = subprocess.run(
-                ["git", "fetch", "origin", "main"],
-                cwd=clone_dir, capture_output=True, text=True
-            )
-            if fetch.returncode != 0:
-                log.warning("git fetch on dashboard clone failed: %s", fetch.stderr.strip())
-            subprocess.run(
-                ["git", "reset", "--hard", "origin/main"],
-                cwd=clone_dir, capture_output=True, text=True, check=True
-            )
-        else:
-            log.info("Cloning dashboard repo for the first time.")
-            os.makedirs(clone_dir, exist_ok=True)
-            subprocess.run(
-                ["git", "clone", "--depth=1", repo_url, clone_dir],
-                capture_output=True, text=True, check=True
-            )
-
-        subprocess.run(
-            ["git", "config", "user.email", "tracker-bot@localhost"],
-            cwd=clone_dir, check=True, capture_output=True
+        resp = requests.post(
+            f"https://api.github.com/repos/{dashboard_repo}/dispatches",
+            headers=headers,
+            data=payload,
+            timeout=10,
         )
-        subprocess.run(
-            ["git", "config", "user.name", "Stream Tracker Bot"],
-            cwd=clone_dir, check=True, capture_output=True
-        )
-
-        # ── Step 2: sync generated files into the clone ───────────────────
-        # The dashboard repo contains files that must never be touched by the
-        # tracker: generate_dashboard.py, requirements.txt, .github/, README.md,
-        # etc.  We must NOT wipe the whole clone root — only the dashboard/
-        # subdirectory should be replaced on every deploy.
-        #
-        # Strategy:
-        #   • Delete  clone_dir/dashboard/  entirely (stale generated output).
-        #   • Copy    src_dir/             → clone_dir/dashboard/  (fresh output).
-        #
-        # Every other file/folder in the clone root is left completely untouched.
-        # shutil is used instead of rsync because the self-hosted runner is
-        # Windows and rsync is not available there by default.
-        dst_dashboard = os.path.join(clone_dir, dashboard_dir)
-        log.info("Syncing %s → %s", src_dir, dst_dashboard)
-        if os.path.isdir(dst_dashboard):
-            shutil.rmtree(dst_dashboard)
-        shutil.copytree(src_dir, dst_dashboard)
-
-        # ── Step 3: stage, check for changes, commit ──────────────────────
-        subprocess.run(
-            ["git", "add", "."],
-            cwd=clone_dir, check=True, capture_output=True
-        )
-
-        unchanged = subprocess.run(
-            ["git", "diff", "--cached", "--quiet"],
-            cwd=clone_dir, capture_output=True
-        )
-        if unchanged.returncode == 0:
-            log.info("Dashboard unchanged — skipping deploy commit.")
-            return
-
-        ts = _now_local().strftime("%Y-%m-%d %H:%M:%S WIB")
-        subprocess.run(
-            ["git", "commit", "-m", f"chore: dashboard update {ts}"],
-            cwd=clone_dir, check=True, capture_output=True
-        )
-
-        # ── Step 4: push with up to 3 retries ────────────────────────────
-        # If another commit (e.g. from deploy_dashboard.yml committing
-        # manifest.json) landed between our fetch and our push, re-fetch,
-        # re-reset, re-sync, and retry.  This guarantees a clean fast-forward.
-        for attempt in range(1, 4):
-            push = subprocess.run(
-                ["git", "push", "origin", "main"],
-                cwd=clone_dir, capture_output=True, text=True
-            )
-            if push.returncode == 0:
-                log.info("Dashboard pushed to %s (attempt %d).", dashboard_repo, attempt)
-                break
-
-            log.warning(
-                "git push to dashboard repo failed (attempt %d): %s",
-                attempt, push.stderr.strip()
-            )
-            if attempt < 3:
-                # Re-align with remote then re-apply our generated files.
-                subprocess.run(["git", "fetch", "origin", "main"],
-                               cwd=clone_dir, capture_output=True)
-                subprocess.run(["git", "reset", "--hard", "origin/main"],
-                               cwd=clone_dir, capture_output=True)
-
-                # Re-sync dashboard/ after reset (reset wiped our staged changes).
-                # Same targeted replacement as the initial sync above — only
-                # the dashboard/ subdirectory is wiped and repopulated; all
-                # other files in the clone root are left untouched.
-                if os.path.isdir(dst_dashboard):
-                    shutil.rmtree(dst_dashboard)
-                shutil.copytree(src_dir, dst_dashboard)
-
-                subprocess.run(["git", "add", "."],
-                               cwd=clone_dir, capture_output=True)
-                rechk = subprocess.run(
-                    ["git", "diff", "--cached", "--quiet"],
-                    cwd=clone_dir, capture_output=True
-                )
-                if rechk.returncode == 0:
-                    log.info("Dashboard unchanged after re-fetch — skipping retry.")
-                    break
-                subprocess.run(
-                    ["git", "commit", "-m", f"chore: dashboard update {ts}"],
-                    cwd=clone_dir, capture_output=True
-                )
+        if resp.status_code == 204:
+            log.info("Deploy event fired on %s successfully.", dashboard_repo)
         else:
             log.error(
-                "git push to dashboard repo failed after 3 attempts — "
-                "skipping Pages deploy dispatch."
+                "Deploy event on %s failed: %s %s",
+                dashboard_repo, resp.status_code, resp.text
             )
-            return
-
-        # ── Step 5: fire the Pages deploy trigger on the dashboard repo ───
-        # The repository_dispatch event is sent to DASHBOARD_REPO (not the
-        # tracker repo).  deploy_dashboard.yml in the dashboard repo listens
-        # for the "deploy-dashboard" event type and runs the Pages deployment.
-        if pat and dashboard_repo:
-            headers = {
-                "Authorization":        f"Bearer {pat}",
-                "Accept":               "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "Content-Type":         "application/json",
-            }
-            payload = json.dumps({
-                "event_type": "deploy-dashboard",
-                "client_payload": {"triggered_by": "tracker"}
-            })
-            try:
-                resp = requests.post(
-                    f"https://api.github.com/repos/{dashboard_repo}/dispatches",
-                    headers=headers,
-                    data=payload,
-                    timeout=10,
-                )
-                if resp.status_code == 204:
-                    log.info(
-                        "Deploy event fired on %s successfully.", dashboard_repo
-                    )
-                else:
-                    log.error(
-                        "Deploy event on %s failed: %s %s",
-                        dashboard_repo, resp.status_code, resp.text
-                    )
-            except requests.exceptions.ConnectionError as e:
-                log.error(
-                    "Deploy dispatch failed (network error) — "
-                    "dashboard push still completed: %s", e
-                )
-            except requests.exceptions.Timeout:
-                log.error(
-                    "Deploy dispatch timed out — dashboard push still completed."
-                )
-
-    except subprocess.CalledProcessError as e:
-        log.error(
-            "Deploy failed: %s\nstderr: %s",
-            e, e.stderr.decode() if e.stderr else ''
-        )
+    except requests.exceptions.ConnectionError as e:
+        log.error("Deploy dispatch failed (network error): %s", e)
+    except requests.exceptions.Timeout:
+        log.error("Deploy dispatch timed out.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CSV
@@ -1080,39 +876,34 @@ def ensure_all_channel_tables(existing: dict[str, str]) -> dict[str, str]:
     return result
 
 
-# ── Background dashboard worker ───────────────────────────────────────────────
-# regenerate_dashboard() and deploy_dashboard() are both blocking subprocesses
-# that together can take 55–130s on regen+deploy cycles.  Running them in a
-# daemon thread means the main poll loop is never stalled waiting for git push
-# to finish.
+# ── Background dashboard deploy trigger ───────────────────────────────────────
+# deploy_dashboard() is now just an HTTP POST (repository_dispatch) — no
+# subprocess, no git clone/push. It's still run in a daemon thread purely as
+# a safety margin against network hangs, so a slow GitHub API response can
+# never stall the main poll loop.
 #
-# _dashboard_lock prevents a second regen/deploy from starting while a previous
-# one is still in progress (e.g. if a cycle fires while git push is retrying).
-# This is safe because both functions are stateless w.r.t. the main loop —
-# they read from the dashboard/ output directory, which the main loop never
-# writes to itself.
+# _dashboard_lock prevents a second dispatch from starting while a previous
+# one is still in-flight (e.g. if a request is hanging on a slow connection).
 _dashboard_lock = threading.Lock()
 
 
-def _run_dashboard_in_background(do_deploy: bool) -> None:
+def _run_dashboard_in_background() -> None:
     """
-    Launch regenerate_dashboard() (and optionally deploy_dashboard()) in a
-    daemon thread so the main poll loop is never blocked by subprocess work.
+    Launch deploy_dashboard() in a daemon thread so the main poll loop is
+    never blocked by network latency to the GitHub API.
 
-    If the lock is already held (a previous regen/deploy is still running),
+    If the lock is already held (a previous dispatch is still in-flight),
     this cycle's request is skipped and a warning is logged rather than
-    queuing up a second concurrent run.
+    queuing up a second concurrent dispatch.
     """
     def _worker():
         if not _dashboard_lock.acquire(blocking=False):
             log.warning(
-                "Dashboard regen/deploy skipped — previous run still in progress."
+                "Dashboard deploy dispatch skipped — previous one still in progress."
             )
             return
         try:
-            regenerate_dashboard()
-            if do_deploy:
-                deploy_dashboard()
+            deploy_dashboard()
         finally:
             _dashboard_lock.release()
 
@@ -1140,12 +931,12 @@ def run() -> None:
         channel_tables: dict[str, str] = {}
 
     last_deploy_time  = datetime.now(timezone.utc)
-    last_regen_time   = datetime.now(timezone.utc)
+    # How often to fire the dashboard deploy dispatch (seconds). Default 900s
+    # = 15 min, matching the dashboard's target update window. REGEN_INTERVAL_SEC
+    # no longer exists — local pre-rendering was removed; generate_live.py
+    # inside the dashboard repo's own GH Actions workflow is now the only
+    # place dashboard generation happens, triggered by this dispatch.
     DEPLOY_INTERVAL_SEC = int(os.environ.get("DEPLOY_INTERVAL_SEC", "900"))
-    # How often to regenerate the dashboard (seconds). Default 120s — every
-    # 4th cycle at STREAM_POLL_SEC=30. Set lower for more frequent updates,
-    # higher to reduce subprocess overhead during busy periods.
-    REGEN_INTERVAL_SEC  = int(os.environ.get("REGEN_INTERVAL_SEC", "120"))
     channel_poll_counter = 0
     cycle_num = 0
 
@@ -1285,25 +1076,18 @@ def run() -> None:
         if db_batch:
             save_many_to_db(db_batch)
 
-        # ── Step 4: regenerate + deploy dashboard (non-blocking) ──────────
-        # Both regenerate_dashboard() and deploy_dashboard() are blocking
-        # subprocesses (regen ~40s, deploy ~15s).  Running them in a daemon
-        # thread means this cycle's elapsed time only reflects actual poll
-        # work, not git-push latency.
-        #
-        # The deploy flag is determined here (in the main thread) using the
-        # timestamps, then passed to the worker.  last_regen_time and
-        # last_deploy_time are updated immediately so that subsequent cycles
-        # don't double-fire even if the worker hasn't finished yet.
+        # ── Step 4: deploy dashboard trigger (non-blocking) ───────────────
+        # deploy_dashboard() is now a single fast HTTP POST (repository_dispatch),
+        # not a subprocess. Running it in a daemon thread is just a safety
+        # margin against a slow network response. last_deploy_time is updated
+        # immediately so a subsequent cycle never double-fires even if the
+        # dispatch request hasn't completed yet.
         if any_live:
             now = datetime.now(timezone.utc)
-            regen_due  = (now - last_regen_time).total_seconds()  >= REGEN_INTERVAL_SEC
             deploy_due = (now - last_deploy_time).total_seconds() >= DEPLOY_INTERVAL_SEC
-            if regen_due:
-                last_regen_time = now
-                if deploy_due:
-                    last_deploy_time = now
-                _run_dashboard_in_background(do_deploy=deploy_due)
+            if deploy_due:
+                last_deploy_time = now
+                _run_dashboard_in_background()
 
         log_active_streams(active_streams)
 
