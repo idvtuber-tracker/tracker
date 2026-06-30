@@ -976,9 +976,59 @@ def run() -> None:
                         if vid not in known_streams:
                             log.info("New stream detected (activities): %s — %s [%s]",
                                      s["channel_name"], s["video_title"], s["stream_status"])
+                # Streams present in known_streams but absent from this scan's
+                # discovered set have stopped being reported as live/upcoming
+                # by activities.list. This is the ONLY place such streams are
+                # ever detected, since find_live_videos() structurally never
+                # returns anything but "live"/"upcoming" — so a stream that
+                # ends is invisible to Step 2's per-cycle analytics loop
+                # entirely; it simply vanishes from `discovered` here first,
+                # on whatever cadence POLL_INTERVAL_SEC happens to run.
+                #
+                # Previously this branch only logged "Stream ended" and let
+                # `known_streams = discovered` (below) silently drop the
+                # stream with NO closing database row ever written — leaving
+                # its last DB row permanently stamped stream_status="live".
+                # This is the actual root cause of streams staying stuck
+                # "live" forever in the live table and every downstream
+                # dashboard/archiver script that reads it.
+                #
+                # Fix: fetch final analytics for each dropped stream (one
+                # more videos.list batch call) and write a proper closing
+                # row with stream_status="vod" before discarding it.
+                ended_ids = [vid for vid in known_streams if vid not in discovered
+                             and known_streams[vid].get("stream_status") == "live"]
+                if ended_ids:
+                    final_analytics = get_bulk_video_analytics(ended_ids)
+                    closing_batch: list[tuple[dict, str]] = []
+                    for vid in ended_ids:
+                        stream = known_streams[vid]
+                        analytics = final_analytics.get(vid)
+                        table = channel_tables.get(stream.get("channel_id"))
+                        if not table:
+                            log.info("Stream ended (no table, skip close): %s", vid)
+                            continue
+                        if analytics is not None:
+                            stream.update(analytics)
+                        else:
+                            # Video deleted/private/unreachable — write the
+                            # closing row anyway with whatever counts we last
+                            # had, rather than leaving it permanently "live".
+                            stream.setdefault("concurrent_viewers", 0)
+                            stream.setdefault("view_count", 0)
+                            stream.setdefault("like_count", 0)
+                            stream.setdefault("comment_count", 0)
+                        stream["stream_status"] = "vod"
+                        stream["collected_at"]  = datetime.now(timezone.utc).isoformat()
+                        closing_batch.append((dict(stream), table))
+                        log.info("Stream ended: %s — %s (closing vod row written)",
+                                 stream.get("channel_name", ""), vid)
+                    if closing_batch:
+                        save_many_to_db(closing_batch)
+
                 for vid in list(known_streams):
-                    if vid not in discovered:
-                        log.info("Stream ended: %s", vid)
+                    if vid not in discovered and known_streams[vid].get("stream_status") != "live":
+                        log.info("Stream ended (was not live, no row needed): %s", vid)
                 known_streams = discovered
                 scan_elapsed = (datetime.now(timezone.utc) - scan_start).total_seconds()
                 log.info(
