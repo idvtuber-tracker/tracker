@@ -174,6 +174,20 @@ def archive_stream(hist: sqlite3.Connection, stream: dict,
             return val
         return val.isoformat()
 
+    # Normalize to "vod" at archival time, regardless of the raw
+    # MAX(stream_status) value from the live table.
+    #
+    # get_archivable_streams() only selects streams whose last_seen is
+    # already older than the staleness cutoff (ARCHIVE_THRESHOLD_DAYS).
+    # Anything that reaches this function has therefore, by definition,
+    # stopped being live — but its last raw row in the live DB may still
+    # say stream_status="live" if tracker.py never got a chance to write a
+    # proper closing row for it (the bug this normalization compensates
+    # for). Carrying "live" forward into history.db would otherwise poison
+    # every downstream dashboard/reporting script that reads this archive,
+    # making them treat months-old finished streams as still live forever.
+    archived_status = "vod" if stream["stream_status"] != "upcoming" else "upcoming"
+
     hist.execute("""
         INSERT OR IGNORE INTO streams (
             video_id, channel_name, org, video_title, stream_status,
@@ -186,7 +200,7 @@ def archive_stream(hist: sqlite3.Connection, stream: dict,
         channel_name,
         org,
         stream["video_title"],
-        stream["stream_status"],
+        archived_status,
         _iso(stream["stream_start"]),
         _iso(stream["stream_end"]),
         stream["peak_viewers"],
