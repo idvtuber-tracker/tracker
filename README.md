@@ -6,12 +6,11 @@ An automated Python pipeline that monitors Indonesian VTuber (IDVTuber) YouTube 
 
 ## Overview
 
-This project consists of three main scripts working in concert:
+This project consists of two main scripts working in concert:
 
 | Script | Purpose |
 |---|---|
-| `tracker.py` | Core polling loop — detects live/upcoming streams, collects analytics, writes to DB + CSV |
-| `generate_dashboard.py` | Generates a 4-level static HTML dashboard from the PostgreSQL data |
+| `tracker.py` | Core polling loop — detects live/upcoming streams, collects analytics, writes to DB + CSV, and fires an update trigger to the dashboard generation scripts in the separate dashboard repo |
 | `archiver.py` | Archives streams nearing the 30-day PostgreSQL deletion window into a SQLite history database |
 
 ---
@@ -19,26 +18,30 @@ This project consists of three main scripts working in concert:
 ## Architecture
 
 ```
-GitHub Actions (self-hosted Windows runner)
+GitHub Actions (self-hosted Windows runner) — this repo (tracker)
     │
     └── tracker.py  (runs every ~6 hours, automatically restarted)
             │
             ├── YouTube Data API v3  (activities.list, videos.list)
             ├── Supabase PostgreSQL     (per-channel tables)
             ├── analytics.csv        (local fallback)
-            └── generate_dashboard.py (subprocess, called each cycle)
-     
-GitHub Actions (Github-hosted Linux runner)
-    ├── generate_dashboard.py
-    │       │
-    │       ├── Supabase PostgreSQL     (reads all channel tables)
-    │       ├── history.db           (idvt-history repo, archived streams)
-    │       └── dashboard/           (pushed to separate dashboard repo → GitHub Pages)
-    │
+            └── update trigger → dashboard repo's live generation script
+
+GitHub Actions (Github-hosted Linux runner) — this repo (tracker)
     └── archiver.py  (runs daily)
             │
             ├── Supabase PostgreSQL     (reads streams older than threshold)
             └── history.db           (idvt-history repo, SQLite)
+
+
+GitHub Actions (Github-hosted Linux runner) — dashboard repo
+    └── generate_live.py (triggered by tracker.py runs) and generate_backfill.py (triggered chronically, catches up historical/archived data)
+            │
+            ├── Supabase PostgreSQL     (reads all channel tables)
+            ├── history.db           (idvt-history repo, archived streams)
+            └── dashboard/           (built + deployed via GitHub Pages)
+
+
 ```
 
 ---
@@ -62,9 +65,11 @@ GitHub Actions (Github-hosted Linux runner)
 
 ## Tracked Organisations
 
-The dashboard currently tracks channels across **more than 16 Indonesian VTuber organisations**, spanning a wide range of agencies, indie groups, and idol units active in the IDVTuber scene.
+The dashboard currently tracks 180+ channels across **28 Indonesian VTuber organisations**, spanning a wide range of agencies, indie groups, and idol units active in the IDVTuber scene.
 
-Organisation and channel definitions live in the `ORG_MAP` dict inside `generate_dashboard.py`. Add new channels or orgs there and they will be picked up on the next run.
+Organisation and channel definitions live in the `ORG_MAP` dict inside the dashboard repo's generation scripts (not in this repo). Add new channels or orgs there and they will be picked up on the next run.
+
+> **Gotcha:** a channel's display name must match exactly between `ORG_MAP` and the `channels` registry table in Postgres. A mismatch here has previously caused streams to be collected but silently dropped instead of written to the right table — worth double-checking after renaming a channel or org entry.
 
 ---
 
@@ -73,7 +78,6 @@ Organisation and channel definitions live in the `ORG_MAP` dict inside `generate
 ```
 .
 ├── tracker.py              # Core polling loop and analytics collector
-├── generate_dashboard.py   # Static HTML dashboard generator
 ├── archiver.py             # PostgreSQL → SQLite archiver
 ├── requirements.txt        # Python dependencies
 ├── analytics.csv           # Auto-created at runtime (local CSV fallback)
@@ -84,7 +88,7 @@ Organisation and channel definitions live in the `ORG_MAP` dict inside `generate
     └── workflows/          # GitHub Actions workflow definitions
 ```
 
-> **Note:** The `dashboard/` output folder is pushed to a **separate repository** (`DASHBOARD_REPO`) for GitHub Pages deployment, not committed here.
+> **Note:** Dashboard generation and the `dashboard/` output folder live entirely in a **separate repository** (`DASHBOARD_REPO`). This repo only fires an update trigger; it doesn't build or push any HTML itself.
 
 ---
 
@@ -96,7 +100,7 @@ Organisation and channel definitions live in the `ORG_MAP` dict inside `generate
 |---|---|
 | `YOUTUBE_API_KEYS` | Comma-separated list of YouTube Data API v3 keys (e.g. `key1,key2,key3`). Supports rotation on quota exhaustion. Falls back to `YOUTUBE_API_KEY` for single-key setups. |
 | `CHANNEL_IDS` | Comma-separated YouTube channel IDs to monitor |
-| `SUPABASE_DATABASE_URL` | Supabase PostgreSQL DSN (`postgres://user:pass@host:port/db`) |
+| `SUPABASE_DATABASE_URL` | |
 
 ### Optional
 
@@ -107,9 +111,8 @@ Organisation and channel definitions live in the `ORG_MAP` dict inside `generate
 | `STREAM_POLL_SEC` | `30` | Seconds between analytics collection for active streams |
 | `MAX_HISTORY_POINTS` | `60` | In-memory data points kept per stream for charting |
 | `UPCOMING_POLL_WINDOW_SEC` | `600` | Seconds before scheduled start to begin fast-polling an upcoming stream |
-| `GH_PAT` | — | GitHub Personal Access Token for pushing the dashboard |
+| `GH_PAT` | — | GitHub Personal Access Token used to fire the update trigger on the dashboard repo |
 | `DASHBOARD_REPO` | *(tracker repo)* | Slug of the separate repo hosting GitHub Pages (e.g. `idvtuber-tracker/dashboard`) |
-| `DASHBOARD_OUTPUT_DIR` | `dashboard` | Local folder where `generate_dashboard.py` writes HTML output |
 | `HISTORY_DB_PATH` | `../idvt-history/history.db` | Path to the SQLite archive database |
 | `ARCHIVE_THRESHOLD_DAYS` | `25` | Days since last activity before a stream is archived |
 
@@ -178,7 +181,7 @@ CREATE TABLE timeseries (
 
 ## Dashboard
 
-`generate_dashboard.py` reads from both PostgreSQL (recent/live streams) and `history.db` (archived streams) and builds a 4-level static site:
+The dashboard repo's generation scripts read from both PostgreSQL (recent/live streams) and `history.db` (archived streams) and build a 4-level static site:
 
 ```
 dashboard/
@@ -191,7 +194,9 @@ dashboard/
 │               └── {video_id}.html     ← Stream detail + viewer/likes/comments charts
 ```
 
-**Partial build:** Only stream pages that are new or currently live are regenerated each run. Finished VOD pages are skipped once written, keeping build time low regardless of history size.
+**Partial build:** Only stream pages that are new or currently live are regenerated each run. Finished VOD pages are skipped once written, keeping build time low regardless of history size. `manifest.json` tracks this partial-build state; it's worth being mindful of concurrent writes to it if a run is retried or overlaps with another.
+
+Org and channel index pages support filtering and sorting via chips. Stream detail pages feature hero sections and KPI strips summarizing key stats, with charts supporting pinch-to-zoom and pan (via HammerJS + chartjs-plugin-zoom) for inspecting specific moments in a stream.
 
 The site supports light/dark themes (follows system preference, with a manual toggle) and all times are displayed in WIB (UTC+7).
 
@@ -212,7 +217,7 @@ pip install -r requirements.txt
 ```bash
 export YOUTUBE_API_KEYS="AIzaKey1,AIzaKey2"
 export CHANNEL_IDS="UCxxxxxx,UCyyyyyy"
-export SUPABASE_DATABASE_URL="postgres://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres"
+export SUPABASE_DATABASE_URL="postgres://postgres:<password>@db.<project-ref>.supabase.co:<port>/postgres"
 ```
 
 ### 3. Run the tracker
@@ -221,13 +226,7 @@ export SUPABASE_DATABASE_URL="postgres://postgres:<password>@db.<project-ref>.su
 python tracker.py
 ```
 
-### 4. Generate the dashboard manually
-
-```bash
-python generate_dashboard.py
-```
-
-### 5. Run the archiver manually
+### 4. Run the archiver manually
 
 ```bash
 python archiver.py
@@ -244,10 +243,10 @@ The tracker is designed to run on a **self-hosted Windows runner**. Add reposito
 | `YOUTUBE_API_KEYS` | ✅ |
 | `CHANNEL_IDS` | ✅ |
 | `SUPABASE_DATABASE_URL` | ✅ |
-| `GH_PAT` | ✅ (for dashboard push) |
+| `GH_PAT` | ✅ (to trigger the dashboard repo) |
 | `DASHBOARD_REPO` | Recommended |
 
-The tracker workflow runs on a endless loops of 6 hours session with the self-hosted runner that can be triggered manually and only stops in the event of error and the auto-restart unable to connect to the runner. Each run installs dependencies, executes `tracker.py`, collects analytics, regenerates the dashboard, and pushes the output to the dashboard repo — triggering a GitHub Pages deployment via a `repository_dispatch` event.
+The tracker workflow runs on a endless loops of 6 hours session with the self-hosted runner that can be triggered manually and only stops in the event of error and the auto-restart unable to connect to the runner. Each run installs dependencies, executes `tracker.py`, collects analytics, and fires a `repository_dispatch` event to the dashboard repo, which runs its own generation script(s) and deploys to GitHub Pages.
 
 The archiver workflow runs daily on an `ubuntu-latest` runner, checking out the `idvt-history` repo, running `archiver.py`, and committing any newly archived streams back to the history repo.
 
@@ -266,7 +265,7 @@ With the `activities.list`-based detection, a typical run across many channels s
 
 ## Adding a New Organisation or Channel
 
-Edit the `ORG_MAP` dictionary in `generate_dashboard.py`. Each entry follows this structure:
+Edit the `ORG_MAP` dictionary in the dashboard repo's generation scripts. Each entry follows this structure:
 
 ```python
 "org-slug": {
