@@ -71,30 +71,46 @@ _exhausted: set    = set()      # keys confirmed quota-exceeded for today
 
 # Write to a fixed path outside the workspace so the file survives the
 # fresh checkout that happens on every GitHub Actions run.
-# Uses C:\actions-runner (the runner install dir) which persists across runs
-# on a Windows self-hosted runner running as Local System.
 def _resolve_persistent_dir() -> str:
     candidates = [
         # RUNNER_TOOL_CACHE is inside _work and gets wiped between runs — skip it.
-        # RUNNER_WORKSPACE is e.g. C:\actions-runner\_work\repo\repo
-        # Three levels up reaches C:\actions-runner which persists across runs.
+        # RUNNER_WORKSPACE is e.g. C:\actions-runner\_work\repo\repo (Windows) or
+        # /home/pi/actions-runner/_work/repo/repo (Linux). Three levels up
+        # reaches the runner install root on either OS, which persists across runs.
         os.path.join(os.environ.get("RUNNER_WORKSPACE", ""), "..", "..", ".."),
         "C:\\actions-runner",
+        # Linux self-hosted runner install locations — cover both a dedicated
+        # service user's home dir and the common /opt convention.
+        os.path.expanduser("~/actions-runner"),
+        "/opt/actions-runner",
+        # Explicit persistence dir, in case the runner itself is reinstalled
+        # to a fresh path — this one is created if missing and never touched
+        # by runner updates.
+        os.path.expanduser("~/.idvt-tracker-state"),
         "/tmp",
     ]
     for c in candidates:
         if not c:
             continue
         resolved = os.path.normpath(c)
-        if os.path.isdir(resolved):
-            test = os.path.join(resolved, ".write_test")
-            try:
-                with open(test, "w") as f:
-                    f.write("x")
-                os.remove(test)
-                return resolved
-            except Exception:
+        if not os.path.isdir(resolved):
+            # For the dedicated state dir, create it rather than skip it —
+            # everything else in the list is expected to pre-exist.
+            if resolved == os.path.normpath(os.path.expanduser("~/.idvt-tracker-state")):
+                try:
+                    os.makedirs(resolved, exist_ok=True)
+                except Exception:
+                    continue
+            else:
                 continue
+        test = os.path.join(resolved, ".write_test")
+        try:
+            with open(test, "w") as f:
+                f.write("x")
+            os.remove(test)
+            return resolved
+        except Exception:
+            continue
     return os.path.dirname(os.path.abspath(__file__))
 
 _EXHAUSTED_FILE = os.path.join(_resolve_persistent_dir(), "yt_tracker_exhausted_keys.json")
