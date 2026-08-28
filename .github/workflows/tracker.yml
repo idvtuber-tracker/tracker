@@ -2,24 +2,6 @@ name: YouTube Livestream Tracker
 
 on:
   workflow_dispatch:
-  # NOTE: The push trigger has been intentionally removed.
-  #
-  # Originally this protected against a race condition: tracker.py used to
-  # clone the dashboard repo, commit, and push the generated dashboard/
-  # output there as part of deploy_dashboard(). That push went to a
-  # DIFFERENT repo (DASHBOARD_REPO), so it never touched this (tracker) repo's
-  # git history — but the comment below was written to document that
-  # reasoning at the time.
-  #
-  # deploy_dashboard() has since been simplified further: it no longer clones,
-  # commits, or pushes anything at all. It only fires a repository_dispatch
-  # HTTP request to the dashboard repo, which triggers that repo's own
-  # generate_live.py workflow to do all dashboard generation and deployment.
-  # tracker.py now performs zero git operations of its own beyond the
-  # standard checkout below, so there is no push-trigger race to protect
-  # against in the first place. The workflow remains self-restarting purely
-  # via workflow_dispatch (see the "Restart workflow" step), which is simpler
-  # and sufficient on its own.
 
 permissions:
   contents: write
@@ -35,110 +17,89 @@ jobs:
       AIVEN_DATABASE_URL:   ${{ secrets.AIVEN_DATABASE_URL }}
       GH_PAT:               ${{ secrets.GH_PAT }}
       GITHUB_REPOSITORY:    ${{ github.repository }}
-
-      # ── Split-repo dashboard setting ──────────────────────────────────────
-      # DASHBOARD_REPO is the GitHub repo slug where the generated dashboard
-      # pages live and where GitHub Pages is configured.
-      #
-      # Format:  "<owner>/<repo>"
-      # Example: "idvtuber-tracker/dashboard"
-      #
-      # tracker.py's deploy_dashboard() fires a single repository_dispatch
-      # "deploy-dashboard" event on this repo every DEPLOY_INTERVAL_SEC while
-      # any stream is live. That event triggers deploy_dashboard_live.yml
-      # inside the dashboard repo, which runs generate_live.py against the
-      # database directly on its own runner and deploys to GitHub Pages.
-      # tracker.py no longer clones, generates, or pushes anything itself —
-      # generation happens exactly once, entirely inside the dashboard repo.
-      #
-      # If this variable is left empty, deploy_dashboard() logs an error and
-      # skips the dispatch (no automatic fallback to the tracker repo).
       DASHBOARD_REPO:       idvtuber-tracker/dashboard
-
       CSV_OUTPUT_PATH:      analytics.csv
       POLL_INTERVAL_SEC:    "900"
-      DEPLOY_INTERVAL_SEC:  "900"   # deploy to Pages every 15 minutes
+      DEPLOY_INTERVAL_SEC:  "900"
       STREAM_POLL_SEC:      "60"
       MAX_HISTORY_POINTS:   "60"
       PYTHONUTF8:           "1"
       PYTHONIOENCODING:     "utf-8"
-
-      # ── Discord notifications ────────────────────────────────────────
-      # DISCORD_WEBHOOK is used by tracker.py directly (not just the YAML
-      # steps below) to send slow-cycle warnings from inside the 6-hour run.
-      # SLOW_CYCLE_THRESHOLD_SEC sets how many seconds a single poll cycle
-      # must exceed before a warning is sent. Default: 60s.
       DISCORD_WEBHOOK:           ${{ secrets.DISCORD_WEBHOOK }}
       SLOW_CYCLE_THRESHOLD_SEC:  "60"
 
     steps:
       - name: Cancel queued duplicate runs
-        shell: powershell
+        shell: bash
         run: |
-          $pat     = "${{ secrets.GH_PAT }}"
-          $repo    = "${{ github.repository }}"
-          $current = "${{ github.run_id }}"
-          $headers = @{
-            "Authorization"        = "Bearer $pat"
-            "Accept"               = "application/vnd.github+json"
-            "X-GitHub-Api-Version" = "2022-11-28"
-          }
-          $url  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/runs?status=queued&per_page=100"
-          $runs = (Invoke-RestMethod -Uri $url -Headers $headers).workflow_runs
-          foreach ($run in $runs) {
-            if ($run.id -ne [int64]$current) {
-              $cancelUrl = "https://api.github.com/repos/$repo/actions/runs/$($run.id)/cancel"
-              Invoke-RestMethod -Uri $cancelUrl -Method POST -Headers $headers
-              Write-Host "Cancelled queued run $($run.id)"
-            }
-          }
-          Write-Host "Done cancelling duplicates."
+          REPO="${{ github.repository }}"
+          CURRENT="${{ github.run_id }}"
+          HEADERS=(-H "Authorization: Bearer ${{ secrets.GH_PAT }}"
+                   -H "Accept: application/vnd.github+json"
+                   -H "X-GitHub-Api-Version: 2022-11-28")
+          RUNS=$(curl -s "${HEADERS[@]}" \
+            "https://api.github.com/repos/$REPO/actions/workflows/tracker.yml/runs?status=queued&per_page=100" \
+            | python3 -c "
+          import sys, json
+          runs = json.load(sys.stdin).get('workflow_runs', [])
+          for r in runs:
+              print(r['id'])
+          ")
+          for RUN_ID in $RUNS; do
+            if [ "$RUN_ID" != "$CURRENT" ]; then
+              curl -s -X POST "${HEADERS[@]}" \
+                "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/cancel"
+              echo "Cancelled queued run $RUN_ID"
+            fi
+          done
+          echo "Done cancelling duplicates."
 
       - name: Clean up old workflow runs
         if: always()
-        shell: powershell
+        shell: bash
         run: |
-          $pat     = "${{ secrets.GH_PAT }}"
-          $repo    = "${{ github.repository }}"
-          $current = [int64]"${{ github.run_id }}"
-          $headers = @{
-            "Authorization"        = "Bearer $pat"
-            "Accept"               = "application/vnd.github+json"
-            "X-GitHub-Api-Version" = "2022-11-28"
-          }
+          REPO="${{ github.repository }}"
+          CURRENT="${{ github.run_id }}"
+          HEADERS=(-H "Authorization: Bearer ${{ secrets.GH_PAT }}"
+                   -H "Accept: application/vnd.github+json"
+                   -H "X-GitHub-Api-Version: 2022-11-28")
 
-          # Fetch completed runs of tracker.yml only.
-          # status=completed ensures the current in_progress run is never
-          # returned, preventing accidental self-deletion.
-          $runsUrl = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/runs?status=completed&per_page=100"
-          $runs    = (Invoke-RestMethod -Uri $runsUrl -Headers $headers).workflow_runs
+          # Only completed runs are ever returned — the current in_progress
+          # run can never appear here, so self-deletion is not possible.
+          RUNS_JSON=$(curl -s "${HEADERS[@]}" \
+            "https://api.github.com/repos/$REPO/actions/workflows/tracker.yml/runs?status=completed&per_page=100")
 
-          # Delete ONLY runs that hit the 6-hour self-hosted runner wall.
-          # These are identified by two conditions that together distinguish
-          # them from manual cancellations or duplicate-run cancellations:
-          #   1. conclusion = "cancelled"  (wall-hit runs are always cancelled)
-          #   2. duration >= 21000 seconds (5h50m) — manual/duplicate cancels
-          #      complete in seconds to minutes, never near 6 hours.
-          # All matching runs are deleted with no retention limit.
-          $deleted = 0
-          foreach ($run in $runs) {
-            if ($run.id -eq $current) { continue }
-            if ($run.conclusion -ne "cancelled") { continue }
+          echo "$RUNS_JSON" | python3 -c "
+          import sys, json
+          from datetime import datetime
 
-            $created = [datetime]::Parse($run.created_at).ToUniversalTime()
-            $updated = [datetime]::Parse($run.updated_at).ToUniversalTime()
-            $duration = ($updated - $created).TotalSeconds
+          runs = json.load(sys.stdin).get('workflow_runs', [])
+          current = '$CURRENT'
+          deleted = 0
+          for r in runs:
+              if str(r['id']) == current:
+                  continue
+              if r.get('conclusion') != 'cancelled':
+                  continue
+              created = datetime.fromisoformat(r['created_at'].replace('Z', '+00:00'))
+              updated = datetime.fromisoformat(r['updated_at'].replace('Z', '+00:00'))
+              duration = (updated - created).total_seconds()
+              # Only delete runs that hit the ~6h self-hosted runner wall
+              # (5h50m+). Manual/duplicate cancels finish in seconds-minutes.
+              if duration >= 21000:
+                  print(r['id'])
+          " > /tmp/runs_to_delete.txt
 
-            if ($duration -ge 21000) {
-              $deleteUrl = "https://api.github.com/repos/$repo/actions/runs/$($run.id)"
-              Invoke-RestMethod -Uri $deleteUrl -Method DELETE -Headers $headers
-              Write-Host "Deleted 6h-wall run $($run.id) (duration: $([math]::Round($duration/3600, 2))h)"
-              $deleted++
-            }
-          }
-          Write-Host "Cleanup complete. Deleted $deleted run(s) that hit the 6-hour wall."
-
-      # id is required so the Discord step below can inspect this step's outcome.
+          DELETED=0
+          while read -r RUN_ID; do
+            [ -z "$RUN_ID" ] && continue
+            curl -s -X DELETE "${HEADERS[@]}" \
+              "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID"
+            echo "Deleted 6h-wall run $RUN_ID"
+            DELETED=$((DELETED + 1))
+          done < /tmp/runs_to_delete.txt
+          rm -f /tmp/runs_to_delete.txt
+          echo "Cleanup complete. Deleted $DELETED run(s) that hit the 6-hour wall."
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -147,15 +108,14 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       - name: Force git remote URL with PAT
-        shell: powershell
+        shell: bash
         run: |
-          $pat  = "${{ secrets.GH_PAT }}"
-          $repo = "${{ github.repository }}"
-          git remote set-url origin "https://x-access-token:$($pat)@github.com/$repo.git"
+          PAT="${{ secrets.GH_PAT }}"
+          REPO="${{ github.repository }}"
+          git remote set-url origin "https://x-access-token:${PAT}@github.com/${REPO}.git"
           git config --global credential.helper store
-          $line = "https://x-access-token:$($pat)@github.com"
-          Set-Content -Path "$env:USERPROFILE\.git-credentials" -Value $line -Encoding UTF8
-          Write-Host "Remote URL and credentials set."
+          echo "https://x-access-token:${PAT}@github.com" > "$HOME/.git-credentials"
+          echo "Remote URL and credentials set."
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -164,96 +124,77 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        shell: powershell
+        shell: bash
         run: pip install -r requirements.txt
 
-      # id is required so the Discord steps below can inspect this step's outcome.
       - name: Run tracker
         id: run_tracker
-        shell: powershell
+        shell: bash
         run: python tracker.py
 
       - name: Restart workflow
         id: restart
         if: always()
-        shell: powershell
+        shell: bash
         run: |
-          $pat     = "${{ secrets.GH_PAT }}"
-          $repo    = "${{ github.repository }}"
-          $headers = @{
-            "Authorization"        = "Bearer $pat"
-            "Accept"               = "application/vnd.github+json"
-            "X-GitHub-Api-Version" = "2022-11-28"
-          }
-          $body = @{ ref = "main" } | ConvertTo-Json
-          $url  = "https://api.github.com/repos/$repo/actions/workflows/tracker.yml/dispatches"
-          Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body -ContentType "application/json"
-          Write-Host "New workflow run triggered."
+          REPO="${{ github.repository }}"
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/actions/workflows/tracker.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "New workflow run triggered."
 
-      # ── Discord: error notification ───────────────────────────────────────────
-      # Fires when "Run tracker" exits with a non-zero code (exit code 1).
-      # steps.run_tracker.outcome == 'failure' is the correct way to detect this —
-      # it is set by GitHub Actions when the step's process exits non-zero.
       - name: Notify Discord — tracker error
         if: always() && steps.run_tracker.outcome == 'failure'
-        shell: powershell
+        shell: bash
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          $repo   = "${{ github.repository }}"
-          $runId  = "${{ github.run_id }}"
-          $runUrl = "https://github.com/$repo/actions/runs/$runId"
-          $body   = [ordered]@{
-            content = "@here"
-            embeds  = @(
-              [ordered]@{
-                title       = "[ERROR] Tracker crashed - exit code 1"
-                description = "``tracker.py`` exited with a non-zero code. The 6-hour cycle was interrupted and data collection has stopped until the workflow restarts."
-                color       = 15548997   # red (#ED4245)
-                fields      = @(
-                  [ordered]@{ name = "Run"; value = "[$runId]($runUrl)"; inline = $true }
-                  [ordered]@{ name = "Repository"; value = $repo; inline = $true }
-                )
-                footer      = [ordered]@{ text = "IDVTuber Tracker" }
-              }
-            )
-          } | ConvertTo-Json -Depth 10
-          Invoke-RestMethod `
-            -Uri         "${{ secrets.DISCORD_WEBHOOK }}" `
-            -Method      POST `
-            -Body        $body `
-            -ContentType "application/json"
-          Write-Host "Discord error notification sent."
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+          RUN_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
+          curl -s -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"content\": \"@here\",
+              \"embeds\": [{
+                \"title\": \"[ERROR] Tracker crashed - exit code 1\",
+                \"description\": \"tracker.py exited with a non-zero code. The 6-hour cycle was interrupted and data collection has stopped until the workflow restarts.\",
+                \"color\": 15548997,
+                \"fields\": [
+                  { \"name\": \"Run\", \"value\": \"[${RUN_ID}](${RUN_URL})\", \"inline\": true },
+                  { \"name\": \"Repository\", \"value\": \"${REPO}\", \"inline\": true }
+                ],
+                \"footer\": { \"text\": \"IDVTuber Tracker\" }
+              }]
+            }"
+          echo "Discord error notification sent."
 
-      # ── Discord: successful restart notification ──────────────────────────────
-      # Fires when the 6-hour cycle completed normally AND the "Restart workflow"
-      # step succeeded (a new cycle was dispatched). Both conditions must be true:
-      #   - steps.run_tracker.outcome == 'success'  → tracker ran its full 6h
-      #   - steps.restart.outcome     == 'success'  → new cycle was triggered
       - name: Notify Discord — cycle complete, restarting
         if: always() && (steps.run_tracker.outcome == 'cancelled' || steps.run_tracker.outcome == 'success') && steps.restart.outcome == 'success'
-        shell: powershell
+        shell: bash
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          $repo      = "${{ github.repository }}"
-          $runId     = "${{ github.run_id }}"
-          $runUrl    = "https://github.com/$repo/actions/runs/$runId"
-          $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm") + " UTC"
-          $body      = [ordered]@{
-            content = "@here"
-            embeds  = @(
-              [ordered]@{
-                title       = "[OK] 6-hour cycle complete - new cycle started"
-                description = "``tracker.py`` completed its 6-hour run successfully. A new workflow cycle has been dispatched and data collection continues."
-                color       = 5763719   # green (#57F287)
-                fields      = @(
-                  [ordered]@{ name = "Completed run"; value = "[$runId]($runUrl)"; inline = $true }
-                  [ordered]@{ name = "Timestamp"; value = $timestamp; inline = $true }
-                )
-                footer      = [ordered]@{ text = "IDVTuber Tracker" }
-              }
-            )
-          } | ConvertTo-Json -Depth 10
-          Invoke-RestMethod `
-            -Uri         "${{ secrets.DISCORD_WEBHOOK }}" `
-            -Method      POST `
-            -Body        $body `
-            -ContentType "application/json"
-          Write-Host "Discord restart notification sent."
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+          RUN_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          curl -s -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"content\": \"@here\",
+              \"embeds\": [{
+                \"title\": \"[OK] 6-hour cycle complete - new cycle started\",
+                \"description\": \"tracker.py completed its 6-hour run successfully. A new workflow cycle has been dispatched and data collection continues.\",
+                \"color\": 5763719,
+                \"fields\": [
+                  { \"name\": \"Completed run\", \"value\": \"[${RUN_ID}](${RUN_URL})\", \"inline\": true },
+                  { \"name\": \"Timestamp\", \"value\": \"${TIMESTAMP}\", \"inline\": true }
+                ],
+                \"footer\": { \"text\": \"IDVTuber Tracker\" }
+              }]
+            }"
+          echo "Discord restart notification sent."
