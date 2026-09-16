@@ -56,22 +56,21 @@ jobs:
         with:
           path: tracker
 
-      - name: Checkout history repo
+      - name: Download history.db from release
         env:
-          HISTORY_REPO_PAT: ${{ secrets.HISTORY_REPO_PAT }}
+          GH_TOKEN: ${{ secrets.HISTORY_REPO_PAT }}
         run: |
-          REPO_URL="https://x-access-token:${HISTORY_REPO_PAT}@github.com/${{ github.repository_owner }}/idvt-history.git"
-          if git clone --depth=1 "$REPO_URL" idvt-history 2>/dev/null; then
-            echo "history repo cloned successfully."
+          mkdir -p idvt-history
+          if gh release download data \
+              --repo "${{ github.repository_owner }}/idvt-history" \
+              --pattern history.db \
+              --dir idvt-history \
+              --clobber 2>/dev/null; then
+            echo "history.db downloaded from release ($(du -h idvt-history/history.db | cut -f1))."
           else
-            echo "history repo is empty or unreachable — initialising fresh repo."
-            mkdir -p idvt-history
-            cd idvt-history
-            git init
-            git remote add origin "$REPO_URL"
-            git checkout -b main
+            echo "No history.db asset found yet — starting fresh."
           fi
-
+          
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -90,21 +89,21 @@ jobs:
         run: |
           python archiver.py
 
-      - name: Commit and push history.db
-        working-directory: idvt-history
+      - name: Upload history.db to release
         env:
-          HISTORY_REPO_PAT: ${{ secrets.HISTORY_REPO_PAT }}
+          GH_TOKEN: ${{ secrets.HISTORY_REPO_PAT }}
+        working-directory: idvt-history
         run: |
-          REPO_URL="https://x-access-token:${HISTORY_REPO_PAT}@github.com/${{ github.repository_owner }}/idvt-history.git"
-          git remote set-url origin "$REPO_URL"
-          git config user.name  "IDVTuber Archiver"
-          git config user.email "archiver@idvtuber-tracker"
-          git add history.db
-          if git diff --cached --quiet; then
-            echo "No new streams archived — nothing to commit."
-          else
-            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-            git commit -m "archive: ${TIMESTAMP}"
-            git push --set-upstream origin main
-            echo "history.db pushed successfully."
+          if [ ! -f history.db ]; then
+            echo "history.db not found — nothing to upload."
+            exit 0
           fi
+          SIZE_MB=$(( $(stat -c%s history.db) / 1024 / 1024 ))
+          echo "history.db is ${SIZE_MB} MB."
+          if [ "$SIZE_MB" -gt 1800 ]; then
+            echo "::warning::history.db is ${SIZE_MB} MB — approaching GitHub's 2GB release-asset limit. Consider archiving older data out or splitting the DB."
+          fi
+          gh release upload data history.db \
+            --repo "${{ github.repository_owner }}/idvt-history" \
+            --clobber
+          echo "history.db uploaded to release 'data' (${SIZE_MB} MB)."
