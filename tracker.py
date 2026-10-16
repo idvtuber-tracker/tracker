@@ -35,13 +35,10 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── config from env ────────────────────────────────────────────────────────────
-# YOUTUBE_API_KEYS accepts a comma-separated list of keys, e.g.:
-#   YOUTUBE_API_KEYS=key1,key2,key3
-# Falls back to the single YOUTUBE_API_KEY secret for backwards compatibility.
-_raw_keys = os.environ.get("YOUTUBE_API_KEYS") or os.environ.get("YOUTUBE_API_KEY", "")
-YOUTUBE_API_KEYS     = [k.strip() for k in _raw_keys.split(",") if k.strip()]
-if not YOUTUBE_API_KEYS:
-    raise RuntimeError("No YouTube API keys found. Set YOUTUBE_API_KEYS or YOUTUBE_API_KEY.")
+# A single YouTube Data API key from the one consolidated Google Cloud project.
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "").strip()
+if not YOUTUBE_API_KEY:
+    raise RuntimeError("No YouTube API key found. Set YOUTUBE_API_KEY.")
 
 CHANNEL_IDS          = [c.strip() for c in os.environ["CHANNEL_IDS"].split(",")]
 AIVEN_DATABASE_URL   = os.environ.get("AIVEN_DATABASE_URL")          # postgres DSN
@@ -65,139 +62,9 @@ ANALYTICS_MISS_TOLERANCE   = int(os.environ.get("ANALYTICS_MISS_TOLERANCE", "3")
 UPCOMING_POLL_WINDOW_SEC   = int(os.environ.get("UPCOMING_POLL_WINDOW_SEC", "600"))
 
 
-# ── API key rotation ───────────────────────────────────────────────────────────
-_key_index         = 0          # index of the currently active key
-_exhausted: set    = set()      # keys confirmed quota-exceeded for today
-
-# Write to a fixed path outside the workspace so the file survives the
-# fresh checkout that happens on every GitHub Actions run.
-def _resolve_persistent_dir() -> str:
-    candidates = [
-        # RUNNER_TOOL_CACHE is inside _work and gets wiped between runs — skip it.
-        # RUNNER_WORKSPACE is e.g. C:\actions-runner\_work\repo\repo (Windows) or
-        # /home/pi/actions-runner/_work/repo/repo (Linux). Three levels up
-        # reaches the runner install root on either OS, which persists across runs.
-        os.path.join(os.environ.get("RUNNER_WORKSPACE", ""), "..", "..", ".."),
-        "C:\\actions-runner",
-        # Linux self-hosted runner install locations — cover both a dedicated
-        # service user's home dir and the common /opt convention.
-        os.path.expanduser("~/actions-runner"),
-        "/opt/actions-runner",
-        # Explicit persistence dir, in case the runner itself is reinstalled
-        # to a fresh path — this one is created if missing and never touched
-        # by runner updates.
-        os.path.expanduser("~/.idvt-tracker-state"),
-        "/tmp",
-    ]
-    for c in candidates:
-        if not c:
-            continue
-        resolved = os.path.normpath(c)
-        if not os.path.isdir(resolved):
-            # For the dedicated state dir, create it rather than skip it —
-            # everything else in the list is expected to pre-exist.
-            if resolved == os.path.normpath(os.path.expanduser("~/.idvt-tracker-state")):
-                try:
-                    os.makedirs(resolved, exist_ok=True)
-                except Exception:
-                    continue
-            else:
-                continue
-        test = os.path.join(resolved, ".write_test")
-        try:
-            with open(test, "w") as f:
-                f.write("x")
-            os.remove(test)
-            return resolved
-        except Exception:
-            continue
-    return os.path.dirname(os.path.abspath(__file__))
-
-_EXHAUSTED_FILE = os.path.join(_resolve_persistent_dir(), "yt_tracker_exhausted_keys.json")
-log.info("Exhausted keys file path: %s", _EXHAUSTED_FILE)
-
-def _current_key() -> str:
-    return YOUTUBE_API_KEYS[_key_index]
-
-def _build_client(key: str):
-    return build("youtube", "v3", developerKey=key)
-
-def _quota_reset_date() -> str:
-    """Return the current date in Pacific time (UTC-8).
-    YouTube quota resets at midnight Pacific, so this is the correct
-    boundary for determining whether the exhausted key list should clear."""
-    return _now_pacific().strftime("%Y-%m-%d")
-
-def _load_exhausted() -> None:
-    """Load persisted exhausted keys from disk. Clears them if the date has changed."""
-    global _exhausted, _key_index
-    try:
-        if os.path.exists(_EXHAUSTED_FILE):
-            with open(_EXHAUSTED_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if data.get("date") == _quota_reset_date():
-                _exhausted = set(data.get("keys", []))
-                log.info(
-                    "Loaded %d exhausted key(s) from previous run (date: %s).",
-                    len(_exhausted), data["date"],
-                )
-            else:
-                _exhausted = set()
-                log.info(
-                    "New quota day (%s) — exhausted key list cleared.",
-                    _quota_reset_date(),
-                )
-                _save_exhausted()
-        # Advance _key_index to first non-exhausted key so we don't start
-        # on a key that was already spent in a previous run today.
-        for i in range(len(YOUTUBE_API_KEYS)):
-            if YOUTUBE_API_KEYS[i] not in _exhausted:
-                _key_index = i
-                break
-        else:
-            _key_index = 0   # all exhausted — will be caught at first API call
-    except Exception as e:
-        log.warning("Could not load exhausted keys file: %s — starting fresh.", e)
-        _exhausted = set()
-
-def _save_exhausted() -> None:
-    """Persist the current exhausted key set to disk."""
-    try:
-        with open(_EXHAUSTED_FILE, "w", encoding="utf-8") as f:
-            json.dump({"date": _quota_reset_date(), "keys": list(_exhausted)}, f)
-    except Exception as e:
-        log.warning("Could not save exhausted keys file: %s", e)
-
-def _rotate_key() -> bool:
-    """
-    Advance to the next non-exhausted key.
-    Returns True if a fresh key was found, False if all keys are exhausted.
-    """
-    global _key_index
-    for _ in range(len(YOUTUBE_API_KEYS)):
-        _key_index = (_key_index + 1) % len(YOUTUBE_API_KEYS)
-        if _current_key() not in _exhausted:
-            log.warning(
-                "API key rotated → key index %d (%d/%d keys remaining).",
-                _key_index,
-                len(YOUTUBE_API_KEYS) - len(_exhausted),
-                len(YOUTUBE_API_KEYS),
-            )
-            return True
-    log.error("All %d API key(s) are quota-exhausted. Pausing until tomorrow.", len(YOUTUBE_API_KEYS))
-    return False
-
-def _mark_exhausted() -> bool:
-    """Mark the current key as exhausted, persist to disk, and rotate.
-    Returns True if a fresh key is still available."""
-    _exhausted.add(_current_key())
-    _save_exhausted()
-    return _rotate_key()
-
-_load_exhausted()
-youtube = _build_client(_current_key())
-log.info("YouTube API client initialised with %d key(s) (%d exhausted today).",
-         len(YOUTUBE_API_KEYS), len(_exhausted))
+# ── YouTube API client ─────────────────────────────────────────────────────────
+youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+log.info("YouTube API client initialised.")
 
 # ── timezone helpers ──────────────────────────────────────────────────────────
 from datetime import timedelta
@@ -217,6 +84,50 @@ def _now_local() -> datetime:
 def _now_pacific() -> datetime:
     """Current time in Pacific timezone, DST-aware."""
     return datetime.now(_PACIFIC_TZ)
+
+# ── quota handling ─────────────────────────────────────────────────────────────
+# When the daily quota is exhausted the tracker pauses all YouTube API
+# calls until the quota resets (midnight Pacific, plus a small buffer) 
+# and then resumes automatically.
+_quota_paused_until: Optional[datetime] = None
+
+
+def _is_quota_error(e: HttpError) -> bool:
+    """True only for a genuine daily-quota 403 (not other 403s / rate limits)."""
+    if getattr(e.resp, "status", None) != 403:
+        return False
+    try:
+        content = e.content.decode("utf-8", "replace")
+    except Exception:
+        content = str(e)
+    return "quotaExceeded" in content or "dailyLimitExceeded" in content
+
+
+def _handle_quota_error() -> None:
+    """Pause API usage until the next quota reset (00:05 Pacific)."""
+    global _quota_paused_until
+    reset = (_now_pacific() + timedelta(days=1)).replace(
+        hour=0, minute=5, second=0, microsecond=0
+    )
+    _quota_paused_until = reset
+    log.error(
+        "YouTube API quota exhausted. Pausing API calls until %s (%s).",
+        reset.strftime("%Y-%m-%d %H:%M %Z"),
+        reset.astimezone(_LOCAL_TZ).strftime("%Y-%m-%d %H:%M WIB"),
+    )
+
+
+def _quota_paused() -> bool:
+    """True while we are waiting for the daily quota to reset."""
+    global _quota_paused_until
+    if _quota_paused_until is None:
+        return False
+    if _now_pacific() >= _quota_paused_until:
+        _quota_paused_until = None
+        log.info("Quota reset reached — resuming YouTube API calls.")
+        return False
+    return True
+
 
 # ── in-memory history for charts ───────────────────────────────────────────────
 history: dict[str, list] = {}   # video_id -> list of (ts, viewers, likes, comments)
@@ -573,60 +484,55 @@ def find_live_videos(channel_id: str) -> list[dict]:
     """
     Use activities.list (1 unit) instead of search.list (100 units)
     to detect live streams on a channel.
-    Rotates to the next API key automatically on a 403 quota error.
+    If the daily quota is exhausted, API calls are paused until it resets.
     """
-    global youtube
     results = []
-    for attempt in range(len(YOUTUBE_API_KEYS)):
-        try:
-            resp = youtube.activities().list(
-                part="snippet,contentDetails",
-                channelId=channel_id,
-                maxResults=10,
+    if _quota_paused():
+        return results
+    try:
+        resp = youtube.activities().list(
+            part="snippet,contentDetails",
+            channelId=channel_id,
+            maxResults=10,
+        ).execute()
+
+        for item in resp.get("items", []):
+            details = item.get("contentDetails", {})
+            upload  = details.get("upload", {})
+            video_id = upload.get("videoId")
+            if not video_id:
+                continue
+
+            video_resp = youtube.videos().list(
+                part="snippet,liveStreamingDetails",
+                id=video_id,
             ).execute()
+            video_items = video_resp.get("items", [])
+            if not video_items:
+                continue
 
-            for item in resp.get("items", []):
-                details = item.get("contentDetails", {})
-                upload  = details.get("upload", {})
-                video_id = upload.get("videoId")
-                if not video_id:
-                    continue
+            snippet          = video_items[0].get("snippet", {})
+            live_details     = video_items[0].get("liveStreamingDetails", {})
+            broadcast_status = snippet.get("liveBroadcastContent")
+            if broadcast_status not in ("live", "upcoming"):
+                continue
 
-                video_resp = youtube.videos().list(
-                    part="snippet,liveStreamingDetails",
-                    id=video_id,
-                ).execute()
-                video_items = video_resp.get("items", [])
-                if not video_items:
-                    continue
+            results.append({
+                "video_id":        video_id,
+                "channel_id":      channel_id,
+                "channel_name":    snippet.get("channelTitle", ""),
+                "video_title":     snippet.get("title", ""),
+                "stream_status":   broadcast_status,
+                "scheduled_start": live_details.get("scheduledStartTime"),
+            })
+        return results
 
-                snippet          = video_items[0].get("snippet", {})
-                live_details     = video_items[0].get("liveStreamingDetails", {})
-                broadcast_status = snippet.get("liveBroadcastContent")
-                if broadcast_status not in ("live", "upcoming"):
-                    continue
-
-                results.append({
-                    "video_id":        video_id,
-                    "channel_id":      channel_id,
-                    "channel_name":    snippet.get("channelTitle", ""),
-                    "video_title":     snippet.get("title", ""),
-                    "stream_status":   broadcast_status,
-                    "scheduled_start": live_details.get("scheduledStartTime"),
-                })
+    except HttpError as e:
+        if _is_quota_error(e):
+            _handle_quota_error()
             return results
-
-        except HttpError as e:
-            if e.resp.status == 403:
-                log.warning("403 on find_live_videos (key index %d): %s", _key_index, e)
-                if not _mark_exhausted():
-                    return results   # all keys exhausted
-                youtube = _build_client(_current_key())
-                continue            # retry with new key
-            log.error("activities API error for %s: %s", channel_id, e)
-            return results
-
-    return results
+        log.error("activities API error for %s: %s", channel_id, e)
+        return results
 
 
 def check_upcoming_went_live(video_ids: list[str]) -> dict[str, str]:
@@ -640,34 +546,27 @@ def check_upcoming_went_live(video_ids: list[str]) -> dict[str, str]:
 
     Returns a dict of {video_id: new_status} for any that changed.
     """
-    if not video_ids:
+    if not video_ids or _quota_paused():
         return {}
-    global youtube
     changed: dict[str, str] = {}
     # videos.list accepts up to 50 IDs per call
     for i in range(0, len(video_ids), 50):
         batch = video_ids[i:i + 50]
-        for attempt in range(len(YOUTUBE_API_KEYS)):
-            try:
-                resp = youtube.videos().list(
-                    part="snippet",
-                    id=",".join(batch),
-                ).execute()
-                for item in resp.get("items", []):
-                    vid    = item["id"]
-                    status = item.get("snippet", {}).get("liveBroadcastContent")
-                    if status in ("live", "none"):
-                        changed[vid] = status
-                break
-            except HttpError as e:
-                if e.resp.status == 403:
-                    log.warning("403 on check_upcoming_went_live: %s", e)
-                    if not _mark_exhausted():
-                        return changed
-                    youtube = _build_client(_current_key())
-                    continue
-                log.error("check_upcoming_went_live error: %s", e)
-                break
+        try:
+            resp = youtube.videos().list(
+                part="snippet",
+                id=",".join(batch),
+            ).execute()
+            for item in resp.get("items", []):
+                vid    = item["id"]
+                status = item.get("snippet", {}).get("liveBroadcastContent")
+                if status in ("live", "none"):
+                    changed[vid] = status
+        except HttpError as e:
+            if _is_quota_error(e):
+                _handle_quota_error()
+                return changed
+            log.error("check_upcoming_went_live error: %s", e)
     return changed
 
 
@@ -689,54 +588,45 @@ def get_bulk_video_analytics(video_ids: list[str]) -> dict[str, dict]:
     of 50 (the videos.list API maximum).
 
     Returns a dict of {video_id: analytics_dict}. Missing IDs (deleted,
-    private, or returned no items) are simply absent from the result.
+    private, quota exhausted, or returned no items) are simply absent from
+    the result.
 
     Replaces the old per-stream get_video_analytics() loop in run() —
     100 live streams → 2 API calls instead of 100.
-    Rotates to the next API key automatically on a 403 quota error.
+    If the daily quota is exhausted, API calls are paused until it resets.
     """
-    if not video_ids:
+    if not video_ids or _quota_paused():
         return {}
-    global youtube
     results: dict[str, dict] = {}
     for i in range(0, len(video_ids), 50):
         batch = video_ids[i:i + 50]
-        for attempt in range(len(YOUTUBE_API_KEYS)):
-            try:
-                resp = youtube.videos().list(
-                    part="liveStreamingDetails,statistics,snippet",
-                    id=",".join(batch),
-                ).execute()
-                for item in resp.get("items", []):
-                    vid   = item["id"]
-                    stats = item.get("statistics", {})
-                    live  = item.get("liveStreamingDetails", {})
-                    results[vid] = {
-                        "concurrent_viewers": int(live.get("concurrentViewers", 0) or 0),
-                        "view_count":         int(stats.get("viewCount", 0) or 0),
-                        "like_count":         int(stats.get("likeCount", 0) or 0),
-                        "comment_count":      int(stats.get("commentCount", 0) or 0),
-                        "scheduled_start":    live.get("scheduledStartTime"),
-                        "actual_start":       live.get("actualStartTime"),
-                        # actualEndTime is set by YouTube the moment a livestream
-                        # ends — this is the reliable signal for "stream finished
-                        # normally", used below to write a closing vod row instead
-                        # of silently dropping the stream with no final status.
-                        "actual_end":         live.get("actualEndTime"),
-                    }
-                break   # batch succeeded — move to next batch
-            except HttpError as e:
-                if e.resp.status == 403:
-                    log.warning(
-                        "403 on get_bulk_video_analytics (key index %d): %s",
-                        _key_index, e,
-                    )
-                    if not _mark_exhausted():
-                        return results   # all keys exhausted — return what we have
-                    youtube = _build_client(_current_key())
-                    continue             # retry this batch with the new key
-                log.error("videos API error in bulk fetch: %s", e)
-                break   # non-quota error — skip this batch, move on
+        try:
+            resp = youtube.videos().list(
+                part="liveStreamingDetails,statistics,snippet",
+                id=",".join(batch),
+            ).execute()
+            for item in resp.get("items", []):
+                vid   = item["id"]
+                stats = item.get("statistics", {})
+                live  = item.get("liveStreamingDetails", {})
+                results[vid] = {
+                    "concurrent_viewers": int(live.get("concurrentViewers", 0) or 0),
+                    "view_count":         int(stats.get("viewCount", 0) or 0),
+                    "like_count":         int(stats.get("likeCount", 0) or 0),
+                    "comment_count":      int(stats.get("commentCount", 0) or 0),
+                    "scheduled_start":    live.get("scheduledStartTime"),
+                    "actual_start":       live.get("actualStartTime"),
+                    # actualEndTime is set by YouTube the moment a livestream
+                    # ends — this is the reliable signal for "stream finished
+                    # normally", used below to write a closing vod row instead
+                    # of silently dropping the stream with no final status.
+                    "actual_end":         live.get("actualEndTime"),
+                }
+        except HttpError as e:
+            if _is_quota_error(e):
+                _handle_quota_error()
+                return results   # return what we have
+            log.error("videos API error in bulk fetch: %s", e)
     return results
 
 
@@ -861,32 +751,25 @@ def ensure_all_channel_tables(existing: dict[str, str]) -> dict[str, str]:
     log.info("%d new channel(s) not yet in DB — fetching names from YouTube API.",
              len(new_ids))
 
-    global youtube
     names: dict[str, str] = {}   # channel_id → channel_name
     for i in range(0, len(new_ids), 50):
         batch = new_ids[i:i + 50]
-        for attempt in range(len(YOUTUBE_API_KEYS)):
-            try:
-                resp = youtube.channels().list(
-                    part="snippet",
-                    id=",".join(batch),
-                    maxResults=50,
-                ).execute()
-                for item in resp.get("items", []):
-                    cid   = item["id"]
-                    title = item.get("snippet", {}).get("title", cid)
-                    names[cid] = title
-                break
-            except HttpError as e:
-                if e.resp.status == 403:
-                    log.warning("403 on startup channels.list: %s", e)
-                    if not _mark_exhausted():
-                        log.error("All API keys exhausted — cannot fetch channel names.")
-                        return result
-                    youtube = _build_client(_current_key())
-                    continue
-                log.error("channels.list error at startup: %s", e)
-                break
+        try:
+            resp = youtube.channels().list(
+                part="snippet",
+                id=",".join(batch),
+                maxResults=50,
+            ).execute()
+            for item in resp.get("items", []):
+                cid   = item["id"]
+                title = item.get("snippet", {}).get("title", cid)
+                names[cid] = title
+        except HttpError as e:
+            if _is_quota_error(e):
+                _handle_quota_error()
+                log.error("Quota exhausted — cannot fetch channel names.")
+                return result
+            log.error("channels.list error at startup: %s", e)
 
     for ch_id in new_ids:
         ch_name = names.get(ch_id)
@@ -971,6 +854,12 @@ def run() -> None:
     log.info("Scanning for streams…")
 
     while _running:
+        # Daily quota exhausted: wait for the reset instead of calling the API.
+        if _quota_paused():
+            channel_poll_counter = 0   # rescan channels as soon as we resume
+            time.sleep(min(30, STREAM_POLL_SEC))
+            continue
+
         try:
             # ── activities.list channel scan (every POLL_INTERVAL_SEC) ────
             # Timed separately from the rest of the cycle. The scan is a long
@@ -1012,7 +901,10 @@ def run() -> None:
                 # Fix: fetch final analytics for each dropped stream (one
                 # more videos.list batch call) and write a proper closing
                 # row with stream_status="vod" before discarding it.
-                ended_ids = [vid for vid in known_streams if vid not in discovered
+                # If quota ran out mid-scan, `discovered` is incomplete — don't
+                # treat missing streams as ended; keep the previous state.
+                scan_incomplete = _quota_paused()
+                ended_ids = [] if scan_incomplete else [vid for vid in known_streams if vid not in discovered
                              and known_streams[vid].get("stream_status") == "live"]
                 if ended_ids:
                     final_analytics = get_bulk_video_analytics(ended_ids)
@@ -1045,7 +937,8 @@ def run() -> None:
                 for vid in list(known_streams):
                     if vid not in discovered and known_streams[vid].get("stream_status") != "live":
                         log.info("Stream ended (was not live, no row needed): %s", vid)
-                known_streams = discovered
+                if not scan_incomplete:
+                    known_streams = discovered
                 scan_elapsed = (datetime.now(timezone.utc) - scan_start).total_seconds()
                 log.info(
                     "Channel scan completed: %d channel(s), %d stream(s) found in %.1fs.",
@@ -1169,6 +1062,11 @@ def run() -> None:
                         stream.get("channel_name", ""), video_id,
                     )
                     ended_video_ids.append(video_id)
+                    continue
+
+                if analytics is None and _quota_paused():
+                    # Missing because quota ran out, not because the stream
+                    # vanished — don't count it as a miss.
                     continue
 
                 if analytics is None:
