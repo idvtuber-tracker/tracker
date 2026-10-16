@@ -52,7 +52,7 @@ GitHub Actions (Github-hosted Linux runner) — dashboard repo
 |---|---|
 | 🔔 Stream detection | Uses `activities.list` (1 unit) instead of `search.list` (100 units) for quota efficiency |
 | ⏱️ Upcoming stream fast-poll | `check_upcoming_went_live` checks every 30s for streams near their scheduled start |
-| 🔑 API key rotation | Supports multiple keys via `YOUTUBE_API_KEYS`; rotates automatically on 403, persists exhausted state across runs |
+| 🔑 Single API key | One key from one consolidated Google Cloud project; when the daily quota is exhausted the tracker pauses API calls until the quota resets (00:05 Pacific) and resumes automatically |
 | 📊 Real-time analytics | Concurrent viewers, view count, likes, comments per stream |
 | 🗄️ Per-channel DB tables | Each channel gets its own PostgreSQL table (e.g. `stream_bima_bayusena_pandavva`) |
 | 📄 CSV fallback | Always writes a local `analytics.csv` |
@@ -98,7 +98,7 @@ Organisation and channel definitions live in the `ORG_MAP` dict inside the dashb
 
 | Variable | Description |
 |---|---|
-| `YOUTUBE_API_KEYS` | Comma-separated list of YouTube Data API v3 keys (e.g. `key1,key2,key3`). Supports rotation on quota exhaustion. Falls back to `YOUTUBE_API_KEY` for single-key setups. |
+| `YOUTUBE_API_KEY` | A single YouTube Data API v3 key from the project's one Google Cloud project. |
 | `CHANNEL_IDS` | Comma-separated YouTube channel IDs to monitor |
 | `SUPABASE_DATABASE_URL` | |
 
@@ -215,7 +215,7 @@ pip install -r requirements.txt
 ### 2. Set environment variables
 
 ```bash
-export YOUTUBE_API_KEYS="AIzaKey1,AIzaKey2"
+export YOUTUBE_API_KEY="AIzaYourKey"
 export CHANNEL_IDS="UCxxxxxx,UCyyyyyy"
 export SUPABASE_DATABASE_URL="postgres://postgres:<password>@db.<project-ref>.supabase.co:<port>/postgres"
 ```
@@ -240,7 +240,7 @@ The tracker is designed to run on a **self-hosted Windows runner**. Add reposito
 
 | Secret | Required |
 |---|---|
-| `YOUTUBE_API_KEYS` | ✅ |
+| `YOUTUBE_API_KEY` | ✅ |
 | `CHANNEL_IDS` | ✅ |
 | `SUPABASE_DATABASE_URL` | ✅ |
 | `GH_PAT` | ✅ (to trigger the dashboard repo) |
@@ -255,11 +255,32 @@ The archiver workflow runs daily on an `ubuntu-latest` runner, checking out the 
 ## API Quota Notes
 
 - `activities.list` — **1 unit** per call (used for stream detection)
-- `videos.list` — **1 unit** per call (used for analytics + upcoming status checks)
+- `videos.list` — **1 unit** per call (used for analytics, upcoming status checks, and to check each upload found by the channel scan)
 - `channels.list` — **1 unit** per call (used at startup and for logo/subscriber caching)
 - `search.list` — **100 units** per call (intentionally avoided)
 
-With the `activities.list`-based detection, a typical run across many channels stays well within the 10,000 unit/day free quota. Multiple API keys can be provided via `YOUTUBE_API_KEYS` and are rotated automatically when one is exhausted; exhausted state is persisted across runner restarts and cleared at the YouTube quota reset boundary (midnight Pacific time).
+Estimated daily usage with the production workflow settings (`POLL_INTERVAL_SEC=900` → 96 channel scans/day, `STREAM_POLL_SEC=60`):
+
+| Source | Cost | Per day |
+|---|---|---|
+| Channel scan | 1 unit/channel (`activities.list`) + 1 unit per upload found in that channel's 10 most recent activities (`videos.list`), i.e. 1–11 units per channel per scan | 96 (no recent uploads) to ~1,050 (10 recent uploads) **per tracked channel** |
+| Live analytics | one batched `videos.list` per 60 s cycle while any stream is live (≤50 videos per call) | ≤ ~1,500 |
+| Upcoming fast-poll | one batched `videos.list` per 60 s cycle while any stream is within its start window | ≤ ~1,500 |
+| Logo/subscriber refresh | a few `channels.list` calls | < 10 |
+
+The channel scan dominates. With the default free quota of 10,000 units/day, and reserving ~3,000 units/day for everything except the scan, the number of channels that can be tracked is roughly:
+
+`channels ≈ 7,000 ÷ (96 × (1 + average recent uploads per channel))`
+
+| Average recent uploads per channel | Units per channel per day | Approx. channels within 10,000 units/day |
+|---|---|---|
+| 0 (best case) | ~96 | ~70 |
+| 3 (typical) | ~385 | ~18 |
+| 10 (worst case) | ~1,050 | ~6 |
+
+These are estimates; check actual consumption on the Google Cloud Console quota page. Tracking more channels than this requires a higher quota (see below). Note that the code default `POLL_INTERVAL_SEC=60` would multiply the scan cost by 15 compared with the workflow's 900 s.
+
+All requests use a single API key from a single Google Cloud project. If the daily quota is exhausted, the tracker does not switch keys: it pauses YouTube API calls until the quota resets (midnight Pacific time, plus a small buffer) and then resumes automatically. Additional capacity should be requested through YouTube's official quota extension process, not by creating extra projects.
 
 ---
 
