@@ -128,14 +128,14 @@ jobs:
             $updated = [datetime]::Parse($run.updated_at).ToUniversalTime()
             $duration = ($updated - $created).TotalSeconds
 
-            if ($duration -ge 21000) {
+            if ($duration -ge 5500) {
               $deleteUrl = "https://api.github.com/repos/$repo/actions/runs/$($run.id)"
               Invoke-RestMethod -Uri $deleteUrl -Method DELETE -Headers $headers
-              Write-Host "Deleted 6h-wall run $($run.id) (duration: $([math]::Round($duration/3600, 2))h)"
+              Write-Host "Deleted wall run $($run.id) (duration: $([math]::Round($duration/3600, 2))h)"
               $deleted++
             }
           }
-          Write-Host "Cleanup complete. Deleted $deleted run(s) that hit the 6-hour wall."
+          Write-Host "Cleanup complete. Deleted $deleted run(s) that hit the wall."
 
       # id is required so the Discord step below can inspect this step's outcome.
 
